@@ -1,0 +1,86 @@
+"use client";
+
+import AppBar from "@/components/AppBar";
+
+export default function Notifications() {
+  const notifs = [
+    {
+      id: 1,
+      type: "coral",
+      icon: "⏰",
+      title: "أوجمنتين ١g قارب على الانتهاء",
+      desc: "باقي ٣ أيام على الصلاحية — الفرع الرئيسي",
+      time: "قبل ١٠ دقائق",
+    },
+    {
+      id: 2,
+      type: "amber",
+      icon: "📦",
+      title: "فنتولين بخاخ نفدت الكمية",
+      desc: "فرع الحي الشرقي — يُنصح بطلب توريد",
+      time: "قبل ساعة",
+    },
+    {
+      id: 3,
+      type: "teal",
+      icon: "🔁",
+      title: "تجديد دواء مزمن",
+      desc: "هبة سلامة موعد تجديد ميتفورمين خلال يومين",
+      time: "اليوم ٨:٠٠ ص",
+    },
+    {
+      id: 4,
+      type: "primary",
+      icon: "✅",
+      title: "اكتمل جرد فرع البلد",
+      desc: "تطابق كامل مع سجل النظام",
+      time: "أمس",
+    },
+  ];
+
+  const getColorClasses = (type: string) => {
+    switch (type) {
+      case "coral":
+        return "border-r-coral bg-coral-pale";
+      case "amber":
+        return "border-r-amber bg-amber-pale";
+      case "teal":
+        return "border-r-teal bg-teal-pale";
+      default:
+        return "border-r-mint-line bg-primary-pale";
+    }
+  };
+
+  return (
+    <div className="max-w-3xl">
+      <AppBar title="الإشعارات" showLogo={false} />
+
+      <div className="flex flex-col gap-3 mt-4">
+        {notifs.map((n) => {
+          const colors = getColorClasses(n.type);
+          return (
+            <div
+              key={n.id}
+              className={`flex gap-4 bg-card border border-mint-line border-r-4 rounded-[12px] p-4 shadow-sm ${colors.split(" ")[0]}`}
+            >
+              <div
+                className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center text-[18px] ${colors.split(" ")[1]}`}
+              >
+                {n.icon}
+              </div>
+              <div>
+                <h4 className="text-[16px] font-bold text-ink">{n.title}</h4>
+                <p className="text-[14px] text-ink-soft mt-1 leading-relaxed">
+                  {n.desc}
+                </p>
+                <div className="text-[12px] text-[#A6B8AE] mt-2 font-mono">
+                  {n.time}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,1 @@
+﻿const sqlite3 = require("sqlite3"); const db = new sqlite3.Database("roshetta_server/roshetta.db"); db.all("SELECT * FROM batches", (e, r) => console.log(r.filter(x => x.drug_name && x.drug_name.includes("عيسى")))); db.all("SELECT * FROM inventory", (e,r) => console.log(r.filter(x => x.name && x.name.includes("عيسى"))));

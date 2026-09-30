@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #1C2733;
+  --ink-soft: #5B6A78;
+  --bg: #E6EEF4;
+  --card: #FFFFFF;
+  --primary: #1B3A5C;
+  --primary-light: #22507A;
+  --primary-pale: #EFF5FA;
+  --mint-line: #DCE7EF;
+  --amber: #F2A93B;
+  --amber-pale: #FDF1DD;
+  --coral: #E8553D;
+  --coral-pale: #FBE6E2;
+  --teal: #6FA3C9;
+  --teal-pale: #A8C7DD;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-pale: var(--primary-pale);
+  --color-mint-line: var(--mint-line);
+  --color-amber: var(--amber);
+  --color-amber-pale: var(--amber-pale);
+  --color-coral: var(--coral);
+  --color-coral-pale: var(--coral-pale);
+  --color-teal: var(--teal);
+  --color-teal-pale: var(--teal-pale);
+  
+  --font-sans: var(--font-ibm-plex-sans-arabic), Arial, Helvetica, sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), monospace;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--ink);
+  direction: rtl;
+}
