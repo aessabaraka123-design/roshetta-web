@@ -9,6 +9,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import RoshettaLogo from "@/components/RoshettaLogo";
 import toast from "react-hot-toast";
 import { useStore } from "@/store";
+import { AlertCircle } from "lucide-react";
 
 function RegisterPageContent() {
   const searchParams = useSearchParams();
@@ -544,14 +545,20 @@ function RegisterPageContent() {
                         type="text"
                         placeholder="صيدلية الأمل"
                         value={formData.pharmacyName}
-                        onChange={(e) =>
+                         style={errors.pharmacyName ? { borderColor: '#ef4444', boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.15)' } : {}}
+                          onChange={(e) =>
                           setFormData({
                             ...formData,
                             pharmacyName: e.target.value,
                           })
                         }
                       />
-                        {errors.pharmacyName && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '4px', fontWeight: 500 }}>{errors.pharmacyName}</p>}
+                        {errors.pharmacyName && (
+                        <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <AlertCircle size={15} />
+                          {errors.pharmacyName}
+                        </p>
+                      )}
                     </div>
                     <div className="field">
                       <label>اسم المدير / المالك</label>
@@ -559,14 +566,20 @@ function RegisterPageContent() {
                         type="text"
                         placeholder="د. محمد أحمد"
                         value={formData.managerName}
-                        onChange={(e) =>
+                         style={errors.managerName ? { borderColor: '#ef4444', boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.15)' } : {}}
+                          onChange={(e) =>
                           setFormData({
                             ...formData,
                             managerName: e.target.value,
                           })
                         }
                       />
-                        {errors.managerName && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '4px', fontWeight: 500 }}>{errors.managerName}</p>}
+                        {errors.managerName && (
+                        <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <AlertCircle size={15} />
+                          {errors.managerName}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -576,11 +589,17 @@ function RegisterPageContent() {
                       type="email"
                       placeholder="pharmacy@example.com"
                       value={formData.email}
-                      onChange={(e) =>
+                       style={errors.email ? { borderColor: '#ef4444', boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.15)' } : {}}
+                          onChange={(e) =>
                         setFormData({ ...formData, email: e.target.value })
                       }
                     />
-                      {errors.email && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '4px', fontWeight: 500 }}>{errors.email}</p>}
+                      {errors.email && (
+                        <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <AlertCircle size={15} />
+                          {errors.email}
+                        </p>
+                      )}
                     </div>
 
                   <div className="field">
@@ -614,7 +633,8 @@ function RegisterPageContent() {
                         type="tel"
                         placeholder="0599 000 000"
                         value={formData.phone}
-                        onChange={(e) => {
+                         style={errors.phone ? { borderColor: '#ef4444', boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.15)' } : {}}
+                          onChange={(e) => {
                           const val = e.target.value
                             .replace(/[^0-9]/g, "")
                             .slice(0, 10);
@@ -632,7 +652,12 @@ function RegisterPageContent() {
                         dir="ltr"
                       />
                       </div>
-                      {errors.phone && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '4px', fontWeight: 500 }}>{errors.phone}</p>}
+                      {errors.phone && (
+                        <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <AlertCircle size={15} />
+                          {errors.phone}
+                        </p>
+                      )}
                   </div>
 
                   <div className="field">
@@ -641,11 +666,17 @@ function RegisterPageContent() {
                       type="password"
                       placeholder="••••••••"
                       value={formData.password}
-                      onChange={(e) =>
+                       style={errors.password ? { borderColor: '#ef4444', boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.15)' } : {}}
+                          onChange={(e) =>
                         setFormData({ ...formData, password: e.target.value })
                       }
                     />
-                      {errors.password && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '4px', fontWeight: 500 }}>{errors.password}</p>}
+                      {errors.password && (
+                        <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <AlertCircle size={15} />
+                          {errors.password}
+                        </p>
+                      )}
                     </div>
 
                   <button
