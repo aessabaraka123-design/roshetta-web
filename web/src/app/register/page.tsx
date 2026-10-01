@@ -580,7 +580,8 @@ function RegisterPageContent() {
                         setFormData({ ...formData, email: e.target.value })
                       }
                     />
-                  </div>
+                      {errors.email && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '4px', fontWeight: 500 }}>{errors.email}</p>}
+                    </div>
 
                   <div className="field">
                     <label>رقم الموبايل</label>
@@ -630,7 +631,8 @@ function RegisterPageContent() {
                         style={{ flex: 1 }}
                         dir="ltr"
                       />
-                    </div>
+                      </div>
+                      {errors.phone && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '4px', fontWeight: 500 }}>{errors.phone}</p>}
                   </div>
 
                   <div className="field">
@@ -643,7 +645,8 @@ function RegisterPageContent() {
                         setFormData({ ...formData, password: e.target.value })
                       }
                     />
-                  </div>
+                      {errors.password && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '4px', fontWeight: 500 }}>{errors.password}</p>}
+                    </div>
 
                   <button
                     type="button"
