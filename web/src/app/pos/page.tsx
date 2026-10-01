@@ -1,8 +1,11 @@
 "use client";
 
+
+
 import { useState, useEffect } from "react";
 import AppBar from "@/components/AppBar";
 import SearchBar from "@/components/SearchBar";
+import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { exportInvoicePDF } from "@/utils/export";
 import { useStore } from "@/store";
@@ -27,7 +30,7 @@ interface CartItem extends Med {
   cartQty: number;
 }
 
-export default function POS() {
+function POSContent() {
   const user = useStore((state) => state.user);
   const router = useRouter();
 
@@ -897,5 +900,14 @@ export default function POS() {
         </div>
       )}
     </div>
+  );
+}
+
+
+export default function POS() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-ink-soft">جاري التحميل...</div>}>
+      <POSContent />
+    </Suspense>
   );
 }

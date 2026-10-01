@@ -1,13 +1,16 @@
 "use client";
 
+
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import RoshettaLogo from "@/components/RoshettaLogo";
 import toast from "react-hot-toast";
 import { useStore } from "@/store";
 
-export default function Register() {
+function RegisterPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const plan = searchParams.get("plan") || "monthly";
@@ -1154,5 +1157,14 @@ export default function Register() {
         </div>
       </div>
     </div>
+  );
+}
+
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-ink-soft">جاري التحميل...</div>}>
+      <RegisterPageContent />
+    </Suspense>
   );
 }
