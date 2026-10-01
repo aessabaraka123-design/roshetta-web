@@ -22,6 +22,7 @@ function RegisterPageContent() {
   const initialStep = stepParam === "2" && storeUser?.isReadOnly ? 2 : 1;
 
   const [step, setStep] = useState(initialStep);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     pharmacyName: storeUser?.pharmacyName || "",
     managerName: storeUser?.managerName || "",
@@ -101,29 +102,35 @@ function RegisterPageContent() {
     plans.find((p) => p.id === plan || p.type === plan) || fallbackPlan;
 
   const handleNext = () => {
-    if (!formData.pharmacyName || !formData.managerName || !formData.email || !formData.phone || !formData.password) {
-      toast.error("يرجى تعبئة جميع الحقول المطلوبة");
-      return;
-    }
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.pharmacyName) newErrors.pharmacyName = "يرجى إدخال اسم الصيدلية";
+    if (!formData.managerName) newErrors.managerName = "يرجى إدخال اسم المدير / المالك";
     
-    // Email Validation
-    const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
-    if (!emailRegex.test(formData.email)) {
-      toast.error("يرجى إدخال بريد إلكتروني صحيح");
-      return;
+    if (!formData.email) {
+      newErrors.email = "يرجى إدخال البريد الإلكتروني";
+    } else {
+      const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+      if (!emailRegex.test(formData.email)) {
+        newErrors.email = "يرجى إدخال بريد إلكتروني صحيح";
+      }
     }
 
-    // Phone Validation
-    if (formData.phone.trim().length < 9) {
-      toast.error("رقم الجوال يجب أن لا يقل عن 9 أرقام");
-      return;
+    if (!formData.phone) {
+      newErrors.phone = "يرجى إدخال رقم الجوال";
+    } else if (formData.phone.trim().length < 9) {
+      newErrors.phone = "رقم الجوال يجب أن لا يقل عن 9 أرقام";
     }
 
-    // Password Validation
-    if (formData.password.length < 6) {
-      toast.error("كلمة المرور يجب أن لا تقل عن 6 خانات");
-      return;
+    if (!formData.password) {
+      newErrors.password = "يرجى إدخال كلمة المرور";
+    } else if (formData.password.length < 6) {
+      newErrors.password = "كلمة المرور يجب أن لا تقل عن 6 خانات";
     }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) return;
     // الباقة المجانية: لا حاجة لرفع إيصال، نسجل مباشرة
     if (plan === "free" || selectedPlan?.price === 0) {
       handleRegister();
