@@ -101,8 +101,8 @@ function RegisterPageContent() {
     plans.find((p) => p.id === plan || p.type === plan) || fallbackPlan;
 
   const handleNext = () => {
-    if (!formData.pharmacyName || !formData.email || !formData.password) {
-      toast.error("الرجاء تعبئة جميع الحقول المطلوبة");
+    if (!formData.pharmacyName || !formData.managerName || !formData.email || !formData.phone || !formData.password) {
+      toast.error("يرجى تعبئة جميع الحقول المطلوبة بشكل صحيح");
       return;
     }
     // الباقة المجانية: لا حاجة لرفع إيصال، نسجل مباشرة
