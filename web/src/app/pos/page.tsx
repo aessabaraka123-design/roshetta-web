@@ -268,7 +268,7 @@ export default function POS() {
       setPrescriptionSearch("");
       mutate(); // refresh inventory qty from backend
       toast.success("تم إتمام البيع بنجاح!");
-    } catch (error) {
+    } catch (error: any) {
       toast.error(`حدث خطأ أثناء حفظ الفاتورة: ${error.message}`);
     } finally {
       setLoading(false);

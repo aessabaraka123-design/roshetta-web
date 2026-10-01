@@ -16,7 +16,7 @@ export default function PharmacyManager() {
 
   useEffect(() => {
     if (!user) router.push("/login");
-    else if (user.role !== "manager") {
+    else if ((user as any)?.role !== "manager") {
       toast.error("ليس لديك الصلاحية للوصول إلى هذه الصفحة");
       router.push("/");
     }
@@ -48,7 +48,7 @@ export default function PharmacyManager() {
 
   const { data: bData, mutate: mutateBranches } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user.pharmacy_id}/branches`
+      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/branches`
       : null,
     fetcher,
   );
@@ -56,7 +56,7 @@ export default function PharmacyManager() {
 
   const { data: sData, mutate: mutateStaff } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user.pharmacy_id}/staff`
+      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff`
       : null,
     fetcher,
   );
@@ -64,7 +64,7 @@ export default function PharmacyManager() {
 
   const { data: dashboardData } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/dashboard`
+      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/dashboard`
       : null,
     fetcher,
   );
@@ -73,7 +73,7 @@ export default function PharmacyManager() {
   const todayStr = new Date().toISOString().split("T")[0];
   const { data: reportResp } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/reports?from=${todayStr}&to=${todayStr}`
+      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/reports?from=${todayStr}&to=${todayStr}`
       : null,
     fetcher,
   );
@@ -115,7 +115,7 @@ export default function PharmacyManager() {
           <div>
             <div className="flex items-center gap-3 mb-1">
               <h1 className="text-[24px] font-bold text-ink">
-                أهلاً بك، {user?.name || user?.username || "المدير العام"} 👋
+                أهلاً بك، {(user as any)?.name || user?.username || "المدير العام"} 👋
               </h1>
               <span className="bg-primary-pale text-primary text-[12px] font-bold px-3 py-1 rounded-full">
                 المدير العام
@@ -442,7 +442,7 @@ export default function PharmacyManager() {
                               const newStatus =
                                 st.status === "active" ? "suspended" : "active";
                               const res = await fetch(
-                                `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user.pharmacy_id}/staff/${st.id}`,
+                                `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${st.id}`,
                                 {
                                   method: "PUT",
                                   headers: {
@@ -837,7 +837,7 @@ export default function PharmacyManager() {
                   }
                   try {
                     const res = await fetch(
-                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/expenses`,
+                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/expenses`,
                       {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -1049,7 +1049,7 @@ export default function PharmacyManager() {
                   if (editingStaff?.id) {
                     try {
                       const res = await fetch(
-                        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user.pharmacy_id}/staff/${editingStaff.id}`,
+                        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${editingStaff.id}`,
                         {
                           method: "PUT",
                           headers: { "Content-Type": "application/json" },
@@ -1066,7 +1066,7 @@ export default function PharmacyManager() {
                   } else {
                     try {
                       const res = await fetch(
-                        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user.pharmacy_id}/staff`,
+                        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff`,
                         {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
@@ -1136,7 +1136,7 @@ export default function PharmacyManager() {
                 onClick={async () => {
                   try {
                     const res = await fetch(
-                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user.pharmacy_id}/staff/${staffToFire.id}`,
+                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${staffToFire.id}`,
                       {
                         method: "DELETE",
                       },
@@ -1494,7 +1494,7 @@ export default function PharmacyManager() {
 
                   try {
                     const res = await fetch(
-                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user.pharmacy_id}/branches`,
+                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/branches`,
                       {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },

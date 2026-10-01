@@ -174,7 +174,7 @@ export default function Sidebar() {
                       return false;
                     return true;
                   })
-                  .map((item) => {
+                  .map((item: any) => {
                     const isActive = pathname === item.href;
                     const Icon = item.icon;
 

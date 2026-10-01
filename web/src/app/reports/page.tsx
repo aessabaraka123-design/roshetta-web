@@ -392,7 +392,7 @@ export default function Reports() {
                         />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(val: number) => `₪${val}`} />
+                    <Tooltip formatter={(val: any) => `₪${val}`} />
                     <Legend
                       iconType="circle"
                       wrapperStyle={{ fontSize: "13px", paddingTop: "20px" }}

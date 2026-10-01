@@ -40,7 +40,7 @@ export default function PurchasesPage() {
             filename: `فاتورة-${inv.id}.pdf`,
             image: { type: "jpeg" as const, quality: 0.98 },
             html2canvas: { scale: 2 },
-            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
           };
           await html2pdf().from(el).set(opt).save();
         }
@@ -1844,7 +1844,7 @@ export default function PurchasesPage() {
                         jsPDF: {
                           unit: "mm",
                           format: "a4",
-                          orientation: "portrait",
+                          orientation: "portrait" as const,
                         },
                       };
                       html2pdf().from(el).set(opt).save();

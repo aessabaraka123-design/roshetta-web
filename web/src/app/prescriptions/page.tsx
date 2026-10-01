@@ -169,9 +169,9 @@ export default function Prescriptions() {
           <tbody>
             {prescriptions
               .filter(
-                (p) => p.patient.includes(search) || p.id.includes(search),
+                (p: any) => p.patient.includes(search) || p.id.includes(search),
               )
-              .map((prx) => (
+              .map((prx: any) => (
                 <tr
                   key={prx.id}
                   className="border-b border-mint-line/50 hover:bg-bg/50 transition-all"

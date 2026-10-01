@@ -174,7 +174,7 @@ export default function SalesLog() {
                 ); // Gets YYYY-MM-DD in local timezone
                 return localDateStr === dateFilter;
               })
-              .map((sale) => (
+              .map((sale: any) => (
                 <tr
                   key={sale.id}
                   className={`border-b border-mint-line/50 transition-all ${sale.status === "refunded" ? "opacity-50 bg-bg" : "hover:bg-bg/50"}`}

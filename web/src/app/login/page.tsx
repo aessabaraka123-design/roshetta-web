@@ -254,7 +254,7 @@ export default function Login() {
         <div className="header">
           <div className="brand">
             <div className="brand-mark">
-              <RoshettaLogo width={50} height={50} />
+              <RoshettaLogo />
             </div>
             <div className="brand-name">روشتة</div>
           </div>

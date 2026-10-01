@@ -144,7 +144,7 @@ export default function ReceiptUpload() {
         <div className="wrap">
           {/* Header */}
           <div className="logo-row">
-            <RoshettaLogo size={32} />
+            <RoshettaLogo />
             <Link href="/" className="back-link">
               <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
                 <path
