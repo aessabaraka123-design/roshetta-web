@@ -633,8 +633,7 @@ function RegisterPageContent() {
                         type="tel"
                         placeholder="0599 000 000"
                         value={formData.phone}
-                         style={errors.phone ? { borderColor: '#ef4444', boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.15)' } : {}}
-                          onChange={(e) => {
+                         onChange={(e) => {
                           const val = e.target.value
                             .replace(/[^0-9]/g, "")
                             .slice(0, 10);
@@ -648,7 +647,7 @@ function RegisterPageContent() {
                               : val;
                           setFormData({ ...formData, phone: formatted });
                         }}
-                        style={{ flex: 1 }}
+                        style={{ flex: 1, ...(errors.phone ? { borderColor: '#ef4444', boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.15)' } : {}) }}
                         dir="ltr"
                       />
                       </div>
