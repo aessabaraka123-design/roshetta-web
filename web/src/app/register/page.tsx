@@ -551,6 +551,7 @@ function RegisterPageContent() {
                           })
                         }
                       />
+                        {errors.pharmacyName && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '4px', fontWeight: 500 }}>{errors.pharmacyName}</p>}
                     </div>
                     <div className="field">
                       <label>اسم المدير / المالك</label>
@@ -565,6 +566,7 @@ function RegisterPageContent() {
                           })
                         }
                       />
+                        {errors.managerName && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '4px', fontWeight: 500 }}>{errors.managerName}</p>}
                     </div>
                   </div>
 
