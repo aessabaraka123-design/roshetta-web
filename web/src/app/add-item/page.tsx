@@ -29,6 +29,7 @@ export default function AddItem() {
     batch_number: "",
     expiry_date: "",
     branch_id: "",
+    isControlled: false,
   });
 
   const [hasSubUnit, setHasSubUnit] = useState(false);

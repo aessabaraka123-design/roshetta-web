@@ -497,6 +497,22 @@ export default function BranchesAndStaff() {
                     dir="ltr"
                   />
                 </div>
+                
+                <div className="flex items-center gap-3 pt-2">
+                  <input
+                    type="checkbox"
+                    checked={newStaff.controlledMedsAccess}
+                    onChange={(e) => setNewStaff({ ...newStaff, controlledMedsAccess: e.target.checked })}
+                    className="w-5 h-5 accent-teal cursor-pointer"
+                  />
+                  <div>
+                    <label className="block text-[14px] font-bold text-teal">
+                      صلاحية بيع أدوية المراقبة (المخدرة)
+                    </label>
+                    <span className="text-[11px] text-ink-soft">يسمح للموظف بإضافة هذه الأدوية للفاتورة</span>
+                  </div>
+                </div>
+
                 <button
                   onClick={handleSaveStaff}
                   disabled={isLoading}

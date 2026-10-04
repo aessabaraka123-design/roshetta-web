@@ -1394,6 +1394,7 @@ app.post("/api/auth/login", (req, res) => {
                         role: staff.role,
                         pharmacy_id: pharmacy.id,
                         branch: staff.branch,
+                        controlledMedsAccess: staff.controlledMedsAccess,
                         isReadOnly:
                           pharmacy.isReadOnly === 1 ||
                           (pharmacy.subscriptionType !== "lifetime" &&
@@ -1868,7 +1869,7 @@ app.post("/api/admin/pharmacies/:id/staff", (req, res) => {
   } = req.body;
   const staffId = crypto.randomUUID();
   db.run(
-    "INSERT INTO staff (id, pharmacy_id, name, email, password, role, branch, phone, salary, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO staff (id, pharmacy_id, name, email, password, role, branch, phone, salary, active, controlledMedsAccess) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [
       staffId,
       id,
@@ -1880,6 +1881,7 @@ app.post("/api/admin/pharmacies/:id/staff", (req, res) => {
       phone || "",
       parseFloat(salary) || 0,
       1,
+      controlledMedsAccess ? 1 : 0,
     ],
     function (err) {
       if (err) return handleError(res, err);
@@ -2467,6 +2469,7 @@ app.post("/api/pharmacies/:id/inventory", (req, res) => {
     barcode,
     branch_id,
     units,
+    isControlled,
   } = req.body;
   const finalPrice = Number(price !== undefined ? price : price_sell) || 0;
   const finalCost = Number(cost !== undefined ? cost : price_buy) || 0;
@@ -2481,7 +2484,7 @@ app.post("/api/pharmacies/:id/inventory", (req, res) => {
     }
 
   db.run(
-    "INSERT INTO inventory (id, pharmacy_id, branch_id, barcode, name, scientificName, category, price, cost, qty, minQty, expiry, units, batch_number, syncStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced')",
+    "INSERT INTO inventory (id, pharmacy_id, branch_id, barcode, name, scientificName, category, price, cost, qty, minQty, expiry, units, batch_number, isControlled, syncStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced')",
     [
       itemId,
       pharmacy_id,
@@ -2497,6 +2500,7 @@ app.post("/api/pharmacies/:id/inventory", (req, res) => {
       finalExpiry,
       units || null,
       req.body.batch_number || "",
+      isControlled ? 1 : 0,
     ],
     function (err) {
       if (err) return handleError(res, err);

@@ -583,6 +583,23 @@ export default function Inventory() {
                     />
                   </div>
                 </div>
+                <div className="flex items-center gap-3 pt-2">
+                  <input
+                    type="checkbox"
+                    checked={editingItem.isControlled === 1 || editingItem.isControlled === true}
+                    onChange={(e) =>
+                      setEditingItem({
+                        ...editingItem,
+                        isControlled: e.target.checked ? 1 : 0,
+                      })
+                    }
+                    className="w-5 h-5 accent-teal cursor-pointer"
+                  />
+                  <div>
+                    <label className="font-bold text-teal block text-[14px]">دواء خاضع للرقابة (مراقبة)</label>
+                    <span className="text-[11px] text-ink-soft">يمنع بيع هذا الدواء إلا بصلاحيات الإدارة</span>
+                  </div>
+                </div>
                 {/* ── الوحدات والأجزاء (متزامن مع الموبايل) ── */}
                 <div
                   className="border border-mint-line rounded-xl p-4 bg-bg"
