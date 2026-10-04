@@ -209,7 +209,7 @@ export default function Inventory() {
         setEditingItem(null);
         mutate();
       } else {
-        toast.error("حدث خطأ أثناء التعديل");
+        toast.error(result.error || "حدث خطأ أثناء التعديل");
       }
     } catch (err) {
       toast.error("خطأ في الاتصال بالخادم");

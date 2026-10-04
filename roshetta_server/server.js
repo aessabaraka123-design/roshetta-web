@@ -2472,6 +2472,14 @@ app.post("/api/pharmacies/:id/inventory", (req, res) => {
   const finalCost = Number(cost !== undefined ? cost : price_buy) || 0;
   const finalExpiry = expiry || expiry_date || "";
   const itemId = require("crypto").randomUUID();
+
+  // UNIQUE NAME CHECK POST
+  db.get("SELECT id FROM inventory WHERE pharmacy_id = ? AND name = ?", [pharmacy_id, name], (err, row) => {
+    if (err) return handleError(res, err);
+    if (row) {
+      return res.status(400).json({ success: false, error: "عذراً، يوجد منتج بنفس هذا الاسم بالفعل" });
+    }
+
   db.run(
     "INSERT INTO inventory (id, pharmacy_id, branch_id, barcode, name, scientificName, category, price, cost, qty, minQty, expiry, units, batch_number, syncStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced')",
     [
@@ -2498,6 +2506,7 @@ app.post("/api/pharmacies/:id/inventory", (req, res) => {
       });
     },
   );
+  });
 });
 
 app.put("/api/pharmacies/:id/inventory/:itemId", (req, res) => {
@@ -2521,6 +2530,14 @@ app.put("/api/pharmacies/:id/inventory/:itemId", (req, res) => {
   const finalPrice = Number(price !== undefined ? price : price_sell) || 0;
   const finalCost = Number(cost !== undefined ? cost : price_buy) || 0;
   const finalExpiry = expiry || expiry_date || "";
+
+  // UNIQUE NAME CHECK PUT
+  db.get("SELECT id FROM inventory WHERE pharmacy_id = ? AND name = ? AND id != ?", [pharmacy_id, name, itemId], (err, row) => {
+    if (err) return handleError(res, err);
+    if (row) {
+      return res.status(400).json({ success: false, error: "عذراً، يوجد منتج آخر بنفس هذا الاسم" });
+    }
+
   db.run(
     "UPDATE inventory SET barcode = ?, name = ?, scientificName = ?, category = ?, price = ?, cost = ?, qty = ?, minQty = ?, expiry = ?, branch_id = ?, units = ?, batch_number = ?, isControlled = ? WHERE id = ? AND pharmacy_id = ?",
     [
@@ -2547,6 +2564,7 @@ app.put("/api/pharmacies/:id/inventory/:itemId", (req, res) => {
       });
     },
   );
+  });
 });
 
 app.delete("/api/pharmacies/:id/inventory/:itemId", (req, res) => {

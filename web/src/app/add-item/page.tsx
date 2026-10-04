@@ -137,7 +137,7 @@ export default function AddItem() {
       router.push("/inventory");
     } catch (error) {
       setLoading(false);
-      toast.error("حدث خطأ أثناء الإضافة");
+      toast.error(error instanceof Error ? error.message : "حدث خطأ أثناء الإضافة");
     }
   };
 
