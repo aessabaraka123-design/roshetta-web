@@ -280,6 +280,18 @@ function POSContent() {
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          @page {
+            size: ${printerSize === "80mm" ? "80mm" : "58mm"} auto;
+            margin: 0;
+          }
+          body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+        }
+      `}} />
       <div className="w-full pb-10 print:hidden">
       {/* ===== TOP BAR ===== */}
       <AppBar
