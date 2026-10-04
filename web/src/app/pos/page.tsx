@@ -837,7 +837,7 @@ function POSContent() {
                   const widthMm = printerSize === "80mm" ? 80 : 58;
                   const pxHeight = element.offsetHeight;
                   // Convert pixels to mm (assuming 96 DPI)
-                  const heightMm = (pxHeight * 25.4) / 96;
+                  const heightMm = ((pxHeight * 25.4) / 96) + 10;
 
                   try {
                     const html2pdf = (await import("html2pdf.js")).default;
@@ -845,6 +845,7 @@ function POSContent() {
                       margin: 0,
                       filename: `invoice_${lastInvoice?.id || Date.now()}.pdf`,
                       image: { type: 'jpeg', quality: 1 },
+                      pagebreak: { mode: 'avoid-all' },
                       html2canvas: { scale: 3, useCORS: true },
                       jsPDF: { unit: 'mm', format: [widthMm, heightMm], orientation: 'portrait' }
                     }).from(element).save();
