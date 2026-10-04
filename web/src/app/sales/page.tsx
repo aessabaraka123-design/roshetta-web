@@ -218,7 +218,7 @@ export default function SalesLog() {
                               : sale.paymentMethod === "maalchat"
                                 ? "مالتشات"
                                 : sale.paymentMethod === "credit"
-                                  ? "ذمم"
+                                  ? "ذمم" + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
                                   : sale.paymentMethod}
                     </span>
                   </td>
@@ -305,7 +305,7 @@ export default function SalesLog() {
                           : selectedInvoice.paymentMethod === "maalchat"
                             ? "مالتشات"
                             : selectedInvoice.paymentMethod === "credit"
-                              ? "ذمم"
+                              ? "ذمم" + (selectedInvoice.customer?.name ? " (باسم: " + selectedInvoice.customer.name + ")" : "")
                               : selectedInvoice.paymentMethod}
                 </span>
               </div>
