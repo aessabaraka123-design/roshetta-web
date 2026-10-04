@@ -376,8 +376,11 @@ export default function AddItem() {
                     className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px]"
                   >
                     <option value="شريط">شريط</option>
+                    <option value="حبة">حبة / كبسولة</option>
                     <option value="أمبولة">أمبولة</option>
-                    <option value="ظرف">ظرف</option>
+                    <option value="ظرف">ظرف (مغلف)</option>
+                    <option value="قطرة">قطرة</option>
+                    <option value="عبوة">عبوة</option>
                   </select>
                 </div>
                 <div className="flex-1">

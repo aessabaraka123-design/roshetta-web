@@ -701,9 +701,11 @@ export default function Inventory() {
                             className="w-full border border-mint-line rounded-lg p-2 text-[12px] outline-none focus:border-primary text-right"
                           >
                             <option value="شريط">شريط</option>
+                            <option value="حبة">حبة / كبسولة</option>
                             <option value="أمبولة">أمبولة</option>
-                            <option value="مغلف">مغلف</option>
+                            <option value="ظرف">ظرف (مغلف)</option>
                             <option value="قطرة">قطرة</option>
+                            <option value="عبوة">عبوة</option>
                           </select>
                         </div>
                         <div>
