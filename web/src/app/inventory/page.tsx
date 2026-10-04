@@ -375,13 +375,18 @@ export default function Inventory() {
                     className="text-[14px] text-ink-soft mt-0.5 truncate max-w-full"
                     dir="auto"
                   >
-                    {med.manufacturer} · {med.category}
+                    {med.manufacturer ? med.manufacturer + " · " : ""}{med.category}
                   </p>
+                  {(med.isControlled === 1 || med.isControlled === true) && (
+                    <span className="mt-1.5 inline-block text-[11px] font-bold px-2 py-0.5 rounded bg-coral-pale text-coral">
+                      أدوية مراقبة (مخدّرة)
+                    </span>
+                  )}
                 </div>
                 <span
                   className={`text-[12px] font-bold px-3 py-1 rounded-full ${tagColorClass}`}
                 >
-                  {tag}
+                  {tag === "مراقبة" ? "متوفر" : tag}
                 </span>
               </div>
               <div className="flex items-center justify-between mb-4">
