@@ -665,9 +665,11 @@ function POSContent() {
 
               <div className="text-center mb-1">
                 <h1 className="text-[18px] font-bold mb-1 text-ink">
-                  {pharmacyName || "صيدلية العودة"}
+                  {pharmacyName || ""}
                 </h1>
-                <p className="text-[12px] text-ink-soft">غزة - شارع النصر</p>
+                {activeBranchObj?.addr && (
+                  <p className="text-[12px] text-ink-soft">{activeBranchObj.addr}</p>
+                )}
                 {pharmacyPhone && (
                   <p className="text-[12px] text-ink-soft">{pharmacyPhone}</p>
                 )}
@@ -693,7 +695,7 @@ function POSContent() {
                 <div className="flex justify-between items-center text-[12px]">
                   <span className="text-ink-soft font-bold">الموظف:</span>
                   <span className="text-ink font-bold">
-                    {user?.username || "علي علي"}
+                    {user?.managerName || user?.username || ""}
                   </span>
                 </div>
               </div>

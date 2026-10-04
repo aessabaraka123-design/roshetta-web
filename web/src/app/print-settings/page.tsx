@@ -225,9 +225,9 @@ export default function PrintSettings() {
 
             <div className="text-center mb-1">
               <h1 className="text-[18px] font-bold mb-1 text-ink">
-                {formData.name || "صيدلية العودة"}
+                {formData.name || "اسم الصيدلية"}
               </h1>
-              <p className="text-[12px] text-ink-soft">غزة - شارع النصر</p>
+              <p className="text-[12px] text-ink-soft opacity-70">عنوان الفرع (يظهر تلقائياً)</p>
               {formData.phone && (
                 <p className="text-[12px] text-ink-soft">{formData.phone}</p>
               )}
@@ -252,7 +252,7 @@ export default function PrintSettings() {
               </div>
               <div className="flex justify-between items-center text-[12px]">
                 <span className="text-ink-soft font-bold">الموظف:</span>
-                <span className="text-ink font-bold">علي علي</span>
+                <span className="text-ink font-bold">اسم الموظف</span>
               </div>
             </div>
 
