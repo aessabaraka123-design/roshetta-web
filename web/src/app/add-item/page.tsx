@@ -412,21 +412,25 @@ export default function AddItem() {
                 </div>
               </div>
 
-              <div className="h-px bg-mint-line my-4"></div>
+              {sub1Name !== 'حبة' && sub1Name !== 'أمبولة' && sub1Name !== 'قطرة' && (
+                <>
+                  <div className="h-px bg-mint-line my-4"></div>
 
-              <div className="flex items-center justify-between mb-4">
-                <label className="text-[14px] font-bold text-teal">
-                  هل يباع الـ {sub1Name} مجزأ؟ (مثال: حبة)
-                </label>
-                <input
-                  type="checkbox"
-                  checked={hasSubUnit2}
-                  onChange={(e) => setHasSubUnit2(e.target.checked)}
-                  className="w-5 h-5 accent-teal cursor-pointer"
-                />
-              </div>
+                  <div className="flex items-center justify-between mb-4">
+                    <label className="text-[14px] font-bold text-teal">
+                      هل يباع الـ {sub1Name} مجزأ؟ (مثال: حبة)
+                    </label>
+                    <input
+                      type="checkbox"
+                      checked={hasSubUnit2}
+                      onChange={(e) => setHasSubUnit2(e.target.checked)}
+                      className="w-5 h-5 accent-teal cursor-pointer"
+                    />
+                  </div>
+                </>
+              )}
 
-              {hasSubUnit2 && (
+              {sub1Name !== 'حبة' && sub1Name !== 'أمبولة' && sub1Name !== 'قطرة' && hasSubUnit2 && (
                 <div className="bg-white/50 p-4 rounded-xl border border-mint-line space-y-4">
                   <h3 className="font-bold text-[14px] text-teal">
                     أصغر جزء (مثال: حبة)
