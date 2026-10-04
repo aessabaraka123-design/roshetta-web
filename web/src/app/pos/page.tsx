@@ -835,20 +835,37 @@ function POSContent() {
                   if (!element) return;
                   
                   const widthMm = printerSize === "80mm" ? 80 : 58;
-                  const pxHeight = element.offsetHeight;
-                  // Convert pixels to mm (assuming 96 DPI)
-                  const heightMm = ((pxHeight * 25.4) / 96) + 10;
 
                   try {
-                    const html2pdf = (await import("html2pdf.js")).default;
-                    await html2pdf().set({
-                      margin: 0,
-                      filename: `invoice_${lastInvoice?.id || Date.now()}.pdf`,
-                      image: { type: 'jpeg', quality: 1 },
-                      pagebreak: { mode: 'avoid-all' },
-                      html2canvas: { scale: 3, useCORS: true },
-                      jsPDF: { unit: 'mm', format: [widthMm, heightMm], orientation: 'portrait' }
-                    }).from(element).save();
+                    // Use html2canvas and jsPDF directly to guarantee a single page of exact size
+                    const html2canvas = (await import("html2canvas")).default;
+                    const jsPDF = (await import("jspdf")).jsPDF;
+                    
+                    // Temporarily remove shadow and border for clean capture
+                    const originalBoxShadow = element.style.boxShadow;
+                    const originalBorder = element.style.border;
+                    element.style.boxShadow = "none";
+                    element.style.border = "none";
+                    
+                    const canvas = await html2canvas(element, { 
+                      scale: 3, 
+                      useCORS: true,
+                      backgroundColor: "#FDFAED"
+                    });
+                    
+                    // Restore styles
+                    element.style.boxShadow = originalBoxShadow;
+                    element.style.border = originalBorder;
+
+                    const imgData = canvas.toDataURL("image/png");
+                    
+                    // Calculate exact height preserving aspect ratio
+                    const heightMm = (canvas.height * widthMm) / canvas.width;
+                    
+                    // Create single page PDF
+                    const pdf = new jsPDF("p", "mm", [widthMm, heightMm]);
+                    pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm);
+                    pdf.save(`invoice_${lastInvoice?.id || Date.now()}.pdf`);
                   } catch (err) {
                     console.error("PDF generation error", err);
                   }
