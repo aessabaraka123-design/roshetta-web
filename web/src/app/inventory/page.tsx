@@ -207,6 +207,7 @@ export default function Inventory() {
             category: editingItem.category,
             price_sell: editingItem.price,
             price_buy: editingItem.cost,
+            isControlled: editingItem.isControlled ? 1 : 0,
             qty: (() => {
               const sb = editingItem.stock_boxes || 0;
               const sp1 = editingItem.stock_part1 || 0;
