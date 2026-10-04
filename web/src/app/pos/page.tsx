@@ -279,7 +279,8 @@ function POSContent() {
   };
 
   return (
-    <div className="w-full pb-10 print:hidden">
+    <>
+      <div className="w-full pb-10 print:hidden">
       {/* ===== TOP BAR ===== */}
       <AppBar
         title={editInvoiceId ? `تعديل الفاتورة ${editInvoiceId}` : "الكاشير"}
@@ -636,6 +637,7 @@ function POSContent() {
           </div>
         </div>
       </div>
+    </div>
 
       {showReceipt && lastInvoice && (
         <div className="fixed inset-0 bg-ink/50 z-50 overflow-y-auto print:overflow-visible print:p-0 print:bg-white print:static print:block">
@@ -935,7 +937,7 @@ function POSContent() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
