@@ -308,6 +308,25 @@ export default function AddItem() {
           </div>
         </div>
 
+
+        {/* Controlled Medicine Section */}
+        <div className="bg-card border-2 border-mint-line rounded-xl p-5 mt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-[16px] font-bold text-teal block">
+                دواء خاضع للرقابة (مراقبة)
+              </label>
+              <span className="text-xs text-ink-soft">يمنع بيع هذا الدواء إلا بصلاحيات الإدارة</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={formData.isControlled}
+              onChange={(e) => setFormData(prev => ({ ...prev, isControlled: e.target.checked }))}
+              className="w-6 h-6 accent-teal cursor-pointer"
+            />
+          </div>
+        </div>
+
         {/* Units Section */}
         <div className="bg-card border-2 border-mint-line rounded-xl p-5 mt-6">
           <div className="flex items-center justify-between mb-4">
