@@ -492,19 +492,35 @@ export default function Inventory() {
               className="flex flex-col flex-1 overflow-hidden min-h-0"
             >
               <div className="p-5 space-y-4 overflow-y-auto flex-1">
-                <div>
-                  <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                    اسم الصنف
-                  </label>
-                  <input
-                    required
-                    value={editingItem.name}
-                    onChange={(e) =>
-                      setEditingItem({ ...editingItem, name: e.target.value })
-                    }
-                    className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary text-[14px]"
-                    dir="auto"
-                  />
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
+                      اسم الصنف (التجاري)
+                    </label>
+                    <input
+                      required
+                      value={editingItem.name}
+                      onChange={(e) =>
+                        setEditingItem({ ...editingItem, name: e.target.value })
+                      }
+                      className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary text-[14px]"
+                      dir="auto"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
+                      الاسم العلمي
+                    </label>
+                    <input
+                      value={editingItem.scientificName || ""}
+                      onChange={(e) =>
+                        setEditingItem({ ...editingItem, scientificName: e.target.value })
+                      }
+                      className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary text-[14px]"
+                      dir="auto"
+                      placeholder="مثال: Amoxicillin"
+                    />
+                  </div>
                 </div>
                 <div className="flex gap-4">
                   <div className="flex-1">

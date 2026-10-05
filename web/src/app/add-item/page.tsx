@@ -20,6 +20,7 @@ export default function AddItem() {
 
   const [formData, setFormData] = useState({
     name: "",
+    scientificName: "",
     manufacturer: "",
     category: "",
     price_buy: "",
@@ -163,20 +164,37 @@ export default function AddItem() {
       <AppBar title="إضافة صنف جديد" showLogo={false} />
 
       <form onSubmit={handleSubmit} className="space-y-4 mt-6">
-        <div>
-          <label className="block text-[14px] font-semibold text-ink-soft mb-2">
-            اسم الدواء
-          </label>
-          <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
-            <input
-              required
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="مثال: أوجمنتين ١g"
-              className="w-full bg-transparent border-none outline-none text-[16px] text-ink placeholder:text-[#A6B8AE]"
-              dir="auto"
-            />
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <label className="block text-[14px] font-semibold text-ink-soft mb-2">
+              اسم الدواء (التجاري)
+            </label>
+            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
+              <input
+                required
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="مثال: أوجمنتين ١g"
+                className="w-full bg-transparent border-none outline-none text-[16px] text-ink placeholder:text-[#A6B8AE]"
+                dir="auto"
+              />
+            </div>
+          </div>
+          <div className="flex-1">
+            <label className="block text-[14px] font-semibold text-ink-soft mb-2">
+              الاسم العلمي
+            </label>
+            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
+              <input
+                name="scientificName"
+                value={formData.scientificName}
+                onChange={handleChange}
+                placeholder="مثال: Amoxicillin"
+                className="w-full bg-transparent border-none outline-none text-[16px] text-ink placeholder:text-[#A6B8AE]"
+                dir="auto"
+              />
+            </div>
           </div>
         </div>
 
