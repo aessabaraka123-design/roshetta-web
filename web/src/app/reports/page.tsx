@@ -158,31 +158,37 @@ export default function Reports() {
           <div className="flex gap-2 print:hidden">
             <button
               onClick={() =>
-                exportToExcel(
-                  [
-                    {
-                      totalRevenue: report.totalRevenue,
-                      totalProfit: report.totalProfit,
-                      totalExpenses: report.totalExpenses,
-                      netProfit: report.netProfit,
-                    },
-                  ],
-                  "Financial_Report",
-                )
+                {
+                  const now = new Date();
+                  const fileName = `Sales_Report_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+                  exportToExcel(
+                    [
+                      {
+                        totalRevenue: report.totalRevenue,
+                        totalProfit: report.totalProfit,
+                        totalExpenses: report.totalExpenses,
+                        netProfit: report.netProfit,
+                      },
+                    ],
+                    fileName,
+                  )
+                }
               }
               className="bg-teal text-white px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-md"
             >
               Excel
             </button>
             <button
-              onClick={() =>
+              onClick={() => {
+                const now = new Date();
+                const fileName = `Sales_Report_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
                 exportComprehensivePDF(
                   report,
                   user.pharmacyName || "صيدليتي",
                   `${from} إلى ${to}`,
-                  "Financial_Report",
+                  fileName,
                 )
-              }
+              }}
               className="bg-coral text-white px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-md"
             >
               PDF
