@@ -2732,6 +2732,7 @@ app.get("/api/pharmacies/:id/reports", (req, res) => {
       other: 0,
     };
     (rows || []).forEach((sale) => {
+      if (sale.status === "refunded") return;
       const saleTotal = sale.total || 0;
       totalRevenue += saleTotal;
       const day = sale.date
