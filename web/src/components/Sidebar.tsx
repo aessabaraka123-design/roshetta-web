@@ -1,80 +1,75 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState } from "react";
 import { useStore } from "@/store";
 import toast from "react-hot-toast";
 import RoshettaLogo from "./RoshettaLogo";
+import { useTranslation } from "@/i18n";
 import {
   HomeIcon,
   InventoryIcon,
   POSIcon,
   MoreIcon,
-  LogoMark,
   AdminIcon,
   SalesIcon,
   ReturnsIcon,
-  PrescriptionIcon,
-  CustomersIcon,
   BoxIcon,
+  CustomersIcon,
   ReportsIcon,
   ManagerIcon,
 } from "./icons";
-
-const navGroups = [
-  {
-    title: "",
-    items: [{ name: "لوحة التحكم", href: "/", icon: HomeIcon }],
-  },
-  {
-    title: "المبيعات ونقاط البيع",
-    items: [
-      { name: "نقطة البيع (POS)", href: "/pos", icon: POSIcon },
-      { name: "المبيعات والفواتير", href: "/sales", icon: SalesIcon },
-      {
-        name: "الوصفات الطبية",
-        href: "/prescriptions",
-        icon: PrescriptionIcon,
-      },
-      { name: "العملاء والمرضى", href: "/customers", icon: CustomersIcon },
-    ],
-  },
-  {
-    title: "المخزون والمشتريات",
-    items: [
-      { name: "المخزون والأدوية", href: "/inventory", icon: InventoryIcon },
-      { name: "إدارة الموردين", href: "/suppliers", icon: CustomersIcon },
-      { name: "فواتير المشتريات", href: "/purchases", icon: BoxIcon },
-      { name: "دفعات الصلاحيات", href: "/batches", icon: BoxIcon },
-      { name: "المرتجعات", href: "/returns", icon: ReturnsIcon },
-    ],
-  },
-  {
-    title: "المالية والإدارة",
-    items: [
-      { name: "المصروفات اليومية", href: "/expenses", icon: ReportsIcon },
-      { name: "الورديات والصندوق", href: "/shifts", icon: POSIcon },
-      { name: "التقارير", href: "/reports", icon: ReportsIcon },
-    ],
-  },
-  {
-    title: "الإدارة والإعدادات",
-    items: [
-      { name: "إدارة الفرع", href: "/manager", icon: ManagerIcon },
-      { name: "الإدارة المركزية", href: "/admin", icon: AdminIcon },
-      { name: "الإعدادات", href: "/more", icon: MoreIcon },
-    ],
-  },
-];
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const user = useStore((state) => state.user);
   const logout = useStore((state) => state.logout);
+  const language = useStore((state: any) => state.language);
+  const setLanguage = useStore((state: any) => state.setLanguage);
+  
+  const { t } = useTranslation();
 
-  // By default, open all groups, or specific ones
+  const navGroups = [
+    {
+      title: t.sidebar.dashboard,
+      items: [
+        { name: t.sidebar.dashboard, href: "/", icon: HomeIcon },
+        { name: t.sidebar.pos, href: "/pos", icon: POSIcon },
+        { name: t.sidebar.sales_invoices, href: "/sales", icon: SalesIcon },
+        { name: t.sidebar.prescriptions, href: "/prescriptions", icon: ReportsIcon },
+        { name: t.sidebar.customers_patients, href: "/customers", icon: ManagerIcon },
+      ],
+    },
+    {
+      title: t.sidebar.inventory_meds,
+      items: [
+        { name: t.sidebar.inventory_meds, href: "/inventory", icon: InventoryIcon },
+        { name: t.sidebar.suppliers_management, href: "/suppliers", icon: CustomersIcon },
+        { name: t.sidebar.purchase_invoices, href: "/purchases", icon: SalesIcon },
+        { name: t.sidebar.batches_expiry, href: "/batches", icon: BoxIcon },
+        { name: t.sidebar.returns, href: "/returns", icon: ReturnsIcon },
+      ],
+    },
+    {
+      title: t.sidebar.reports,
+      items: [
+        { name: t.sidebar.expenses, href: "/expenses", icon: ReportsIcon },
+        { name: t.sidebar.shifts, href: "/shifts", icon: POSIcon },
+        { name: t.sidebar.reports, href: "/reports", icon: ReportsIcon },
+      ],
+    },
+    {
+      title: t.sidebar.security_backup,
+      items: [
+        { name: t.sidebar.staff_branches, href: "/manager", icon: ManagerIcon },
+        { name: t.sidebar.security_backup, href: "/admin", icon: AdminIcon },
+        { name: t.sidebar.print_settings, href: "/more", icon: MoreIcon },
+      ],
+    },
+  ];
+
   const [openGroups, setOpenGroups] = useState<Record<number, boolean>>({
     0: true,
     1: true,
@@ -88,7 +83,7 @@ export default function Sidebar() {
 
   const handleLogout = () => {
     logout();
-    toast.success("تم تسجيل الخروج بنجاح");
+    toast.success(t.sidebar.logout);
     router.push("/login");
   };
 
@@ -111,24 +106,24 @@ export default function Sidebar() {
           .map((group) => {
             const isManager =
               user?.role === "manager" ||
-              user?.role === "مدير فرع" ||
               user?.role === "admin" ||
-              user?.role === "owner";
+              user?.role === "owner" ||
+              user?.role === "صيدلي أول";
             let items = [...group.items];
 
             if (!isManager) {
-              if (group.title === "المخزون والمشتريات") {
+              if (group.title === t.sidebar.inventory_meds) {
                 items = items.filter(
                   (i) =>
-                    i.name === "المخزون والأدوية" ||
-                    i.name === "المرتجعات" ||
-                    i.name === "دفعات الصلاحيات",
+                    i.name === t.sidebar.inventory_meds ||
+                    i.name === t.sidebar.returns ||
+                    i.name === t.sidebar.batches_expiry,
                 );
               }
-              if (group.title === "المالية والإدارة") {
-                items = items.filter((i) => i.name === "الورديات والصندوق");
+              if (group.title === t.sidebar.reports) {
+                items = items.filter((i) => i.name === t.sidebar.shifts);
               }
-              if (group.title === "الإدارة والإعدادات") {
+              if (group.title === t.sidebar.security_backup) {
                 return null;
               }
             }
@@ -168,7 +163,7 @@ export default function Sidebar() {
                 {group.items
                   .filter((item: any) => {
                     if (
-                      user?.role === "مدير فرع" &&
+                      user?.role === "صيدلي أول" &&
                       ["/branches", "/admin", "/more"].includes(item.href)
                     )
                       return false;
@@ -200,25 +195,43 @@ export default function Sidebar() {
           ))}
       </nav>
 
+      {/* Language Switcher */}
+      <div className="p-3 border-t border-mint-line/50">
+        <div className="flex items-center gap-2 bg-bg p-1 rounded-xl">
+          <button
+            onClick={() => setLanguage("ar")}
+            className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-colors ${language !== "en" ? "bg-white shadow-sm text-teal" : "text-ink-soft hover:text-ink"}`}
+          >
+            {t.sidebar.arabic}
+          </button>
+          <button
+            onClick={() => setLanguage("en")}
+            className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-colors ${language === "en" ? "bg-white shadow-sm text-teal" : "text-ink-soft hover:text-ink"}`}
+          >
+            {t.sidebar.english}
+          </button>
+        </div>
+      </div>
+
       <div className="p-4 border-t border-mint-line">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-teal-pale text-teal w-10 h-10 rounded-full flex items-center justify-center font-bold text-[14px] shrink-0">
-              {(user?.managerName || user?.managerName || "م").slice(0, 2)}
+              {(user?.managerName || user?.username || "?").slice(0, 2)}
             </div>
             <div>
               <div className="text-[15px] font-bold text-ink line-clamp-1 max-w-[120px]">
-                {user?.managerName || user?.managerName || "مستخدم"}
+                {user?.managerName || user?.username || "Guest"}
               </div>
-              <div className="text-[13px] text-ink-soft mt-0.5">
-                {user?.role || "موظف"}
+              <div className="text-[13px] text-ink-soft mt-0.5 capitalize">
+                {user?.role === "manager" ? t.sidebar.manager : (user?.role || t.sidebar.employee)}
               </div>
             </div>
           </div>
 
           <button
             onClick={handleLogout}
-            title="تسجيل خروج"
+            title={t.sidebar.logout}
             className="p-2 text-red-500/70 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors"
           >
             <svg

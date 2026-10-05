@@ -37,6 +37,8 @@ interface User {
 }
 
 interface StoreState {
+  language: 'ar' | 'en';
+  setLanguage: (lang: 'ar' | 'en') => void;
   user: User | null;
   login: (user: User) => void;
   logout: () => void;
@@ -55,6 +57,8 @@ interface StoreState {
 export const useStore = create<StoreState>()(
   persist(
     (set) => ({
+      language: 'ar',
+      setLanguage: (lang) => set({ language: lang }),
       user: null,
       login: (user) => set({ user }),
       logout: () => set({ user: null, posCart: [] }),

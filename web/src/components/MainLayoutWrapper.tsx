@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/store";
+import { useEffect } from "react";
 
 export default function MainLayoutWrapper({
   children,
@@ -10,7 +11,13 @@ export default function MainLayoutWrapper({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const user = useStore((state) => state.user);
+  const user = useStore((state: any) => state.user);
+  const language = useStore((state: any) => state.language);
+
+  useEffect(() => {
+    document.documentElement.dir = language === "en" ? "ltr" : "rtl";
+    document.documentElement.lang = language || "ar";
+  }, [language]);
 
   const isAuth =
     pathname === "/login" ||
