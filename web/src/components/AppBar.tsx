@@ -58,7 +58,7 @@ export default function AppBar({
   return (
     <div className="flex items-center justify-between mt-3 mb-5 w-full">
       <div className="flex items-center gap-2 text-primary">
-        {showLogo && <LogoMark className="w-[30px] h-[30px] shrink-0" />}
+        {showLogo && <LogoMark className="w-[48px] h-[48px] shrink-0" />}
         <span className="font-bold text-[20px]">{title}</span>
       </div>
       <div className="flex items-center gap-4">
