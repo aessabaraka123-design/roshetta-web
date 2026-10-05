@@ -12,6 +12,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export default function PurchasesPage() {
   const user = useStore((s: any) => s.user);
+  const language = useStore((s: any) => s.language);
   const router = useRouter();
   const pdfRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -416,14 +417,14 @@ export default function PurchasesPage() {
 
   return (
     <>
-      <AppBar title="المشتريات" showNotifs showLogo />
+      <AppBar title={language === 'en' ? "Purchases" : "المشتريات"} showNotifs showLogo />
 
       <div className="p-4 md:p-6 pb-28 md:pb-8 max-w-5xl mx-auto">
         {/* Header Stats */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="bg-white rounded-2xl p-4 border border-mint-line shadow-sm">
             <p className="text-[12px] font-bold text-ink-soft mb-1">
-              إجمالي الفواتير
+              {language === 'en' ? "Total Invoices" : "إجمالي الفواتير"}
             </p>
             <p className="text-[22px] font-mono font-black text-ink">
               ₪{totalCost.toFixed(2)}
@@ -431,7 +432,7 @@ export default function PurchasesPage() {
           </div>
           <div className="bg-white rounded-2xl p-4 border border-mint-line shadow-sm">
             <p className="text-[12px] font-bold text-ink-soft mb-1">
-              إجمالي المدفوع
+              {language === 'en' ? "Total Paid" : "إجمالي المدفوع"}
             </p>
             <p className="text-[22px] font-mono font-black text-teal">
               ₪{totalPaid.toFixed(2)}
@@ -439,7 +440,7 @@ export default function PurchasesPage() {
           </div>
           <div className="bg-white rounded-2xl p-4 border border-mint-line shadow-sm">
             <p className="text-[12px] font-bold text-ink-soft mb-1">
-              إجمالي المتبقي
+              {language === 'en' ? "Total Remaining" : "إجمالي المتبقي"}
             </p>
             <p className="text-[22px] font-mono font-black text-coral">
               ₪{totalRemaining.toFixed(2)}
@@ -468,26 +469,23 @@ export default function PurchasesPage() {
           <div className="flex-shrink-0 z-10 bg-white pl-3 flex items-center gap-2 border-l border-mint-line">
             <span className="text-xl">✨</span>
             <span className="font-bold text-primary text-[14px]">
-              نصيحة سريعة:
+              {language === 'en' ? "Quick Tip:" : "نصيحة سريعة:"}
             </span>
           </div>
           <div className="flex-1 overflow-hidden relative flex items-center">
             <div className="animate-marquee-rtl flex items-center gap-6 text-[14px] font-bold text-ink-soft w-max">
               <span>
-                نظام المشتريات يدعم الآن نظام الدفعات (FIFO) لضمان حساب أرباحك
-                بدقة 100% 💰
+                {language === 'en' ? "Purchasing system now supports FIFO for 100% accurate profit calculation 💰" : "نظام المشتريات يدعم الآن نظام الدفعات (FIFO) لضمان حساب أرباحك بدقة 100% 💰"}
               </span>
               <span className="text-mint-line">|</span>
-              <span>يمكنك تعديل "سعر البيع" مباشرة من داخل الفاتورة 🏷️</span>
+              <span>{language === 'en' ? 'You can edit "Selling Price" directly from within the invoice 🏷️' : 'يمكنك تعديل "سعر البيع" مباشرة من داخل الفاتورة 🏷️'}</span>
               <span className="text-mint-line">|</span>
               <span>
-                تذكر: الفاتورة "المبدئية" لا تُغيّر أرقام مخزونك، الفاتورة
-                "المكتملة" تعتمد الكميات والأسعار فوراً ✅
+                {language === 'en' ? 'Remember: "Draft" invoices do not change stock, "Completed" ones apply quantities and prices instantly ✅' : 'تذكر: الفاتورة "المبدئية" لا تُغيّر أرقام مخزونك، الفاتورة "المكتملة" تعتمد الكميات والأسعار فوراً ✅'}
               </span>
               <span className="text-mint-line">|</span>
               <span>
-                هل أخطأت؟ لا تقلق! حذف الفاتورة المكتملة يسحب كمياتها من المخزون
-                تلقائياً 🔄
+                {language === 'en' ? "Made a mistake? Don't worry! Deleting a completed invoice automatically reverts the stock 🔄" : "هل أخطأت؟ لا تقلق! حذف الفاتورة المكتملة يسحب كمياتها من المخزون تلقائياً 🔄"}
               </span>
             </div>
           </div>
@@ -512,7 +510,7 @@ export default function PurchasesPage() {
                 d="M12 4v16m8-8H4"
               />
             </svg>
-            فاتورة جديدة
+            {language === 'en' ? "New Invoice" : "فاتورة جديدة"}
           </button>
           {(user?.role === "owner" || user?.role === "superadmin") &&
             branches.length > 0 && (
@@ -521,7 +519,7 @@ export default function PurchasesPage() {
                 onChange={(e) => setBranchFilter(e.target.value)}
                 className="bg-white border border-mint-line text-ink font-bold py-3 px-4 rounded-2xl outline-none focus:border-primary text-[14px]"
               >
-                <option value="all">كل الفروع</option>
+                <option value="all">{language === 'en' ? "All Branches" : "كل الفروع"}</option>
                 {branches.map((b: any) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
@@ -550,10 +548,10 @@ export default function PurchasesPage() {
               </svg>
             </div>
             <h3 className="text-[17px] font-black text-ink mb-2">
-              لا توجد فواتير بعد
+              {language === 'en' ? "No invoices yet" : "لا توجد فواتير بعد"}
             </h3>
             <p className="text-[14px] text-ink-soft">
-              ابدأ بإضافة فاتورة مشتريات أو طلبية مبدئية
+              {language === 'en' ? "Start by adding a purchase invoice or draft order" : "ابدأ بإضافة فاتورة مشتريات أو طلبية مبدئية"}
             </p>
           </div>
         ) : (
@@ -591,7 +589,7 @@ export default function PurchasesPage() {
                           <div className="flex items-center gap-2 flex-wrap mb-1">
                             <span className="font-black text-[17px] text-ink">
                               {inv.supplier_name ||
-                                (isDraft ? "طلبية بدون مورد" : "مورد غير محدد")}
+                                (isDraft ? (language === 'en' ? "Draft without supplier" : "طلبية بدون مورد") : (language === 'en' ? "Unspecified supplier" : "مورد غير محدد"))}
                             </span>
                             <StatusBadge inv={inv} />
                             {inv.invoice_number && (
@@ -616,13 +614,13 @@ export default function PurchasesPage() {
                         </p>
                         {(inv.remaining || 0) > 0 && (
                           <p className="text-[12px] font-bold text-coral text-left">
-                            متبقي ₪{(inv.remaining || 0).toFixed(2)}
+                            {language === 'en' ? "Remaining" : "متبقي"} ₪{(inv.remaining || 0).toFixed(2)}
                           </p>
                         )}
                         {(inv.remaining || 0) <= 0 &&
                           inv.status !== "draft" && (
                             <p className="text-[12px] font-bold text-teal text-left">
-                              مدفوعة بالكامل ✓
+                              {language === 'en' ? "Fully Paid ✓" : "مدفوعة بالكامل ✓"}
                             </p>
                           )}
                       </div>
@@ -644,7 +642,7 @@ export default function PurchasesPage() {
                         ))}
                         {items.length > 5 && (
                           <span className="text-[11px] text-ink-soft py-1 self-center">
-                            +{items.length - 5} أخرى
+                            +{items.length - 5} {language === 'en' ? "more" : "أخرى"}
                           </span>
                         )}
                       </div>
@@ -655,13 +653,13 @@ export default function PurchasesPage() {
                         onClick={() => openEdit(inv)}
                         className={`px-4 py-2 rounded-xl text-[13px] font-bold transition-all ${isDraft ? "bg-primary text-white hover:opacity-90" : "bg-primary-pale text-primary hover:bg-primary hover:text-white"}`}
                       >
-                        {isDraft ? "إدخال للمخزون" : "تعديل"}
+                        {isDraft ? (language === 'en' ? "Add to Stock" : "إدخال للمخزون") : (language === 'en' ? "Edit" : "تعديل")}
                       </button>
                       <button
                         onClick={() => setShowPreview(inv)}
                         className="px-4 py-2 bg-bg text-ink-soft rounded-xl text-[13px] font-bold hover:bg-mint-line transition-all"
                       >
-                        معاينة
+                        {language === 'en' ? "Preview" : "معاينة"}
                       </button>
                       <button
                         onClick={() => downloadPDF(inv)}
@@ -690,7 +688,7 @@ export default function PurchasesPage() {
                         onClick={() => handleDelete(inv.id)}
                         className="px-4 py-2 bg-bg text-coral rounded-xl text-[13px] font-bold hover:bg-coral-pale transition-all"
                       >
-                        حذف
+                        {language === 'en' ? "Delete" : "حذف"}
                       </button>
                     </div>
                   </div>
@@ -734,12 +732,12 @@ export default function PurchasesPage() {
                 </div>
                 <div>
                   <h2 className="text-[22px] font-black text-ink leading-tight">
-                    {editingId ? "تعديل الفاتورة" : "فاتورة مشتريات جديدة"}
+                    {editingId ? (language === 'en' ? "Edit Invoice" : "تعديل الفاتورة") : (language === 'en' ? "New Purchase Invoice" : "فاتورة مشتريات جديدة")}
                   </h2>
                   <p className="text-[13px] text-ink-soft mt-0.5">
                     {form.status === "draft"
-                      ? "طلبية مبدئية — لا تؤثر على المخزون"
-                      : "فاتورة فعلية — تضاف للمخزون وحساب المورد"}
+                      ? (language === 'en' ? "Draft Order — does not affect stock" : "طلبية مبدئية — لا تؤثر على المخزون")
+                      : (language === 'en' ? "Actual Invoice — adds to stock and supplier account" : "فاتورة فعلية — تضاف للمخزون وحساب المورد")}
                   </p>
                 </div>
               </div>
@@ -771,7 +769,7 @@ export default function PurchasesPage() {
                   {/* Type Toggle */}
                   <div>
                     <label className="block text-[13px] font-black text-ink-soft uppercase tracking-wide mb-2">
-                      نوع الفاتورة
+                      {language === 'en' ? "Invoice Type" : "نوع الفاتورة"}
                     </label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
@@ -781,14 +779,14 @@ export default function PurchasesPage() {
                         }
                         className={`py-3 rounded-xl border-2 text-[14px] font-black transition-all ${form.status === "completed" ? "border-primary bg-primary-pale text-primary shadow-sm" : "border-mint-line bg-white text-ink-soft hover:border-primary/40"}`}
                       >
-                        فعلية
+                        {language === 'en' ? "Actual" : "فعلية"}
                       </button>
                       <button
                         type="button"
                         onClick={() => setForm({ ...form, status: "draft" })}
                         className={`py-3 rounded-xl border-2 text-[14px] font-black transition-all ${form.status === "draft" ? "border-coral bg-coral-pale text-coral shadow-sm" : "border-mint-line bg-white text-ink-soft hover:border-coral/40"}`}
                       >
-                        مبدئية
+                        {language === 'en' ? "Draft" : "مبدئية"}
                       </button>
                     </div>
                   </div>

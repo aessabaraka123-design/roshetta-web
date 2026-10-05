@@ -77,8 +77,8 @@ export default function Dashboard() {
             })}{" "}
             —{" "}
             {isManager
-              ? "{t.dashboard.summary_today}"
-              : `إليك ملخص فرع ${user.branch || ""} اليوم`}
+              ? t.dashboard.summary_today
+              : `${t.dashboard.summary_today_branch} ${user.branch || ""}`}
           </p>
         </div>
       </div>

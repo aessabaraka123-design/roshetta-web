@@ -58,15 +58,16 @@ const PIE_COLORS = ["#2DC08E", "#223E56", "#F2A93B", "#6FA3C9", "#E85D75"];
 
 export default function Reports() {
   const user = useStore((state) => state.user);
+  const language = useStore((state: any) => state.language);
   const router = useRouter();
 
   useEffect(() => {
     if (!user) router.push("/login");
     else if (user.role !== "manager" && user.role !== "مدير فرع") {
-      toast.error("ليس لديك الصلاحية للوصول إلى هذه الصفحة");
+      toast.error(language === 'en' ? 'You do not have permission to access this page' : 'ليس لديك الصلاحية للوصول إلى هذه الصفحة');
       router.push("/");
     }
-  }, [user, router]);
+  }, [user, router, language]);
 
   const isManager = user?.role === "manager";
 
@@ -126,13 +127,13 @@ export default function Reports() {
 
   const pb = report.paymentBreakdown || {};
   const pieData = [
-    { name: "نقدي", value: pb.cash || 0 },
-    { name: "بنكي", value: pb.bank || 0 },
-    { name: "جوال باي", value: pb.jawwal || 0 },
-    { name: "بال باي", value: pb.palpay || 0 },
-    { name: "مالتشات", value: pb.maalchat || 0 },
-    { name: "ذمم", value: pb.credit || 0 },
-    { name: "أخرى", value: pb.other || 0 },
+    { name: language === "en" ? "Cash" : "نقدي", value: pb.cash || 0 },
+    { name: language === "en" ? "Bank" : "بنكي", value: pb.bank || 0 },
+    { name: language === "en" ? "Jawwal Pay" : "جوال باي", value: pb.jawwal || 0 },
+    { name: language === "en" ? "PalPay" : "بال باي", value: pb.palpay || 0 },
+    { name: language === "en" ? "MaalChat" : "مالتشات", value: pb.maalchat || 0 },
+    { name: language === "en" ? "Credit" : "ذمم", value: pb.credit || 0 },
+    { name: language === "en" ? "Other" : "أخرى", value: pb.other || 0 },
   ].filter((d) => d.value > 0);
 
   const handlePrint = () => window.print();
@@ -142,7 +143,7 @@ export default function Reports() {
   return (
     <main className="w-full pb-24 relative print:p-0">
       <AppBar
-        title="التقارير المالية والأداء"
+        title={language === "en" ? "Financial & Performance Reports" : "التقارير المالية والأداء"}
         backHref={isManager ? "/more" : "/"}
       />
 
@@ -150,7 +151,7 @@ export default function Reports() {
         {/* Header + Print */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-[24px] font-black text-primary">التقارير 📊</h1>
+            <h1 className="text-[24px] font-black text-primary">{language === 'en' ? 'Reports' : 'التقارير'} 📊</h1>
             <p className="text-ink-soft text-[14px] font-bold">
               {from} — {to}
             </p>
@@ -184,8 +185,8 @@ export default function Reports() {
                 const fileName = `Sales_Report_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
                 exportComprehensivePDF(
                   report,
-                  user.pharmacyName || "صيدليتي",
-                  `${from} إلى ${to}`,
+                  user.pharmacyName || (language === "en" ? "My Pharmacy" : "صيدليتي"),
+                  `${from} ${language === "en" ? "to" : "إلى"} ${to}`,
                   fileName,
                 )
               }}
@@ -197,7 +198,7 @@ export default function Reports() {
               onClick={handlePrint}
               className="bg-primary text-white px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-md"
             >
-              طباعة
+              {language === "en" ? "Print" : "طباعة"}
             </button>
           </div>
         </div>
@@ -212,12 +213,12 @@ export default function Reports() {
                 className={`px-4 py-2 rounded-lg text-[13px] font-bold transition-all ${dateRange === r ? "bg-white shadow-sm text-primary" : "text-ink-soft hover:text-ink"}`}
               >
                 {r === "today"
-                  ? "اليوم"
+                  ? language === "en" ? "Today" : "اليوم"
                   : r === "week"
-                    ? "آخر 7 أيام"
+                    ? language === "en" ? "Last 7 Days" : "آخر 7 أيام"
                     : r === "month"
-                      ? "هذا الشهر"
-                      : "مخصص"}
+                      ? language === "en" ? "This Month" : "هذا الشهر"
+                      : language === "en" ? "Custom" : "مخصص"}
               </button>
             ))}
           </div>
@@ -229,7 +230,7 @@ export default function Reports() {
                 onChange={(e) => setCustomFrom(e.target.value)}
                 className="bg-bg border border-mint-line rounded-lg px-3 py-2 text-[13px]"
               />
-              <span className="text-ink-soft text-[13px] font-bold">إلى</span>
+              <span className="text-ink-soft text-[13px] font-bold">{language === "en" ? "to" : "إلى"}</span>
               <input
                 type="date"
                 value={customTo}
@@ -245,7 +246,7 @@ export default function Reports() {
                 onChange={(e) => setBranchFilter(e.target.value)}
                 className="bg-bg border border-mint-line rounded-lg px-3 py-2 text-[13px] font-bold text-primary focus:outline-none focus:border-primary"
               >
-                <option value="all">كل الفروع</option>
+                <option value="all">{language === "en" ? "All Branches" : "كل الفروع"}</option>
                 {branches.map((b: any) => (
                   <option key={b.id} value={b.name}>
                     {b.name}
@@ -260,7 +261,7 @@ export default function Reports() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:grid-cols-4">
           <div className="bg-primary text-white rounded-2xl p-5 shadow-lg shadow-primary/20 transform hover:-translate-y-1 transition-all">
             <div className="text-[13px] font-bold text-white/80 mb-1">
-              إجمالي المبيعات
+              {language === "en" ? "Total Revenue" : "إجمالي المبيعات"}
             </div>
             <div className="font-mono text-[24px] md:text-[28px] font-black">
               ₪{report.totalRevenue.toLocaleString()}
@@ -268,7 +269,7 @@ export default function Reports() {
           </div>
           <div className="bg-teal text-white rounded-2xl p-5 shadow-lg shadow-teal/20 transform hover:-translate-y-1 transition-all">
             <div className="text-[13px] font-bold text-white/80 mb-1">
-              الربح الإجمالي (من المبيعات)
+              {language === "en" ? "Gross Profit (from sales)" : "الربح الإجمالي (من المبيعات)"}
             </div>
             <div className="font-mono text-[24px] md:text-[28px] font-black">
               ₪{report.totalProfit.toLocaleString()}
@@ -276,7 +277,7 @@ export default function Reports() {
           </div>
           <div className="bg-coral text-white rounded-2xl p-5 shadow-lg shadow-coral/20 transform hover:-translate-y-1 transition-all">
             <div className="text-[13px] font-bold text-white/80 mb-1">
-              إجمالي المصروفات
+              {language === "en" ? "Total Expenses" : "إجمالي المصروفات"}
             </div>
             <div className="font-mono text-[24px] md:text-[28px] font-black">
               ₪{(report.totalExpenses || 0).toLocaleString()}
@@ -284,9 +285,9 @@ export default function Reports() {
           </div>
           <div className="bg-white border-2 border-primary/20 rounded-2xl p-5 shadow-sm transform hover:-translate-y-1 transition-all">
             <div className="text-[13px] font-bold text-primary mb-1 flex items-center justify-between">
-              صافي الربح
+              {language === "en" ? "Net Profit" : "صافي الربح"}
               <span className="text-[11px] bg-primary/10 px-2 py-0.5 rounded-full">
-                {report.profitMargin}% هامش
+                {report.profitMargin}% {language === "en" ? "Margin" : "هامش"}
               </span>
             </div>
             <div
@@ -302,7 +303,7 @@ export default function Reports() {
           {/* Trend Chart */}
           <div className="lg:col-span-2 bg-white rounded-3xl p-6 shadow-sm border border-mint-line">
             <h3 className="text-[16px] font-bold text-ink mb-6">
-              المبيعات اليومية
+              {language === "en" ? "Daily Sales" : "المبيعات اليومية"}
             </h3>
             <div className="h-[300px]">
               {isLoading ? (
@@ -370,13 +371,13 @@ export default function Reports() {
 
           {/* Payment Methods */}
           <div className="bg-white rounded-3xl p-6 shadow-sm border border-mint-line">
-            <h3 className="text-[16px] font-bold text-ink mb-6">طرق الدفع</h3>
+            <h3 className="text-[16px] font-bold text-ink mb-6">{language === "en" ? "Payment Methods" : "طرق الدفع"}</h3>
             <div className="h-[300px]">
               {isLoading ? (
                 <div className="w-full h-full bg-bg animate-pulse rounded-xl"></div>
               ) : pieData.length === 0 ? (
                 <div className="w-full h-full flex items-center justify-center text-ink-soft text-[14px]">
-                  لا توجد بيانات
+                  {language === "en" ? "No Data" : "لا توجد بيانات"}
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
@@ -417,7 +418,7 @@ export default function Reports() {
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-mint-line">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-[17px] font-black text-[#1E3A5F]">
-                  مقارنة أداء الفروع
+                  {language === "en" ? "Branch Performance Comparison" : "مقارنة أداء الفروع"}
                 </h3>
               </div>
               <div className="flex flex-col gap-6 justify-center h-[200px]">
@@ -432,7 +433,7 @@ export default function Reports() {
                     if (branchData.length === 0)
                       return (
                         <div className="text-center text-ink-soft text-[14px]">
-                          لا توجد مبيعات
+                          {language === "en" ? "No sales" : "لا توجد مبيعات"}
                         </div>
                       );
                     const maxRevenue = Math.max(
@@ -483,7 +484,7 @@ export default function Reports() {
           {/* Top Selling Items */}
           <div className="bg-white rounded-3xl p-6 shadow-sm border border-mint-line">
             <h3 className="text-[16px] font-bold text-ink mb-4">
-              الأدوية الأكثر مبيعاً
+              {language === "en" ? "Top Selling Medicines" : "الأدوية الأكثر مبيعاً"}
             </h3>
             {isLoading ? (
               <div className="h-40 bg-bg animate-pulse rounded-xl"></div>
@@ -491,7 +492,7 @@ export default function Reports() {
               <div className="space-y-4">
                 {(report.topItems || []).length === 0 ? (
                   <div className="text-center py-4 text-ink-soft text-[14px]">
-                    لا توجد مبيعات في هذه الفترة
+                    {language === "en" ? "No sales in this period" : "لا توجد مبيعات في هذه الفترة"}
                   </div>
                 ) : (
                   (report.topItems || []).map((item: any, idx: number) => (
@@ -509,7 +510,7 @@ export default function Reports() {
                       </div>
                       <div className="text-right">
                         <div className="text-[14px] font-bold text-primary">
-                          {item.qty} علبة
+                          {item.qty} {language === "en" ? "box" : "علبة"}
                         </div>
                         <div className="text-[12px] font-mono text-ink-soft">
                           ₪{item.revenue.toFixed(2)}

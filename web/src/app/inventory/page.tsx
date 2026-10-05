@@ -46,6 +46,7 @@ interface Med {
 
 export default function Inventory() {
   const user = useStore((state) => state.user);
+  const language = useStore((state: any) => state.language);
   const router = useRouter();
 
   useEffect(() => {
@@ -89,10 +90,10 @@ export default function Inventory() {
   );
   const meds = data?.inventory || [];
   const categories = [
-    { id: "all", name: "الكل" },
-    { id: "expiring", name: "قاربت تنتهي" },
-    { id: "out", name: "نفدت الكمية" },
-    { id: "controlled", name: "مراقبة" },
+    { id: "all", name: language === 'en' ? 'All' : "الكل" },
+    { id: "expiring", name: language === 'en' ? 'Expiring' : "قاربت تنتهي" },
+    { id: "out", name: language === 'en' ? 'Out of Stock' : "نفدت الكمية" },
+    { id: "controlled", name: language === 'en' ? 'Controlled' : "مراقبة" },
   ];
 
   // Helper logic for categories
@@ -250,14 +251,14 @@ export default function Inventory() {
       );
       const result = await res.json();
       if (result.success) {
-        toast.success("تم التعديل بنجاح");
+        toast.success(language === 'en' ? 'Updated successfully' : "تم التعديل بنجاح");
         setEditingItem(null);
         mutate();
       } else {
-        toast.error(result.error || "حدث خطأ أثناء التعديل");
+        toast.error(result.error || (language === 'en' ? 'Error during update' : "حدث خطأ أثناء التعديل"));
       }
     } catch (err) {
-      toast.error("خطأ في الاتصال بالخادم");
+      toast.error(language === 'en' ? 'Server connection error' : "خطأ في الاتصال بالخادم");
     }
   };
 
@@ -272,20 +273,20 @@ export default function Inventory() {
       );
       const result = await res.json();
       if (result.success) {
-        toast.success("تم الحذف بنجاح");
+        toast.success(language === 'en' ? 'Deleted successfully' : "تم الحذف بنجاح");
         setItemToDelete(null);
         mutate();
       } else {
-        toast.error("حدث خطأ أثناء الحذف");
+        toast.error(language === 'en' ? 'Error during deletion' : "حدث خطأ أثناء الحذف");
       }
     } catch (err) {
-      toast.error("خطأ في الاتصال بالخادم");
+      toast.error(language === 'en' ? 'Server connection error' : "خطأ في الاتصال بالخادم");
     }
   };
 
   return (
     <div className="w-full pb-10">
-      <AppBar title="المخزون" showLogo={false} showNotifs={false}>
+      <AppBar title={language === 'en' ? 'Inventory' : "المخزون"} showLogo={false} showNotifs={false}>
         <div className="flex gap-2 items-center">
           {user?.role !== "صيدلي" && user?.role !== "مدير فرع" && (
             <select
@@ -293,7 +294,7 @@ export default function Inventory() {
               onChange={(e) => setBranchFilter(e.target.value)}
               className="bg-card text-ink border-2 border-mint-line px-3 py-2 rounded-xl font-bold text-[14px] outline-none"
             >
-              <option value="all">كل الفروع</option>
+              <option value="all">{language === 'en' ? 'All Branches' : 'كل الفروع'}</option>
               {branches.map((b: any) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -305,19 +306,19 @@ export default function Inventory() {
             href="/stock-take"
             className="bg-card text-ink-soft border-2 border-mint-line px-4 py-2 rounded-xl font-bold text-[14px] hover:bg-bg transition-colors"
           >
-            جرد المخزون
+            {language === 'en' ? 'Stock Take' : 'جرد المخزون'}
           </Link>
           <Link
             href="/add-item"
             className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-[14px] hover:bg-teal transition-colors flex items-center justify-center"
           >
-            + إضافة صنف
+            {language === 'en' ? '+ Add Item' : '+ إضافة صنف'}
           </Link>
         </div>
       </AppBar>
 
       <SearchBar
-        placeholder="ابحث باسم الدواء أو الباركود…"
+        placeholder={language === 'en' ? 'Search by med name or barcode...' : "ابحث باسم الدواء أو الباركود…"}
         value={search}
         onChange={setSearch}
       />
@@ -345,12 +346,12 @@ export default function Inventory() {
           const isExpiring = cats.includes("expiring");
           const isControlled = cats.includes("controlled");
           const tag = isOut
-            ? "نفدت"
+            ? (language === 'en' ? 'Out' : "نفدت")
             : isExpiring
-              ? "قاربت تنتهي"
+              ? (language === 'en' ? 'Expiring' : "قاربت تنتهي")
               : isControlled
-                ? "مراقبة"
-                : "متوفر";
+                ? (language === 'en' ? 'Controlled' : "مراقبة")
+                : (language === 'en' ? 'Available' : "متوفر");
           const tagColorClass = isOut
             ? "bg-coral-pale text-coral"
             : isExpiring
@@ -380,19 +381,19 @@ export default function Inventory() {
                   </p>
                   {(med.isControlled === 1 || med.isControlled === true) && (
                     <span className="mt-1.5 inline-block text-[11px] font-bold px-2 py-0.5 rounded bg-coral-pale text-coral">
-                      أدوية مراقبة (مخدّرة)
+                      {language === 'en' ? 'Controlled Medicine' : 'أدوية مراقبة (مخدّرة)'}
                     </span>
                   )}
                 </div>
                 <span
                   className={`text-[12px] font-bold px-3 py-1 rounded-full ${tagColorClass}`}
                 >
-                  {tag === "مراقبة" ? "متوفر" : tag}
+                  {tag === (language === 'en' ? 'Controlled' : "مراقبة") ? (language === 'en' ? 'Available' : "متوفر") : tag}
                 </span>
               </div>
               <div className="flex items-center justify-between mb-4">
                 <span className="font-bold text-[14px] text-primary">
-                  الكمية: {formatQty(med.qty, med.units)}
+                  {language === 'en' ? 'Qty:' : 'الكمية:'} {formatQty(med.qty, med.units)}
                 </span>
                 <span className="font-mono text-[16px] font-bold text-primary">
                   {med.price || 0} ₪
@@ -453,13 +454,13 @@ export default function Inventory() {
                   }}
                   className="flex-1 text-[13px] font-bold text-teal bg-teal-pale/50 hover:bg-teal hover:text-white py-1.5 rounded-lg transition-colors"
                 >
-                  تعديل
+                  {language === 'en' ? 'Edit' : 'تعديل'}
                 </button>
                 <button
                   onClick={() => setItemToDelete(med)}
                   className="flex-1 text-[13px] font-bold text-coral bg-coral-pale/50 hover:bg-coral hover:text-white py-1.5 rounded-lg transition-colors"
                 >
-                  حذف
+                  {language === 'en' ? 'Delete' : 'حذف'}
                 </button>
               </div>
             </div>
@@ -467,7 +468,7 @@ export default function Inventory() {
         })}
         {filteredMeds.length === 0 && (
           <div className="text-center py-10 text-ink-soft text-[14px]">
-            لا يوجد نتائج مطابقة للبحث.
+            {language === 'en' ? 'No search results found.' : 'لا يوجد نتائج مطابقة للبحث.'}
           </div>
         )}
       </div>
@@ -479,7 +480,7 @@ export default function Inventory() {
             style={{ maxHeight: "90vh" }}
           >
             <div className="p-5 border-b border-mint-line bg-bg flex justify-between items-center shrink-0">
-              <h3 className="font-bold text-primary">تعديل بيانات الصنف</h3>
+              <h3 className="font-bold text-primary">{language === 'en' ? 'Edit Item Details' : 'تعديل بيانات الصنف'}</h3>
               <button
                 onClick={() => setEditingItem(null)}
                 className="text-ink-soft hover:text-coral font-bold text-[20px]"
@@ -495,7 +496,7 @@ export default function Inventory() {
                 <div className="flex gap-4">
                   <div className="flex-1">
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      اسم الصنف (التجاري)
+                      {language === 'en' ? 'Trade Name' : 'اسم الصنف (التجاري)'}
                     </label>
                     <input
                       required
@@ -509,7 +510,7 @@ export default function Inventory() {
                   </div>
                   <div className="flex-1">
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      الاسم العلمي
+                      {language === 'en' ? 'Scientific Name' : 'الاسم العلمي'}
                     </label>
                     <input
                       value={editingItem.scientificName || ""}
@@ -518,14 +519,14 @@ export default function Inventory() {
                       }
                       className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary text-[14px]"
                       dir="auto"
-                      placeholder="مثال: Amoxicillin"
+                      placeholder={language === 'en' ? 'e.g. Amoxicillin' : 'مثال: Amoxicillin'}
                     />
                   </div>
                 </div>
                 <div className="flex gap-4">
                   <div className="flex-1">
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      الشركة المصنّعة
+                      {language === 'en' ? 'Manufacturer' : 'الشركة المصنّعة'}
                     </label>
                     <input
                       value={editingItem.manufacturer || ""}
@@ -541,7 +542,7 @@ export default function Inventory() {
                   </div>
                   <div className="flex-1">
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      الفئة العلاجية
+                      {language === 'en' ? 'Therapeutic Category' : 'الفئة العلاجية'}
                     </label>
                     <input
                       value={editingItem.category || ""}
@@ -559,7 +560,7 @@ export default function Inventory() {
                 <div className="flex gap-4">
                   <div className="flex-1">
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      الكمية (علبة)
+                      {language === 'en' ? 'Quantity (Box)' : 'الكمية (علبة)'}
                     </label>
                     <input
                       type="number"
@@ -577,7 +578,7 @@ export default function Inventory() {
                   </div>
                   <div className="flex-1">
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      سعر الشراء (₪)
+                      {language === 'en' ? 'Buy Price (₪)' : 'سعر الشراء (₪)'}
                     </label>
                     <input
                       type="number"
@@ -596,7 +597,7 @@ export default function Inventory() {
                   </div>
                   <div className="flex-1">
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      سعر البيع (₪)
+                      {language === 'en' ? 'Sell Price (₪)' : 'سعر البيع (₪)'}
                     </label>
                     <input
                       type="number"
@@ -617,7 +618,7 @@ export default function Inventory() {
                 <div className="flex gap-4">
                   <div className="flex-1">
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      رقم الدفعة
+                      {language === 'en' ? 'Batch Number' : 'رقم الدفعة'}
                     </label>
                     <input
                       value={editingItem.batch_number || ""}
@@ -633,7 +634,7 @@ export default function Inventory() {
                   </div>
                   <div className="flex-1">
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      تاريخ الصلاحية
+                      {language === 'en' ? 'Expiry Date' : 'تاريخ الصلاحية'}
                     </label>
                     <input
                       type="month"
@@ -662,8 +663,8 @@ export default function Inventory() {
                     className="w-5 h-5 accent-teal cursor-pointer"
                   />
                   <div>
-                    <label className="font-bold text-teal block text-[14px]">دواء خاضع للرقابة (مراقبة)</label>
-                    <span className="text-[11px] text-ink-soft">يمنع بيع هذا الدواء إلا بصلاحيات الإدارة</span>
+                    <label className="font-bold text-teal block text-[14px]">{language === 'en' ? 'Controlled Medicine' : 'دواء خاضع للرقابة (مراقبة)'}</label>
+                    <span className="text-[11px] text-ink-soft">{language === 'en' ? 'Selling this medicine is restricted to management' : 'يمنع بيع هذا الدواء إلا بصلاحيات الإدارة'}</span>
                   </div>
                 </div>
                 {/* ── الوحدات والأجزاء (متزامن مع الموبايل) ── */}
@@ -673,7 +674,7 @@ export default function Inventory() {
                 >
                   <label className="flex items-center justify-between cursor-pointer mb-3">
                     <span className="text-[13px] font-bold text-ink">
-                      يُباع بالأجزاء (أشرطة / حبات)؟
+                      {language === 'en' ? 'Sold in parts (Strips / Pills)?' : 'يُباع بالأجزاء (أشرطة / حبات)؟'}
                     </span>
                     <div
                       onClick={() =>
@@ -705,12 +706,12 @@ export default function Inventory() {
                   {editingItem.has_parts && (
                     <div className="space-y-3 pt-3 border-t border-mint-line">
                       <p className="text-[12px] font-bold text-ink-soft">
-                        الجزء الأول (مثال: شريط)
+                        {language === 'en' ? 'First Part (e.g., Strip)' : 'الجزء الأول (مثال: شريط)'}
                       </p>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="block text-[11px] font-bold text-ink-soft mb-1">
-                            اسم الجزء
+                            {language === 'en' ? 'Part Name' : 'اسم الجزء'}
                           </label>
                           <select
                             value={editingItem.part1_name || "شريط"}
@@ -722,17 +723,17 @@ export default function Inventory() {
                             }
                             className="w-full border border-mint-line rounded-lg p-2 text-[12px] outline-none focus:border-primary text-right"
                           >
-                            <option value="شريط">شريط</option>
-                            <option value="حبة">حبة / كبسولة</option>
-                            <option value="أمبولة">أمبولة</option>
-                            <option value="ظرف">ظرف (مغلف)</option>
-                            <option value="قطرة">قطرة</option>
-                            <option value="عبوة">عبوة</option>
+                            <option value="شريط">{language === 'en' ? 'Strip' : 'شريط'}</option>
+                            <option value="حبة">{language === 'en' ? 'Pill / Capsule' : 'حبة / كبسولة'}</option>
+                            <option value="أمبولة">{language === 'en' ? 'Ampoule' : 'أمبولة'}</option>
+                            <option value="ظرف">{language === 'en' ? 'Sachet' : 'ظرف (مغلف)'}</option>
+                            <option value="قطرة">{language === 'en' ? 'Drops' : 'قطرة'}</option>
+                            <option value="عبوة">{language === 'en' ? 'Bottle' : 'عبوة'}</option>
                           </select>
                         </div>
                         <div>
                           <label className="block text-[11px] font-bold text-ink-soft mb-1">
-                            كم في العلبة؟
+                            {language === 'en' ? 'How many per box?' : 'كم في العلبة؟'}
                           </label>
                           <input
                             type="number"
@@ -753,7 +754,7 @@ export default function Inventory() {
                         <>
                           <label className="flex items-center justify-between cursor-pointer pt-2 border-t border-mint-line mt-3">
                             <span className="text-[12px] font-bold text-ink-soft">
-                              هل يباع مجزأ؟ (مثال: حبة)
+                              {language === 'en' ? 'Sold in sub-parts? (e.g., Pill)' : 'هل يباع مجزأ؟ (مثال: حبة)'}
                             </span>
                             <div
                               onClick={() =>
@@ -788,7 +789,7 @@ export default function Inventory() {
                         <div className="grid grid-cols-2 gap-2 pt-2">
                           <div>
                             <label className="block text-[11px] font-bold text-ink-soft mb-1">
-                              اسم الجزء
+                              {language === 'en' ? 'Part Name' : 'اسم الجزء'}
                             </label>
                             <select
                               value={editingItem.part2_name || "حبة"}
@@ -800,14 +801,14 @@ export default function Inventory() {
                               }
                               className="w-full border border-mint-line rounded-lg p-2 text-[12px] outline-none focus:border-primary text-right"
                             >
-                              <option value="حبة">حبة</option>
-                              <option value="مل">مل</option>
-                              <option value="غرام">غرام</option>
+                              <option value="حبة">{language === 'en' ? 'Pill' : 'حبة'}</option>
+                              <option value="مل">{language === 'en' ? 'ml' : 'مل'}</option>
+                              <option value="غرام">{language === 'en' ? 'Gram' : 'غرام'}</option>
                             </select>
                           </div>
                           <div>
                             <label className="block text-[11px] font-bold text-ink-soft mb-1">
-                              كم في الـ {editingItem.part1_name || "شريط"}؟
+                              {language === 'en' ? 'How many in the' : 'كم في الـ'} {editingItem.part1_name || (language === 'en' ? 'Strip' : "شريط")}؟
                             </label>
                             <input
                               type="number"
@@ -833,7 +834,7 @@ export default function Inventory() {
                   type="submit"
                   className="w-full bg-primary text-white font-bold rounded-xl py-3 hover:bg-teal transition-colors shadow-md shadow-primary/20"
                 >
-                  حفظ التعديلات
+                  {language === 'en' ? 'Save Changes' : 'حفظ التعديلات'}
                 </button>
               </div>
             </form>
@@ -862,14 +863,14 @@ export default function Inventory() {
                 </svg>
               </div>
               <h3 className="text-[20px] font-black text-ink mb-2">
-                تأكيد الحذف
+                {language === 'en' ? 'Confirm Deletion' : 'تأكيد الحذف'}
               </h3>
               <p className="text-[14px] text-ink-soft leading-relaxed">
-                هل أنت متأكد من حذف الصنف{" "}
+                {language === 'en' ? 'Are you sure you want to permanently delete the item ' : 'هل أنت متأكد من حذف الصنف '}
                 <span className="font-bold text-primary">
                   {itemToDelete.name}
                 </span>{" "}
-                نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.
+                {language === 'en' ? '? This action cannot be undone.' : 'نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.'}
               </p>
             </div>
 
@@ -878,14 +879,14 @@ export default function Inventory() {
                 onClick={() => setItemToDelete(null)}
                 className="flex-1 py-4 text-[15px] font-bold text-ink-soft hover:bg-black/5 hover:text-ink transition-colors"
               >
-                تراجع
+                {language === 'en' ? 'Cancel' : 'تراجع'}
               </button>
               <div className="w-[1px] bg-mint-line"></div>
               <button
                 onClick={executeDelete}
                 className="flex-1 py-4 text-[15px] font-bold text-coral hover:bg-coral hover:text-white transition-colors"
               >
-                نعم، احذف الصنف
+                {language === 'en' ? 'Yes, delete item' : 'نعم، احذف الصنف'}
               </button>
             </div>
           </div>

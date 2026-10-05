@@ -10,6 +10,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function SuppliersPage() {
   const user = useStore((state: any) => state.user);
+  const language = useStore((state: any) => state.language);
   const pharmacyId = user?.pharmacy_id;
 
   const { data, error, mutate } = useSWR(
@@ -94,18 +95,18 @@ export default function SuppliersPage() {
       if (!res.ok) throw new Error("Failed to save supplier");
 
       toast.success(
-        editingSupplier ? "تم تعديل المورد بنجاح" : "تم إضافة المورد بنجاح",
+        editingSupplier ? (language === 'en' ? 'Supplier updated successfully' : "تم تعديل المورد بنجاح") : (language === 'en' ? 'Supplier added successfully' : "تم إضافة المورد بنجاح"),
       );
       mutate();
       handleCloseModal();
     } catch (err) {
-      toast.error("حدث خطأ أثناء الحفظ");
+      toast.error(language === 'en' ? 'An error occurred while saving' : "حدث خطأ أثناء الحفظ");
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!pharmacyId) return;
-    if (!confirm("هل أنت متأكد من حذف هذا المورد؟")) return;
+    if (!confirm(language === 'en' ? 'Are you sure you want to delete this supplier?' : "هل أنت متأكد من حذف هذا المورد؟")) return;
 
     try {
       const res = await fetch(
@@ -117,28 +118,28 @@ export default function SuppliersPage() {
 
       if (!res.ok) throw new Error("Failed to delete supplier");
 
-      toast.success("تم حذف المورد بنجاح");
+      toast.success(language === 'en' ? 'Supplier deleted successfully' : "تم حذف المورد بنجاح");
       mutate();
     } catch (err) {
-      toast.error("حدث خطأ أثناء الحذف");
+      toast.error(language === 'en' ? 'An error occurred while deleting' : "حدث خطأ أثناء الحذف");
     }
   };
 
   return (
-    <div className="min-h-screen bg-bg text-ink font-sans" dir="rtl">
-      <AppBar title="إدارة الموردين" />
+    <div className="min-h-screen bg-bg text-ink font-sans" dir={language === 'en' ? 'ltr' : 'rtl'}>
+      <AppBar title={language === 'en' ? 'Suppliers Management' : "إدارة الموردين"} />
 
       <main className="p-4 max-w-7xl mx-auto space-y-6">
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-white p-4 rounded-xl border border-mint-line shadow-sm">
-            <h3 className="text-ink-soft text-sm">عدد الموردين</h3>
+            <h3 className="text-ink-soft text-sm">{language === 'en' ? 'Number of Suppliers' : "عدد الموردين"}</h3>
             <p className="text-2xl font-bold text-teal mt-1">
               {totalSuppliers}
             </p>
           </div>
           <div className="bg-white p-4 rounded-xl border border-mint-line shadow-sm">
-            <h3 className="text-ink-soft text-sm">إجمالي الرصيد</h3>
+            <h3 className="text-ink-soft text-sm">{language === 'en' ? 'Total Balance' : "إجمالي الرصيد"}</h3>
             <p className="text-2xl font-bold text-coral mt-1">
               {totalBalance.toFixed(2)}
             </p>
@@ -147,29 +148,29 @@ export default function SuppliersPage() {
 
         {/* Actions */}
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold text-primary">قائمة الموردين</h2>
+          <h2 className="text-xl font-bold text-primary">{language === 'en' ? 'Suppliers List' : "قائمة الموردين"}</h2>
           <button
             onClick={() => handleOpenModal()}
             className="bg-primary hover:bg-teal text-white px-4 py-2 rounded-lg transition-colors"
           >
-            + إضافة مورد
+            {language === 'en' ? '+ Add Supplier' : "+ إضافة مورد"}
           </button>
         </div>
 
         {/* Table */}
         <div className="overflow-x-auto bg-white rounded-xl border border-mint-line shadow-sm">
-          <table className="w-full text-right">
+          <table className={`w-full ${language === 'en' ? 'text-left' : 'text-right'}`}>
             <thead className="bg-bg border-b border-mint-line">
               <tr>
-                <th className="p-4 text-ink-soft font-medium">الاسم</th>
-                <th className="p-4 text-ink-soft font-medium">الشركة</th>
-                <th className="p-4 text-ink-soft font-medium">الجوال</th>
+                <th className="p-4 text-ink-soft font-medium">{language === 'en' ? 'Name' : "الاسم"}</th>
+                <th className="p-4 text-ink-soft font-medium">{language === 'en' ? 'Company' : "الشركة"}</th>
+                <th className="p-4 text-ink-soft font-medium">{language === 'en' ? 'Phone' : "الجوال"}</th>
                 <th className="p-4 text-ink-soft font-medium">
-                  الرصيد المتبقي
+                  {language === 'en' ? 'Remaining Balance' : "الرصيد المتبقي"}
                 </th>
-                <th className="p-4 text-ink-soft font-medium">تاريخ الإضافة</th>
+                <th className="p-4 text-ink-soft font-medium">{language === 'en' ? 'Date Added' : "تاريخ الإضافة"}</th>
                 <th className="p-4 text-ink-soft font-medium text-center">
-                  الإجراءات
+                  {language === 'en' ? 'Actions' : "الإجراءات"}
                 </th>
               </tr>
             </thead>
@@ -177,19 +178,19 @@ export default function SuppliersPage() {
               {!suppliers ? (
                 <tr>
                   <td colSpan={6} className="p-4 text-center text-ink-soft">
-                    جاري التحميل...
+                    {language === 'en' ? 'Loading...' : "جاري التحميل..."}
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
                   <td colSpan={6} className="p-4 text-center text-coral">
-                    حدث خطأ أثناء تحميل البيانات
+                    {language === 'en' ? 'An error occurred while loading data' : "حدث خطأ أثناء تحميل البيانات"}
                   </td>
                 </tr>
               ) : suppliers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-4 text-center text-ink-soft">
-                    لا يوجد موردين
+                    {language === 'en' ? 'No suppliers found' : "لا يوجد موردين"}
                   </td>
                 </tr>
               ) : (
@@ -210,7 +211,7 @@ export default function SuppliersPage() {
                     <td className="p-4">
                       {supplier.date_added
                         ? new Date(supplier.date_added).toLocaleDateString(
-                            "ar-SA",
+                            language === 'en' ? "en-US" : "ar-SA",
                           )
                         : "—"}
                     </td>
@@ -223,7 +224,7 @@ export default function SuppliersPage() {
                           }}
                           className="text-teal hover:bg-teal/10 px-3 py-1 rounded transition-colors"
                         >
-                          تعديل
+                          {language === 'en' ? 'Edit' : "تعديل"}
                         </button>
                         <button
                           onClick={(e) => {
@@ -232,7 +233,7 @@ export default function SuppliersPage() {
                           }}
                           className="text-coral hover:bg-coral/10 px-3 py-1 rounded transition-colors"
                         >
-                          حذف
+                          {language === 'en' ? 'Delete' : "حذف"}
                         </button>
                       </div>
                     </td>
@@ -250,7 +251,7 @@ export default function SuppliersPage() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="p-4 border-b border-mint-line flex justify-between items-center">
               <h3 className="font-bold text-lg text-primary">
-                {editingSupplier ? "تعديل مورد" : "إضافة مورد جديد"}
+                {editingSupplier ? (language === 'en' ? 'Edit Supplier' : "تعديل مورد") : (language === 'en' ? 'Add New Supplier' : "إضافة مورد جديد")}
               </h3>
               <button
                 onClick={handleCloseModal}
@@ -260,10 +261,10 @@ export default function SuppliersPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-4 space-y-4">
+            <form onSubmit={handleSubmit} className={`p-4 space-y-4 ${language === 'en' ? 'text-left' : 'text-right'}`}>
               <div>
                 <label className="block text-sm text-ink-soft mb-1">
-                  الاسم *
+                  {language === 'en' ? 'Name *' : "الاسم *"}
                 </label>
                 <input
                   required
@@ -272,13 +273,13 @@ export default function SuppliersPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  className="w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal"
+                  className={`w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal ${language === 'en' ? 'text-left' : 'text-right'}`}
                 />
               </div>
 
               <div>
                 <label className="block text-sm text-ink-soft mb-1">
-                  الشركة
+                  {language === 'en' ? 'Company' : "الشركة"}
                 </label>
                 <input
                   type="text"
@@ -286,13 +287,13 @@ export default function SuppliersPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, company: e.target.value })
                   }
-                  className="w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal"
+                  className={`w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal ${language === 'en' ? 'text-left' : 'text-right'}`}
                 />
               </div>
 
               <div>
                 <label className="block text-sm text-ink-soft mb-1">
-                  الجوال
+                  {language === 'en' ? 'Phone' : "الجوال"}
                 </label>
                 <input
                   type="tel"
@@ -300,14 +301,14 @@ export default function SuppliersPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, phone: e.target.value })
                   }
-                  className="w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal text-right"
+                  className="w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal text-left"
                   dir="ltr"
                 />
               </div>
 
               <div>
                 <label className="block text-sm text-ink-soft mb-1">
-                  البريد الإلكتروني
+                  {language === 'en' ? 'Email' : "البريد الإلكتروني"}
                 </label>
                 <input
                   type="email"
@@ -315,21 +316,21 @@ export default function SuppliersPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
-                  className="w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal text-right"
+                  className="w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal text-left"
                   dir="ltr"
                 />
               </div>
 
               <div>
                 <label className="block text-sm text-ink-soft mb-1">
-                  ملاحظات
+                  {language === 'en' ? 'Notes' : "ملاحظات"}
                 </label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) =>
                     setFormData({ ...formData, notes: e.target.value })
                   }
-                  className="w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal h-24 resize-none"
+                  className={`w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal h-24 resize-none ${language === 'en' ? 'text-left' : 'text-right'}`}
                 />
               </div>
 
@@ -338,14 +339,14 @@ export default function SuppliersPage() {
                   type="submit"
                   className="flex-1 bg-primary hover:bg-teal text-white py-2 rounded-lg transition-colors font-medium"
                 >
-                  حفظ
+                  {language === 'en' ? 'Save' : "حفظ"}
                 </button>
                 <button
                   type="button"
                   onClick={handleCloseModal}
                   className="flex-1 bg-bg hover:bg-mint-line text-ink py-2 rounded-lg transition-colors font-medium border border-mint-line"
                 >
-                  إلغاء
+                  {language === 'en' ? 'Cancel' : "إلغاء"}
                 </button>
               </div>
             </form>
@@ -359,7 +360,7 @@ export default function SuppliersPage() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[85vh]">
             <div className="p-5 border-b border-[#CBD5E1] flex justify-between items-center bg-[#F8FAFC]">
               <h3 className="font-bold text-[18px] text-primary">
-                فواتير المورد:{" "}
+                {language === 'en' ? 'Supplier Invoices: ' : "فواتير المورد: "}
                 <span className="text-teal">
                   {viewingSupplierInvoices.name}
                 </span>
@@ -384,7 +385,7 @@ export default function SuppliersPage() {
               </button>
             </div>
 
-            <div className="p-6 overflow-auto flex-1 bg-white" dir="rtl">
+            <div className="p-6 overflow-auto flex-1 bg-white" dir={language === 'en' ? 'ltr' : 'rtl'}>
               {invoices.filter(
                 (inv: any) => inv.supplier_id === viewingSupplierInvoices.id,
               ).length === 0 ? (
@@ -403,28 +404,28 @@ export default function SuppliersPage() {
                     />
                   </svg>
                   <p className="text-[16px] font-bold">
-                    لا يوجد فواتير مسجلة لهذا المورد حتى الآن.
+                    {language === 'en' ? 'No invoices registered for this supplier yet.' : "لا يوجد فواتير مسجلة لهذا المورد حتى الآن."}
                   </p>
                 </div>
               ) : (
                 <div className="border border-[#CBD5E1] rounded-2xl overflow-hidden">
-                  <table className="w-full text-right">
+                  <table className={`w-full ${language === 'en' ? 'text-left' : 'text-right'}`}>
                     <thead>
                       <tr className="bg-[#F8FAFC] border-b border-[#CBD5E1]">
                         <th className="p-4 text-[13px] text-ink-soft font-bold">
-                          رقم الفاتورة
+                          {language === 'en' ? 'Invoice Number' : "رقم الفاتورة"}
                         </th>
                         <th className="p-4 text-[13px] text-ink-soft font-bold">
-                          التاريخ
+                          {language === 'en' ? 'Date' : "التاريخ"}
                         </th>
                         <th className="p-4 text-[13px] text-ink-soft font-bold text-center">
-                          الحالة
+                          {language === 'en' ? 'Status' : "الحالة"}
                         </th>
                         <th className="p-4 text-[13px] text-ink-soft font-bold">
-                          الإجمالي
+                          {language === 'en' ? 'Total' : "الإجمالي"}
                         </th>
                         <th className="p-4 text-[13px] text-ink-soft font-bold">
-                          المتبقي (دين)
+                          {language === 'en' ? 'Remaining (Debt)' : "المتبقي (دين)"}
                         </th>
                       </tr>
                     </thead>
@@ -444,15 +445,15 @@ export default function SuppliersPage() {
                               {inv.id}
                             </td>
                             <td className="p-4 text-[14px] text-ink-soft font-mono text-sm">
-                              {new Date(inv.date).toLocaleString("ar-SA")}
+                              {new Date(inv.date).toLocaleString(language === 'en' ? 'en-US' : "ar-SA")}
                             </td>
                             <td className="p-4 text-center">
                               <span
                                 className={`inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-[12px] font-bold ${inv.status === "completed" ? "bg-mint-pale text-teal border border-teal/20" : "bg-bg text-ink-soft border border-ink-soft/20"}`}
                               >
                                 {inv.status === "completed"
-                                  ? "فعلية"
-                                  : "مبدئية"}
+                                  ? (language === 'en' ? 'Actual' : "فعلية")
+                                  : (language === 'en' ? 'Proforma' : "مبدئية")}
                               </span>
                             </td>
                             <td
@@ -481,7 +482,7 @@ export default function SuppliersPage() {
                 onClick={() => setViewingSupplierInvoices(null)}
                 className="bg-white hover:bg-bg border border-[#CBD5E1] text-ink px-8 py-2.5 rounded-xl transition-all font-bold text-[14px] shadow-sm hover:shadow"
               >
-                إغلاق
+                {language === 'en' ? 'Close' : "إغلاق"}
               </button>
             </div>
           </div>
@@ -494,7 +495,7 @@ export default function SuppliersPage() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[85vh]">
             <div className="p-5 border-b border-[#CBD5E1] flex justify-between items-center bg-[#F8FAFC]">
               <h3 className="font-bold text-[18px] text-primary">
-                تفاصيل الفاتورة:{" "}
+                {language === 'en' ? 'Invoice Details: ' : "تفاصيل الفاتورة: "}
                 <span className="text-teal font-mono">
                   {viewingInvoiceDetails.id}
                 </span>
@@ -519,32 +520,32 @@ export default function SuppliersPage() {
               </button>
             </div>
 
-            <div className="p-6 overflow-auto flex-1 bg-white" dir="rtl">
+            <div className="p-6 overflow-auto flex-1 bg-white" dir={language === 'en' ? 'ltr' : 'rtl'}>
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-[#F8FAFC] p-4 rounded-xl border border-[#CBD5E1]">
                   <p className="text-[12px] text-ink-soft mb-1 font-bold">
-                    تاريخ الفاتورة
+                    {language === 'en' ? 'Invoice Date' : "تاريخ الفاتورة"}
                   </p>
                   <p className="text-[14px] font-bold text-ink">
                     {new Date(viewingInvoiceDetails.date).toLocaleString(
-                      "ar-SA",
+                      language === 'en' ? "en-US" : "ar-SA",
                     )}
                   </p>
                 </div>
                 <div className="bg-[#F8FAFC] p-4 rounded-xl border border-[#CBD5E1]">
                   <p className="text-[12px] text-ink-soft mb-1 font-bold">
-                    الحالة
+                    {language === 'en' ? 'Status' : "الحالة"}
                   </p>
                   <p className="text-[14px] font-bold text-ink">
                     {viewingInvoiceDetails.status === "completed"
-                      ? "فعلية (مكتملة)"
-                      : "مبدئية"}
+                      ? (language === 'en' ? 'Actual (Completed)' : "فعلية (مكتملة)")
+                      : (language === 'en' ? 'Proforma' : "مبدئية")}
                   </p>
                 </div>
               </div>
 
               <h4 className="font-bold text-[16px] text-ink mb-4 border-b border-mint-line pb-2">
-                الأصناف (
+                {language === 'en' ? 'Items (' : "الأصناف ("}
                 {(() => {
                   try {
                     const it =
@@ -560,23 +561,23 @@ export default function SuppliersPage() {
               </h4>
 
               <div className="border border-[#CBD5E1] rounded-xl overflow-hidden">
-                <table className="w-full text-right">
+                <table className={`w-full ${language === 'en' ? 'text-left' : 'text-right'}`}>
                   <thead>
                     <tr className="bg-[#F8FAFC] border-b border-[#CBD5E1]">
                       <th className="p-3 text-[12px] text-ink-soft font-bold">
-                        الصنف
+                        {language === 'en' ? 'Item' : "الصنف"}
                       </th>
                       <th className="p-3 text-[12px] text-ink-soft font-bold">
-                        الكمية (علبة)
+                        {language === 'en' ? 'Quantity (Box)' : "الكمية (علبة)"}
                       </th>
                       <th className="p-3 text-[12px] text-ink-soft font-bold">
-                        سعر الشراء
+                        {language === 'en' ? 'Purchase Price' : "سعر الشراء"}
                       </th>
                       <th className="p-3 text-[12px] text-ink-soft font-bold">
-                        سعر البيع
+                        {language === 'en' ? 'Sell Price' : "سعر البيع"}
                       </th>
                       <th className="p-3 text-[12px] text-ink-soft font-bold">
-                        الإجمالي
+                        {language === 'en' ? 'Total' : "الإجمالي"}
                       </th>
                     </tr>
                   </thead>
@@ -594,7 +595,7 @@ export default function SuppliersPage() {
                                 colSpan={5}
                                 className="p-4 text-center text-ink-soft"
                               >
-                                لا يوجد أصناف
+                                {language === 'en' ? 'No items found' : "لا يوجد أصناف"}
                               </td>
                             </tr>
                           );
@@ -604,10 +605,9 @@ export default function SuppliersPage() {
                               {item.name}
                               {item.has_parts && (
                                 <div className="text-[11px] text-teal mt-1">
-                                  مجزأ: {item.part1_qty} {item.part1_name} في
-                                  العلبة
+                                  {language === 'en' ? 'Subdivided:' : 'مجزأ:'} {item.part1_qty} {item.part1_name} {language === 'en' ? 'in box' : 'في العلبة'}
                                   {item.has_subparts &&
-                                    ` - و ${item.part2_qty} ${item.part2_name} في الـ ${item.part1_name}`}
+                                    (language === 'en' ? ` - and ${item.part2_qty} ${item.part2_name} in the ${item.part1_name}` : ` - و ${item.part2_qty} ${item.part2_name} في الـ ${item.part1_name}`)}
                                 </div>
                               )}
                             </td>
@@ -645,7 +645,7 @@ export default function SuppliersPage() {
                               colSpan={5}
                               className="p-4 text-center text-coral"
                             >
-                              خطأ في قراءة الأصناف
+                              {language === 'en' ? 'Error reading items' : "خطأ في قراءة الأصناف"}
                             </td>
                           </tr>
                         );
@@ -655,26 +655,26 @@ export default function SuppliersPage() {
                 </table>
               </div>
 
-              <div className="mt-6 flex justify-end gap-6 border-t border-mint-line pt-4 bg-[#F8FAFC] p-4 rounded-xl border border-[#CBD5E1]">
+              <div className={`mt-6 flex justify-end gap-6 border-t border-mint-line pt-4 bg-[#F8FAFC] p-4 rounded-xl border border-[#CBD5E1] ${language === 'en' ? 'flex-row-reverse' : ''}`}>
                 <div className="text-center">
                   <p className="text-[12px] text-ink-soft font-bold">
-                    إجمالي الفاتورة
+                    {language === 'en' ? 'Invoice Total' : "إجمالي الفاتورة"}
                   </p>
                   <p className="text-[18px] font-bold text-ink" dir="ltr">
                     ₪{(viewingInvoiceDetails.total_cost || 0).toFixed(2)}
                   </p>
                 </div>
-                <div className="text-center border-r border-[#CBD5E1] pr-6">
+                <div className={`text-center ${language === 'en' ? 'border-l pl-6' : 'border-r pr-6'} border-[#CBD5E1]`}>
                   <p className="text-[12px] text-ink-soft font-bold">
-                    المبلغ المدفوع
+                    {language === 'en' ? 'Amount Paid' : "المبلغ المدفوع"}
                   </p>
                   <p className="text-[18px] font-bold text-teal" dir="ltr">
                     ₪{(viewingInvoiceDetails.paid_amount || 0).toFixed(2)}
                   </p>
                 </div>
-                <div className="text-center border-r border-[#CBD5E1] pr-6">
+                <div className={`text-center ${language === 'en' ? 'border-l pl-6' : 'border-r pr-6'} border-[#CBD5E1]`}>
                   <p className="text-[12px] text-ink-soft font-bold">
-                    المتبقي (دين)
+                    {language === 'en' ? 'Remaining (Debt)' : "المتبقي (دين)"}
                   </p>
                   <p className="text-[18px] font-bold text-coral" dir="ltr">
                     ₪{(viewingInvoiceDetails.remaining || 0).toFixed(2)}
@@ -689,7 +689,7 @@ export default function SuppliersPage() {
                 onClick={() => setViewingInvoiceDetails(null)}
                 className="bg-white hover:bg-bg border border-[#CBD5E1] text-ink px-8 py-2.5 rounded-xl transition-all font-bold text-[14px] shadow-sm hover:shadow"
               >
-                إغلاق
+                {language === 'en' ? 'Close' : "إغلاق"}
               </button>
             </div>
           </div>

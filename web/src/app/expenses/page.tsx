@@ -32,6 +32,7 @@ const CAT_COLORS: Record<string, string> = {
 
 export default function ExpensesPage() {
   const user = useStore((s: any) => s.user);
+  const language = useStore((state: any) => state.language);
   const router = useRouter();
   useEffect(() => {
     if (!user) router.push("/login");
@@ -93,7 +94,7 @@ export default function ExpensesPage() {
 
   const handleAdd = async () => {
     if (!form.description || !form.amount) {
-      toast.error("يرجى إدخال تفاصيل المصروف");
+      toast.error(language === 'en' ? "Please enter expense details" : "يرجى إدخال تفاصيل المصروف");
       return;
     }
     setLoading(true);
@@ -112,7 +113,7 @@ export default function ExpensesPage() {
       );
       const r = await res.json();
       if (r.success) {
-        toast.success("تمت إضافة المصروف!");
+        toast.success(language === 'en' ? "Expense added!" : "تمت إضافة المصروف!");
         setShowAdd(false);
         setForm({
           category: "رواتب",
@@ -121,9 +122,9 @@ export default function ExpensesPage() {
           branch_id: "",
         });
         mutate();
-      } else toast.error(r.error || "فشل");
+      } else toast.error(r.error || (language === 'en' ? "Failed" : "فشل"));
     } catch {
-      toast.error("خطأ");
+      toast.error(language === 'en' ? "Error" : "خطأ");
     } finally {
       setLoading(false);
     }
@@ -136,19 +137,19 @@ export default function ExpensesPage() {
     );
     const r = await res.json();
     if (r.success) {
-      toast.success("تم الحذف");
+      toast.success(language === 'en' ? "Deleted successfully" : "تم الحذف");
       mutate();
     } else toast.error(r.error);
   };
 
   return (
     <>
-      <AppBar title="المصروفات اليومية" />
+      <AppBar title={language === 'en' ? "Daily Expenses" : "المصروفات اليومية"} />
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-white rounded-2xl border border-mint-line p-5 text-center shadow-sm">
             <div className="text-[12px] font-bold text-ink-soft mb-1">
-              مصروفات اليوم
+              {language === 'en' ? "Today's Expenses" : "مصروفات اليوم"}
             </div>
             <div className="text-[32px] font-mono font-black text-coral">
               ₪{todayTotal.toFixed(2)}
@@ -156,7 +157,7 @@ export default function ExpensesPage() {
           </div>
           <div className="bg-white rounded-2xl border border-mint-line p-5 text-center shadow-sm">
             <div className="text-[12px] font-bold text-ink-soft mb-1">
-              مصروفات هذه الفترة
+              {language === 'en' ? "Expenses this period" : "مصروفات هذه الفترة"}
             </div>
             <div className="text-[32px] font-mono font-black text-primary">
               ₪{monthTotal.toFixed(2)}
@@ -164,7 +165,7 @@ export default function ExpensesPage() {
           </div>
           <div className="bg-white rounded-2xl border border-mint-line p-5 text-center shadow-sm">
             <div className="text-[12px] font-bold text-ink-soft mb-1">
-              عدد العمليات
+              {language === 'en' ? "Number of Transactions" : "عدد العمليات"}
             </div>
             <div className="text-[32px] font-mono font-black text-teal">
               {expenses.length}
@@ -174,7 +175,7 @@ export default function ExpensesPage() {
 
         <div className="flex gap-3 items-center flex-wrap">
           <div className="flex items-center gap-2 bg-white border border-mint-line rounded-xl px-4 py-2">
-            <span className="text-[13px] font-bold text-ink-soft">من:</span>
+            <span className="text-[13px] font-bold text-ink-soft">{language === 'en' ? "From:" : "من:"}</span>
             <input
               type="date"
               value={from}
@@ -183,7 +184,7 @@ export default function ExpensesPage() {
             />
           </div>
           <div className="flex items-center gap-2 bg-white border border-mint-line rounded-xl px-4 py-2">
-            <span className="text-[13px] font-bold text-ink-soft">إلى:</span>
+            <span className="text-[13px] font-bold text-ink-soft">{language === 'en' ? "To:" : "إلى:"}</span>
             <input
               type="date"
               value={to}
@@ -201,7 +202,7 @@ export default function ExpensesPage() {
                 onChange={(e) => setBranchFilter(e.target.value)}
                 className="bg-white border border-mint-line rounded-xl px-4 py-3 text-[14px] font-bold text-ink outline-none"
               >
-                <option value="all">كل الفروع</option>
+                <option value="all">{language === 'en' ? "All Branches" : "كل الفروع"}</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
@@ -213,7 +214,7 @@ export default function ExpensesPage() {
             onClick={() => setShowAdd(true)}
             className="bg-primary text-white px-5 py-3 rounded-xl font-bold text-[14px] shadow-md shadow-primary/20 hover:opacity-90"
           >
-            + إضافة مصروف
+            + {language === 'en' ? "Add Expense" : "إضافة مصروف"}
           </button>
         </div>
 
@@ -221,7 +222,7 @@ export default function ExpensesPage() {
           <div className="bg-white rounded-2xl border border-mint-line p-12 text-center">
             <div className="text-[40px] mb-3">💸</div>
             <div className="text-ink-soft font-bold">
-              لا توجد مصروفات مسجلة في هذه الفترة
+              {language === 'en' ? "No expenses recorded in this period" : "لا توجد مصروفات مسجلة في هذه الفترة"}
             </div>
           </div>
         ) : (
@@ -235,7 +236,7 @@ export default function ExpensesPage() {
                   <span
                     className={`px-3 py-1 rounded-xl text-[12px] font-bold ${CAT_COLORS[e.category] || CAT_COLORS["أخرى"]}`}
                   >
-                    {e.category}
+                    {language === 'en' ? (e.category === 'رواتب' ? 'Salaries' : e.category === 'كهرباء' ? 'Electricity' : e.category === 'ماء' ? 'Water' : e.category === 'إيجار' ? 'Rent' : e.category === 'مواد تنظيف' ? 'Cleaning Supplies' : e.category === 'ضيافة' ? 'Hospitality' : e.category === 'صيانة' ? 'Maintenance' : e.category === 'تسويق' ? 'Marketing' : e.category === 'أخرى' ? 'Other' : e.category) : e.category}
                   </span>
                   <div>
                     <div className="font-bold text-[14px] text-ink">
@@ -289,7 +290,7 @@ export default function ExpensesPage() {
           <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl border border-mint-line">
             <div className="flex justify-between items-center mb-5 border-b border-mint-line pb-4">
               <h3 className="text-[20px] font-black text-primary">
-                إضافة مصروف
+                {language === 'en' ? "Add Expense" : "إضافة مصروف"}
               </h3>
               <button
                 onClick={() => setShowAdd(false)}
@@ -317,7 +318,7 @@ export default function ExpensesPage() {
                 branches.length > 0 && (
                   <div>
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      الفرع
+                      {language === 'en' ? "Branch" : "الفرع"}
                     </label>
                     <select
                       value={form.branch_id}
@@ -326,7 +327,7 @@ export default function ExpensesPage() {
                       }
                       className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 text-[14px] outline-none focus:border-primary"
                     >
-                      <option value="">الفرع الرئيسي</option>
+                      <option value="">{language === 'en' ? "Main Branch" : "الفرع الرئيسي"}</option>
                       {branches.map((b: any) => (
                         <option key={b.id} value={b.id}>
                           {b.name}
@@ -337,7 +338,7 @@ export default function ExpensesPage() {
                 )}
               <div>
                 <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                  الفئة
+                  {language === 'en' ? "Category" : "الفئة"}
                 </label>
                 <select
                   value={form.category}
@@ -348,14 +349,14 @@ export default function ExpensesPage() {
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c}>
-                      {c}
+                      {language === 'en' ? (c === 'رواتب' ? 'Salaries' : c === 'كهرباء' ? 'Electricity' : c === 'ماء' ? 'Water' : c === 'إيجار' ? 'Rent' : c === 'مواد تنظيف' ? 'Cleaning Supplies' : c === 'ضيافة' ? 'Hospitality' : c === 'صيانة' ? 'Maintenance' : c === 'تسويق' ? 'Marketing' : c === 'أخرى' ? 'Other' : c) : c}
                     </option>
                   ))}
                 </select>
               </div>
               <div>
                 <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                  الوصف
+                  {language === 'en' ? "Description" : "الوصف"}
                 </label>
                 <input
                   type="text"
@@ -364,12 +365,12 @@ export default function ExpensesPage() {
                     setForm((p) => ({ ...p, description: e.target.value }))
                   }
                   className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 text-[14px] outline-none focus:border-primary"
-                  placeholder="مثال: فاتورة كهرباء أغسطس"
+                  placeholder={language === 'en' ? "Example: August Electricity Bill" : "مثال: فاتورة كهرباء أغسطس"}
                 />
               </div>
               <div>
                 <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                  المبلغ (₪)
+                  {language === 'en' ? "Amount (₪)" : "المبلغ (₪)"}
                 </label>
                 <input
                   type="number"
@@ -389,13 +390,13 @@ export default function ExpensesPage() {
                 disabled={loading}
                 className="flex-1 bg-primary text-white font-bold py-3.5 rounded-xl shadow-md shadow-primary/20 hover:opacity-90 disabled:opacity-50"
               >
-                {loading ? "جاري الحفظ..." : "حفظ المصروف"}
+                {loading ? (language === 'en' ? "Saving..." : "جاري الحفظ...") : (language === 'en' ? "Save Expense" : "حفظ المصروف")}
               </button>
               <button
                 onClick={() => setShowAdd(false)}
                 className="flex-1 bg-bg text-ink font-bold py-3.5 rounded-xl hover:bg-mint-line transition-all"
               >
-                إلغاء
+                {language === 'en' ? "Cancel" : "إلغاء"}
               </button>
             </div>
           </div>

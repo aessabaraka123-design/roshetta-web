@@ -10,6 +10,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export default function ShiftsPage() {
   const user = useStore((s: any) => s.user);
+  const language = useStore((state: any) => state.language);
   const router = useRouter();
   useEffect(() => {
     if (!user) router.push("/login");
@@ -63,12 +64,12 @@ export default function ShiftsPage() {
     const diff = Date.now() - new Date(openTime).getTime();
     const h = Math.floor(diff / 3600000);
     const m = Math.floor((diff % 3600000) / 60000);
-    return `${h}س ${m}د`;
+    return language === 'en' ? `${h}h ${m}m` : `${h}س ${m}د`;
   };
 
   const handleOpenShift = async () => {
     if (!openingAmount) {
-      toast.error("يرجى إدخال مبلغ العهدة");
+      toast.error(language === 'en' ? "Please enter the opening amount" : "يرجى إدخال مبلغ العهدة");
       return;
     }
     setLoading(true);
@@ -87,14 +88,14 @@ export default function ShiftsPage() {
       );
       const r = await res.json();
       if (r.success) {
-        toast.success("تم فتح الوردية!");
+        toast.success(language === 'en' ? "Shift opened successfully!" : "تم فتح الوردية!");
         setShowOpenModal(false);
         setOpeningAmount("");
         mutateCurrentShift();
         mutateShifts();
-      } else toast.error(r.error || "فشل فتح الوردية");
+      } else toast.error(r.error || (language === 'en' ? "Failed to open shift" : "فشل فتح الوردية"));
     } catch {
-      toast.error("خطأ");
+      toast.error(language === 'en' ? "Error" : "خطأ");
     } finally {
       setLoading(false);
     }
@@ -102,7 +103,7 @@ export default function ShiftsPage() {
 
   const handleCloseShift = async () => {
     if (!closingAmount) {
-      toast.error("يرجى إدخال المبلغ الفعلي في الصندوق");
+      toast.error(language === 'en' ? "Please enter the actual amount in the cash register" : "يرجى إدخال المبلغ الفعلي في الصندوق");
       return;
     }
     setLoading(true);
@@ -122,18 +123,18 @@ export default function ShiftsPage() {
       if (r.success) {
         const diff = parseFloat(closingAmount) - r.expected_amount;
         if (diff > 0)
-          toast.success(`تم إغلاق الوردية — فائض: ₪${diff.toFixed(2)}`);
+          toast.success(language === 'en' ? `Shift closed — Surplus: ₪${diff.toFixed(2)}` : `تم إغلاق الوردية — فائض: ₪${diff.toFixed(2)}`);
         else if (diff < 0)
-          toast.error(`تم الإغلاق — عجز: ₪${Math.abs(diff).toFixed(2)}`);
-        else toast.success("تم الإغلاق — الصندوق مطابق تماماً ✓");
+          toast.error(language === 'en' ? `Closed — Deficit: ₪${Math.abs(diff).toFixed(2)}` : `تم الإغلاق — عجز: ₪${Math.abs(diff).toFixed(2)}`);
+        else toast.success(language === 'en' ? "Closed — Cash register matches perfectly ✓" : "تم الإغلاق — الصندوق مطابق تماماً ✓");
         setShowCloseModal(false);
         setClosingAmount("");
         setCloseNotes("");
         mutateCurrentShift();
         mutateShifts();
-      } else toast.error(r.error || "فشل");
+      } else toast.error(r.error || (language === 'en' ? "Failed" : "فشل"));
     } catch {
-      toast.error("خطأ");
+      toast.error(language === 'en' ? "Error" : "خطأ");
     } finally {
       setLoading(false);
     }
@@ -141,7 +142,7 @@ export default function ShiftsPage() {
 
   return (
     <>
-      <AppBar title="إدارة الورديات" />
+      <AppBar title={language === 'en' ? 'Shifts Management' : 'إدارة الورديات'} />
       <div className="p-6 space-y-6">
         {/* Current Shift Status */}
         {currentShift ? (
@@ -151,19 +152,19 @@ export default function ShiftsPage() {
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-2.5 h-2.5 bg-white rounded-full animate-pulse"></div>
                   <span className="font-bold text-[13px] text-white/80 uppercase tracking-wide">
-                    وردية مفتوحة
+                    {language === 'en' ? 'Open Shift' : 'وردية مفتوحة'}
                   </span>
                 </div>
                 <h2 className="text-[22px] font-black">
                   {currentShift.cashier_name}
                 </h2>
                 <p className="text-white/70 text-[13px]">
-                  فُتحت:{" "}
-                  {new Date(currentShift.open_time).toLocaleString("ar-EG")}
+                  {language === 'en' ? 'Opened: ' : 'فُتحت: '}{" "}
+                  {new Date(currentShift.open_time).toLocaleString(language === 'en' ? 'en-US' : 'ar-EG')}
                 </p>
               </div>
               <div className="text-left">
-                <p className="text-white/70 text-[12px] mb-1">المدة</p>
+                <p className="text-white/70 text-[12px] mb-1">{language === 'en' ? 'Duration' : 'المدة'}</p>
                 <p className="font-mono font-black text-[24px]">
                   {getDuration(currentShift.open_time)}
                 </p>
@@ -171,7 +172,7 @@ export default function ShiftsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4 border-t border-white/20 pt-4 mt-2">
               <div>
-                <p className="text-white/60 text-[12px]">مبلغ العهدة</p>
+                <p className="text-white/60 text-[12px]">{language === 'en' ? 'Opening Amount' : 'مبلغ العهدة'}</p>
                 <p className="font-mono font-black text-[20px]">
                   ₪{parseFloat(currentShift.opening_amount || 0).toFixed(2)}
                 </p>
@@ -181,7 +182,7 @@ export default function ShiftsPage() {
                   onClick={() => setShowCloseModal(true)}
                   className="bg-white text-teal font-black px-6 py-3 rounded-xl hover:opacity-90 transition-all shadow-md text-[15px]"
                 >
-                  إغلاق الوردية ←
+                  {language === 'en' ? 'Close Shift ←' : 'إغلاق الوردية ←'}
                 </button>
               </div>
             </div>
@@ -190,16 +191,16 @@ export default function ShiftsPage() {
           <div className="bg-white rounded-2xl border-2 border-dashed border-mint-line p-10 text-center">
             <div className="text-[48px] mb-3">🏪</div>
             <div className="text-[18px] font-black text-ink mb-2">
-              لا توجد وردية مفتوحة
+              {language === 'en' ? 'No open shift' : 'لا توجد وردية مفتوحة'}
             </div>
             <div className="text-ink-soft text-[14px] mb-6">
-              افتح وردية جديدة لتتبع مبيعات هذه الفترة وتسوية الصندوق
+              {language === 'en' ? 'Open a new shift to track sales for this period and reconcile the cash register' : 'افتح وردية جديدة لتتبع مبيعات هذه الفترة وتسوية الصندوق'}
             </div>
             <button
               onClick={() => setShowOpenModal(true)}
               className="bg-primary text-white px-8 py-4 rounded-xl font-black text-[16px] shadow-lg shadow-primary/30 hover:opacity-90 transition-all"
             >
-              + فتح وردية جديدة
+              {language === 'en' ? '+ Open New Shift' : '+ فتح وردية جديدة'}
             </button>
           </div>
         )}
@@ -208,13 +209,23 @@ export default function ShiftsPage() {
         {shifts.length > 0 && (
           <div>
             <h3 className="text-[16px] font-black text-ink mb-4">
-              سجل الورديات
+              {language === 'en' ? 'Shifts Log' : 'سجل الورديات'}
             </h3>
             <div className="bg-white rounded-2xl border border-mint-line overflow-hidden shadow-sm">
               <table className="w-full text-right">
                 <thead className="bg-bg border-b border-mint-line">
                   <tr>
-                    {[
+                    {(language === 'en' ? [
+                      "Cashier",
+                      "Open Time",
+                      "Close Time",
+                      "Opening Amount",
+                      "Cash Sales",
+                      "Expected",
+                      "Actual",
+                      "Difference",
+                      "Status",
+                    ] : [
                       "الكاشير",
                       "وقت الفتح",
                       "وقت الإغلاق",
@@ -224,7 +235,7 @@ export default function ShiftsPage() {
                       "الفعلي",
                       "الفرق",
                       "الحالة",
-                    ].map((h, i) => (
+                    ]).map((h, i) => (
                       <th
                         key={i}
                         className="px-3 py-3 text-[12px] font-bold text-ink-soft"
@@ -247,11 +258,11 @@ export default function ShiftsPage() {
                           {s.cashier_name}
                         </td>
                         <td className="px-3 py-3 text-[12px] text-ink-soft font-mono">
-                          {new Date(s.open_time).toLocaleString("ar-EG")}
+                          {new Date(s.open_time).toLocaleString(language === 'en' ? 'en-US' : 'ar-EG')}
                         </td>
                         <td className="px-3 py-3 text-[12px] text-ink-soft font-mono">
                           {s.close_time
-                            ? new Date(s.close_time).toLocaleString("ar-EG")
+                            ? new Date(s.close_time).toLocaleString(language === 'en' ? 'en-US' : 'ar-EG')
                             : "—"}
                         </td>
                         <td className="px-3 py-3 font-mono text-[13px]">
@@ -283,7 +294,7 @@ export default function ShiftsPage() {
                           <span
                             className={`px-2 py-1 rounded-lg text-[11px] font-bold ${s.status === "open" ? "bg-teal-pale text-teal" : "bg-bg text-ink-soft"}`}
                           >
-                            {s.status === "open" ? "مفتوحة" : "مغلقة"}
+                            {s.status === "open" ? (language === 'en' ? 'Open' : 'مفتوحة') : (language === 'en' ? 'Closed' : 'مغلقة')}
                           </span>
                         </td>
                       </tr>
@@ -301,13 +312,13 @@ export default function ShiftsPage() {
         <div className="fixed inset-0 bg-primary/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl border border-mint-line">
             <h3 className="text-[20px] font-black text-primary mb-5 border-b border-mint-line pb-4">
-              فتح وردية جديدة
+              {language === 'en' ? 'Open New Shift' : 'فتح وردية جديدة'}
             </h3>
             <div className="space-y-4">
               {user?.role === "manager" ? (
                 <div>
                   <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                    تعيين الوردية للموظف (للمدير فقط)
+                    {language === 'en' ? 'Assign shift to staff (Manager only)' : 'تعيين الوردية للموظف (للمدير فقط)'}
                   </label>
                   <select
                     value={selectedStaffEmail}
@@ -319,7 +330,7 @@ export default function ShiftsPage() {
                     }}
                     className="w-full bg-white border border-mint-line rounded-xl px-4 py-3 text-[14px] font-bold text-teal outline-none focus:border-primary"
                   >
-                    <option value={user?.email || ""}>أنا ({user?.managerName || user?.username})</option>
+                    <option value={user?.email || ""}>{language === 'en' ? 'Me' : 'أنا'} ({user?.managerName || user?.username})</option>
                     {staffList.map((s: any) => (
                       s.email !== user?.email && (
                         <option key={s.id} value={s.email}>
@@ -334,12 +345,12 @@ export default function ShiftsPage() {
                   <svg className="w-5 h-5 text-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
-                  <span>الكاشير: {user?.managerName || user?.username}</span>
+                  <span>{language === 'en' ? 'Cashier:' : 'الكاشير:'} {user?.managerName || user?.username}</span>
                 </div>
               )}
               <div>
                 <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                  المبلغ الموجود في الصندوق (₪) *
+                  {language === 'en' ? 'Amount in Cash Register (₪) *' : 'المبلغ الموجود في الصندوق (₪) *'}
                 </label>
                 <input
                   type="number"
@@ -358,13 +369,13 @@ export default function ShiftsPage() {
                 disabled={loading}
                 className="flex-1 bg-teal text-white font-bold py-3.5 rounded-xl hover:opacity-90 disabled:opacity-50"
               >
-                {loading ? "جاري الفتح..." : "فتح الوردية"}
+                {loading ? (language === 'en' ? 'Opening...' : 'جاري الفتح...') : (language === 'en' ? 'Open Shift' : 'فتح الوردية')}
               </button>
               <button
                 onClick={() => setShowOpenModal(false)}
                 className="flex-1 bg-bg text-ink font-bold py-3.5 rounded-xl hover:bg-mint-line"
               >
-                إلغاء
+                {language === 'en' ? 'Cancel' : 'إلغاء'}
               </button>
             </div>
           </div>
@@ -376,24 +387,24 @@ export default function ShiftsPage() {
         <div className="fixed inset-0 bg-primary/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl border border-mint-line">
             <h3 className="text-[20px] font-black text-primary mb-5 border-b border-mint-line pb-4">
-              إغلاق الوردية
+              {language === 'en' ? 'Close Shift' : 'إغلاق الوردية'}
             </h3>
             <div className="space-y-4">
               <div className="bg-bg rounded-xl p-3 space-y-1">
                 <div className="flex justify-between text-[13px]">
-                  <span className="text-ink-soft font-bold">مبلغ العهدة:</span>
+                  <span className="text-ink-soft font-bold">{language === 'en' ? 'Opening Amount:' : 'مبلغ العهدة:'}</span>
                   <span className="font-mono font-black">
                     ₪{parseFloat(currentShift.opening_amount || 0).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between text-[13px] text-teal">
-                  <span className="font-bold">+ مبيعات نقدي:</span>
-                  <span className="font-mono font-black">تُحسب تلقائياً</span>
+                  <span className="font-bold">{language === 'en' ? '+ Cash Sales:' : '+ مبيعات نقدي:'}</span>
+                  <span className="font-mono font-black">{language === 'en' ? 'Calculated automatically' : 'تُحسب تلقائياً'}</span>
                 </div>
               </div>
               <div>
                 <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                  المبلغ الفعلي في الصندوق الآن (₪) *
+                  {language === 'en' ? 'Actual Amount in Cash Register Now (₪) *' : 'المبلغ الفعلي في الصندوق الآن (₪) *'}
                 </label>
                 <input
                   type="number"
@@ -407,7 +418,7 @@ export default function ShiftsPage() {
               </div>
               <div>
                 <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                  ملاحظات (اختياري)
+                  {language === 'en' ? 'Notes (Optional)' : 'ملاحظات (اختياري)'}
                 </label>
                 <input
                   type="text"
@@ -423,13 +434,13 @@ export default function ShiftsPage() {
                 disabled={loading}
                 className="flex-1 bg-coral text-white font-bold py-3.5 rounded-xl hover:opacity-90 disabled:opacity-50"
               >
-                {loading ? "جاري الإغلاق..." : "إغلاق وتسجيل"}
+                {loading ? (language === 'en' ? 'Closing...' : 'جاري الإغلاق...') : (language === 'en' ? 'Close and Record' : 'إغلاق وتسجيل')}
               </button>
               <button
                 onClick={() => setShowCloseModal(false)}
                 className="flex-1 bg-bg text-ink font-bold py-3.5 rounded-xl hover:bg-mint-line"
               >
-                إلغاء
+                {language === 'en' ? 'Cancel' : 'إلغاء'}
               </button>
             </div>
           </div>

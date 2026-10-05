@@ -12,6 +12,7 @@ import { useStore } from "@/store";
 import { AlertCircle } from "lucide-react";
 
 function RegisterPageContent() {
+  const language = useStore((state: any) => state.language);
   const searchParams = useSearchParams();
   const router = useRouter();
   const plan = searchParams.get("plan") || "monthly";
@@ -65,22 +66,22 @@ function RegisterPageContent() {
           ...p,
           id: String(p.id || p.type),
           name: p.name,
-          description: p.description || p.desc || "تفاصيل الباقة",
+          description: p.description || p.desc || (language === "en" ? "Package Details" : "تفاصيل الباقة"),
           price: p.price ?? 0,
           oldPrice: p.oldPrice || p.old_price,
           isFree: p.price === 0 || p.id === "free",
           cycle:
             p.cycle ||
             (p.id === "free"
-              ? "14 يوم مجانًا"
+              ? (language === "en" ? "14 days free" : "14 يوم مجانًا")
               : p.durationMonths === 1
-                ? "شهرياً"
+                ? (language === "en" ? "Monthly" : "شهرياً")
                 : p.durationMonths === 12
-                  ? "سنوياً"
+                  ? (language === "en" ? "Yearly" : "سنوياً")
                   : p.durationMonths > 100
-                    ? "مرة واحدة"
-                    : `${p.durationMonths} أشهر`),
-          type: p.type || "خطة",
+                    ? (language === "en" ? "One-time" : "مرة واحدة")
+                    : `${p.durationMonths} ${language === "en" ? "Months" : "أشهر"}`),
+          type: p.type || (language === "en" ? "Plan" : "خطة"),
           features:
             typeof p.features === "string"
               ? JSON.parse(p.features)
@@ -92,7 +93,7 @@ function RegisterPageContent() {
   }, []);
 
   const fallbackPlan = {
-    name: "جاري التحميل...",
+    name: language === "en" ? "Loading..." : "جاري التحميل...",
     price: "0",
     cycle: "",
     type: "",
@@ -105,28 +106,28 @@ function RegisterPageContent() {
   const handleNext = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.pharmacyName) newErrors.pharmacyName = "يرجى إدخال اسم الصيدلية";
-    if (!formData.managerName) newErrors.managerName = "يرجى إدخال اسم المدير / المالك";
+    if (!formData.pharmacyName) newErrors.pharmacyName = language === "en" ? "Please enter pharmacy name" : "يرجى إدخال اسم الصيدلية";
+    if (!formData.managerName) newErrors.managerName = language === "en" ? "Please enter manager/owner name" : "يرجى إدخال اسم المدير / المالك";
     
     if (!formData.email) {
-      newErrors.email = "يرجى إدخال البريد الإلكتروني";
+      newErrors.email = language === "en" ? "Please enter email" : "يرجى إدخال البريد الإلكتروني";
     } else {
       const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
       if (!emailRegex.test(formData.email)) {
-        newErrors.email = "يرجى إدخال بريد إلكتروني صحيح";
+        newErrors.email = language === "en" ? "Please enter a valid email" : "يرجى إدخال بريد إلكتروني صحيح";
       }
     }
 
     if (!formData.phone) {
-      newErrors.phone = "يرجى إدخال رقم الجوال";
+      newErrors.phone = language === "en" ? "Please enter mobile number" : "يرجى إدخال رقم الجوال";
     } else if (formData.phone.trim().length < 9) {
-      newErrors.phone = "رقم الجوال يجب أن لا يقل عن 9 أرقام";
+      newErrors.phone = language === "en" ? "Mobile number must be at least 9 digits" : "رقم الجوال يجب أن لا يقل عن 9 أرقام";
     }
 
     if (!formData.password) {
-      newErrors.password = "يرجى إدخال كلمة المرور";
+      newErrors.password = language === "en" ? "Please enter password" : "يرجى إدخال كلمة المرور";
     } else if (formData.password.length < 6) {
-      newErrors.password = "كلمة المرور يجب أن لا تقل عن 6 خانات";
+      newErrors.password = language === "en" ? "Password must be at least 6 characters" : "كلمة المرور يجب أن لا تقل عن 6 خانات";
     }
 
     setErrors(newErrors);
@@ -162,11 +163,11 @@ function RegisterPageContent() {
         const data = await res.json();
         if (data.success) {
           toast.success(
-            "تم إرسال الإيصال الجديد بنجاح! سيتم مراجعته من قبل المسؤول.",
+            language === "en" ? "New receipt sent successfully! It will be reviewed by admin." : "تم إرسال الإيصال الجديد بنجاح! سيتم مراجعته من قبل المسؤول.",
           );
           router.push("/");
         } else {
-          toast.error(data.error || "حدث خطأ ما");
+          toast.error(data.error || language === "en" ? "Something went wrong" : "حدث خطأ ما");
         }
         return;
       }
@@ -192,18 +193,18 @@ function RegisterPageContent() {
       if (data.success) {
         loginFn(data.user);
         if (plan === "free" || selectedPlan?.price === 0) {
-          toast.success("تم تفعيل حسابك المجاني بنجاح! أهلاً بك في روشتة 🎉");
+          toast.success(language === "en" ? "Free account activated successfully! Welcome to Roshetta 🎉" : "تم تفعيل حسابك المجاني بنجاح! أهلاً بك في روشتة 🎉");
         } else {
           toast.success(
-            "تم إتمام الاشتراك بنجاح! سيتم مراجعة الدفعة وتفعيل الحساب قريباً.",
+            language === "en" ? "Subscription completed successfully! Payment will be reviewed and account activated soon." : "تم إتمام الاشتراك بنجاح! سيتم مراجعة الدفعة وتفعيل الحساب قريباً.",
           );
         }
         router.push("/");
       } else {
-        toast.error(data.error || "حدث خطأ ما");
+        toast.error(data.error || language === "en" ? "Something went wrong" : "حدث خطأ ما");
       }
     } catch (e) {
-      toast.error("فشل الاتصال بالخادم");
+      toast.error(language === "en" ? "Failed to connect to server" : "فشل الاتصال بالخادم");
     } finally {
       setIsLoading(false);
     }
@@ -414,7 +415,7 @@ function RegisterPageContent() {
   `;
 
   return (
-    <div className="register-page-container" dir="rtl">
+    <div className="register-page-container" dir={language === "en" ? "ltr" : "rtl"}>
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
 
       <div className="bg-decor">
@@ -468,8 +469,8 @@ function RegisterPageContent() {
         </div>
 
         <div className="hero">
-          <h1 className="hero-title">إتمام الاشتراك</h1>
-          <p className="sub">خطوات بسيطة تفصلك عن أذكى نظام لإدارة صيدليتك.</p>
+          <h1 className="hero-title">{language === "en" ? "Complete Subscription" : "إتمام الاشتراك"}</h1>
+          <p className="sub">{language === "en" ? "Simple steps separate you from the smartest system to manage your pharmacy." : "خطوات بسيطة تفصلك عن أذكى نظام لإدارة صيدليتك."}</p>
         </div>
 
         <div className="card">
@@ -486,15 +487,15 @@ function RegisterPageContent() {
             </div>
 
             <div className="line-item">
-              <span>رسوم الاشتراك</span>
+              <span>{language === "en" ? "Subscription Fees" : "رسوم الاشتراك"}</span>
               <span>${selectedPlan.price}</span>
             </div>
             <div className="line-item">
-              <span>الضرائب (0%)</span>
+              <span>{language === "en" ? "Taxes (0%)" : "الضرائب (0%)"}</span>
               <span>$0.00</span>
             </div>
             <div className="line-item total">
-              <span>الإجمالي</span>
+              <span>{language === "en" ? "Total" : "الإجمالي"}</span>
               <span>${selectedPlan.price}</span>
             </div>
 
@@ -517,7 +518,7 @@ function RegisterPageContent() {
             </ul>
 
             <div className="summary-footer">
-              أي استفسار؟ راسلنا على{" "}
+              {language === "en" ? "Any questions? Contact us at" : "أي استفسار؟ راسلنا على"} {" "}
               <a href="mailto:support@roshetta.com">support@roshetta.com</a>
             </div>
           </aside>
@@ -525,13 +526,13 @@ function RegisterPageContent() {
           <section className="form-side">
             <div className="stepper">
               <div className={`step ${step === 1 ? "" : "inactive"}`}>
-                <div className="step-num">١</div>
-                <div className="step-label">بيانات الصيدلية</div>
+                <div className="step-num">{language === "en" ? "1" : "١"}</div>
+                <div className="step-label">{language === "en" ? "Pharmacy Data" : "بيانات الصيدلية"}</div>
               </div>
               <div className={`step-line ${step === 2 ? "step2" : ""}`}></div>
               <div className={`step ${step === 2 ? "" : "inactive"}`}>
-                <div className="step-num">٢</div>
-                <div className="step-label">الدفع والبطاقة</div>
+                <div className="step-num">{language === "en" ? "2" : "٢"}</div>
+                <div className="step-label">{language === "en" ? "Payment and Card" : "الدفع والبطاقة"}</div>
               </div>
             </div>
 
@@ -540,10 +541,10 @@ function RegisterPageContent() {
                 <>
                   <div className="field-row">
                     <div className="field">
-                      <label>اسم الصيدلية</label>
+                      <label>{language === "en" ? "Pharmacy Name" : "اسم الصيدلية"}</label>
                       <input
                         type="text"
-                        placeholder="صيدلية الأمل"
+                        placeholder={language === "en" ? "Al-Amal Pharmacy" : "صيدلية الأمل"}
                         value={formData.pharmacyName}
                          style={errors.pharmacyName ? { borderColor: '#ef4444', boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.15)' } : {}}
                           onChange={(e) =>
@@ -561,10 +562,10 @@ function RegisterPageContent() {
                       )}
                     </div>
                     <div className="field">
-                      <label>اسم المدير / المالك</label>
+                      <label>{language === "en" ? "Manager / Owner Name" : "اسم المدير / المالك"}</label>
                       <input
                         type="text"
-                        placeholder="د. محمد أحمد"
+                        placeholder={language === "en" ? "Dr. Mohammed Ahmed" : "د. محمد أحمد"}
                         value={formData.managerName}
                          style={errors.managerName ? { borderColor: '#ef4444', boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.15)' } : {}}
                           onChange={(e) =>
@@ -584,7 +585,7 @@ function RegisterPageContent() {
                   </div>
 
                   <div className="field">
-                    <label>البريد الإلكتروني</label>
+                    <label>{language === "en" ? "Email" : "البريد الإلكتروني"}</label>
                     <input
                       type="email"
                       placeholder="pharmacy@example.com"
@@ -603,7 +604,7 @@ function RegisterPageContent() {
                     </div>
 
                   <div className="field">
-                    <label>رقم الموبايل</label>
+                    <label>{language === "en" ? "Mobile Number" : "رقم الموبايل"}</label>
                     <div
                       style={{
                         display: "flex",
@@ -660,7 +661,7 @@ function RegisterPageContent() {
                   </div>
 
                   <div className="field">
-                    <label>كلمة المرور للنظام</label>
+                    <label>{language === "en" ? "System Password" : "كلمة المرور للنظام"}</label>
                     <input
                       type="password"
                       placeholder="••••••••"
@@ -685,10 +686,10 @@ function RegisterPageContent() {
                     disabled={isLoading}
                   >
                     {isLoading
-                      ? "جاري المعالجة..."
+                      ? (language === "en" ? "Processing..." : "جاري المعالجة...")
                       : plan === "free" || selectedPlan?.price === 0
-                        ? "إنشاء الحساب وبدء التجربة المجانية"
-                        : "المتابعة للدفع"}
+                        ? (language === "en" ? "Create Account & Start Free Trial" : "إنشاء الحساب وبدء التجربة المجانية")
+                        : (language === "en" ? "Continue to Payment" : "المتابعة للدفع")}
                     {!isLoading && (
                       <svg
                         viewBox="0 0 24 24"
@@ -709,16 +710,12 @@ function RegisterPageContent() {
               ) : (
                 <>
                   <div className="mb-6">
-                    <h3 className="font-bold text-[18px] text-deep mb-2">
-                      طريقة الدفع
-                    </h3>
+                    <h3 className="font-bold text-[18px] text-deep mb-2">{language === "en" ? "Payment Method" : "طريقة الدفع"}</h3>
                     <p
                       className="text-[14px] text-ink-soft mb-4"
                       style={{ lineHeight: "1.6" }}
                     >
-                      يرجى تحويل مبلغ الاشتراك (${selectedPlan.price}) إلى
-                      حسابنا البنكي أو المحفظة الإلكترونية ثم إرفاق إيصال
-                      التحويل أدناه لتفعيل حسابك.
+                      {language === "en" ? `Please transfer the subscription amount (${selectedPlan.price}) to our bank account or e-wallet then attach the transfer receipt below to activate your account.` : `يرجى تحويل مبلغ الاشتراك (${selectedPlan.price}) إلى حسابنا البنكي أو المحفظة الإلكترونية ثم إرفاق إيصال التحويل أدناه لتفعيل حسابك.`}
                     </p>
 
                     <div
@@ -754,9 +751,7 @@ function RegisterPageContent() {
                           style={{ fontSize: "24px" }}
                         >
                           🏦
-                        </span>
-                        حوالة بنكية
-                      </div>
+                        </span>{language === "en" ? "Bank Transfer" : "حوالة بنكية"}</div>
                       <div
                         onClick={() => setPayMethod("palpay")}
                         className="p-3 rounded-xl flex flex-col items-center justify-center gap-2 font-bold cursor-pointer transition-all"
@@ -781,9 +776,7 @@ function RegisterPageContent() {
                           style={{ fontSize: "24px" }}
                         >
                           💳
-                        </span>
-                        بال باي
-                      </div>
+                        </span>{language === "en" ? "PalPay" : "بال باي"}</div>
                       <div
                         onClick={() => setPayMethod("jawwal")}
                         className="p-3 rounded-xl flex flex-col items-center justify-center gap-2 font-bold cursor-pointer transition-all"
@@ -808,9 +801,7 @@ function RegisterPageContent() {
                           style={{ fontSize: "24px" }}
                         >
                           📱
-                        </span>
-                        جوال باي
-                      </div>
+                        </span>{language === "en" ? "Jawwal Pay" : "جوال باي"}</div>
                     </div>
 
                     <div
@@ -832,9 +823,7 @@ function RegisterPageContent() {
                               fontWeight: "bold",
                               marginBottom: "8px",
                             }}
-                          >
-                            بيانات التحويل البنكي:
-                          </div>
+                          >{language === "en" ? "Bank Transfer Details:" : "بيانات التحويل البنكي:"}</div>
                           <div
                             className="font-mono text-[14px] text-ink-soft flex flex-col gap-1"
                             style={{
@@ -852,9 +841,7 @@ function RegisterPageContent() {
                                 alignItems: "center",
                               }}
                             >
-                              <span className="font-bold font-sans">
-                                البنك:
-                              </span>{" "}
+                              <span className="font-bold font-sans">{language === "en" ? "Bank:" : "البنك:"}</span>{" "}
                               <span>{adminSettings?.bankName || ""}</span>
                             </div>
                             <div
@@ -864,9 +851,7 @@ function RegisterPageContent() {
                                 alignItems: "center",
                               }}
                             >
-                              <span className="font-bold font-sans">
-                                رقم الحساب:
-                              </span>{" "}
+                              <span className="font-bold font-sans">{language === "en" ? "Account Number:" : "رقم الحساب:"}</span>{" "}
                               <span dir="ltr">
                                 {adminSettings?.bankAccount || ""}
                               </span>
@@ -879,9 +864,7 @@ function RegisterPageContent() {
                                   alignItems: "center",
                                 }}
                               >
-                                <span className="font-bold font-sans">
-                                  الآيبان:
-                                </span>{" "}
+                                <span className="font-bold font-sans">{language === "en" ? "IBAN:" : "الآيبان:"}</span>{" "}
                                 <span dir="ltr">{adminSettings.bankIban}</span>
                               </div>
                             )}
@@ -894,9 +877,7 @@ function RegisterPageContent() {
                                   alignItems: "center",
                                 }}
                               >
-                                <span className="font-bold font-sans">
-                                  الاسم:
-                                </span>{" "}
+                                <span className="font-bold font-sans">{language === "en" ? "Name:" : "الاسم:"}</span>{" "}
                                 <span>
                                   {adminSettings.bankAccountName ||
                                     adminSettings.companyName}
@@ -916,9 +897,7 @@ function RegisterPageContent() {
                               fontWeight: "bold",
                               marginBottom: "8px",
                             }}
-                          >
-                            بيانات الدفع عبر بال باي (PalPay):
-                          </div>
+                          >{language === "en" ? "PalPay Payment Details:" : "بيانات الدفع عبر بال باي (PalPay):"}</div>
                           <div
                             className="font-mono text-[14px] text-ink-soft flex flex-col gap-1"
                             style={{
@@ -936,9 +915,7 @@ function RegisterPageContent() {
                                 alignItems: "center",
                               }}
                             >
-                              <span className="font-bold font-sans">
-                                رقم المحفظة:
-                              </span>{" "}
+                              <span className="font-bold font-sans">{language === "en" ? "Wallet Number:" : "رقم المحفظة:"}</span>{" "}
                               <span dir="ltr">
                                 {adminSettings?.walletNumber || ""}
                               </span>
@@ -952,9 +929,7 @@ function RegisterPageContent() {
                                   alignItems: "center",
                                 }}
                               >
-                                <span className="font-bold font-sans">
-                                  الاسم:
-                                </span>{" "}
+                                <span className="font-bold font-sans">{language === "en" ? "Name:" : "الاسم:"}</span>{" "}
                                 <span>
                                   {adminSettings.palpayName ||
                                     adminSettings.companyName}
@@ -974,9 +949,7 @@ function RegisterPageContent() {
                               fontWeight: "bold",
                               marginBottom: "8px",
                             }}
-                          >
-                            بيانات الدفع عبر جوال باي (Jawwal Pay):
-                          </div>
+                          >{language === "en" ? "Jawwal Pay Payment Details:" : "بيانات الدفع عبر جوال باي (Jawwal Pay):"}</div>
                           <div
                             className="font-mono text-[14px] text-ink-soft flex flex-col gap-1"
                             style={{
@@ -994,9 +967,7 @@ function RegisterPageContent() {
                                 alignItems: "center",
                               }}
                             >
-                              <span className="font-bold font-sans">
-                                رقم المحفظة:
-                              </span>{" "}
+                              <span className="font-bold font-sans">{language === "en" ? "Wallet Number:" : "رقم المحفظة:"}</span>{" "}
                               <span dir="ltr">
                                 {adminSettings?.walletNumber || ""}
                               </span>
@@ -1010,9 +981,7 @@ function RegisterPageContent() {
                                   alignItems: "center",
                                 }}
                               >
-                                <span className="font-bold font-sans">
-                                  الاسم:
-                                </span>{" "}
+                                <span className="font-bold font-sans">{language === "en" ? "Name:" : "الاسم:"}</span>{" "}
                                 <span>
                                   {adminSettings.jawwalpayName ||
                                     adminSettings.companyName}
@@ -1029,19 +998,19 @@ function RegisterPageContent() {
                       style={{ marginBottom: "24px" }}
                     >
                       <div className="field" style={{ marginBottom: 0 }}>
-                        <label>اسم المحول (اختياري)</label>
+                        <label>{language === "en" ? "Transferer Name (Optional)" : "اسم المحول (اختياري)"}</label>
                         <input
                           type="text"
-                          placeholder="الاسم كما يظهر في الحوالة"
+                          placeholder={language === "en" ? "Name as it appears in the transfer" : "الاسم كما يظهر في الحوالة"}
                           value={transferName}
                           onChange={(e) => setTransferName(e.target.value)}
                         />
                       </div>
                       <div className="field" style={{ marginBottom: 0 }}>
-                        <label>رقم المرجع (اختياري)</label>
+                        <label>{language === "en" ? "Reference Number (Optional)" : "رقم المرجع (اختياري)"}</label>
                         <input
                           type="text"
-                          placeholder="مثال: 123456789"
+                          placeholder={language === "en" ? "Example: 123456789" : "مثال: 123456789"}
                           value={transferRef}
                           onChange={(e) => setTransferRef(e.target.value)}
                         />
@@ -1143,15 +1112,11 @@ function RegisterPageContent() {
                             <div
                               className="font-bold text-deep text-[15px]"
                               style={{ fontWeight: "bold", fontSize: "15px" }}
-                            >
-                              انقر لرفع إيصال التحويل
-                            </div>
+                            >{language === "en" ? "Click to upload transfer receipt" : "انقر لرفع إيصال التحويل"}</div>
                             <div
                               className="text-[12px] text-ink-soft mt-1"
                               style={{ fontSize: "12px", marginTop: "4px" }}
-                            >
-                              صورة واضحة للحوالة البنكية أو المحفظة
-                            </div>
+                            >{language === "en" ? "Clear image of the bank transfer or wallet" : "صورة واضحة للحوالة البنكية أو المحفظة"}</div>
                           </div>
                         </div>
                       )}
@@ -1173,9 +1138,7 @@ function RegisterPageContent() {
                         background: "transparent",
                         cursor: "pointer",
                       }}
-                    >
-                      رجوع
-                    </button>
+                    >{language === "en" ? "Back" : "رجوع"}</button>
                     <button
                       type="button"
                       onClick={handleRegister}
@@ -1192,8 +1155,8 @@ function RegisterPageContent() {
                       }}
                     >
                       {isLoading
-                        ? "جاري الإنشاء..."
-                        : "إتمام الاشتراك وتفعيل الحساب"}
+                        ? (language === "en" ? "Creating..." : "جاري الإنشاء...")
+                        : (language === "en" ? "Complete Subscription & Activate Account" : "إتمام الاشتراك وتفعيل الحساب")}
                     </button>
                   </div>
                 </>
@@ -1210,9 +1173,7 @@ function RegisterPageContent() {
                     strokeWidth="1.5"
                     strokeLinejoin="round"
                   />
-                </svg>
-                بياناتك محمية ومشفّرة بالكامل
-              </div>
+                </svg>{language === "en" ? "Your data is fully protected and encrypted" : "بياناتك محمية ومشفّرة بالكامل"}</div>
             </form>
           </section>
         </div>
@@ -1223,8 +1184,9 @@ function RegisterPageContent() {
 
 
 export default function RegisterPage() {
+  const language = useStore((state: any) => state.language);
   return (
-    <Suspense fallback={<div className="p-8 text-center text-ink-soft">جاري التحميل...</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-ink-soft">{language === "en" ? "Loading..." : "جاري التحميل..."}</div>}>
       <RegisterPageContent />
     </Suspense>
   );

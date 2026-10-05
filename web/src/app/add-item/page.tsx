@@ -8,7 +8,8 @@ import toast from "react-hot-toast";
 import { useStore } from "@/store";
 
 export default function AddItem() {
-  const user = useStore((state) => state.user);
+  const user = useStore((state: any) => state.user);
+  const language = useStore((state: any) => state.language);
   const router = useRouter();
 
   useEffect(() => {
@@ -98,14 +99,14 @@ export default function AddItem() {
 
     if (hasSubUnit) {
       if (!sub1Name || !sub1Count || !sub1Price) {
-        toast.error("يرجى إكمال بيانات الجزء الأصغر (الأشرطة/الأمبولات)");
+        toast.error(language === 'en' ? "Please complete sub-unit details (strips/ampoules)" : "يرجى إكمال بيانات الجزء الأصغر (الأشرطة/الأمبولات)");
         setLoading(false);
         return;
       }
       const s1Count = Number(sub1Count);
       if (hasSubUnit2) {
         if (!sub2Name || !sub2Count || !sub2Price) {
-          toast.error("يرجى إكمال تفاصيل أصغر جزء (الحبات)");
+          toast.error(language === 'en' ? "Please complete smallest unit details (pills)" : "يرجى إكمال تفاصيل أصغر جزء (الحبات)");
           setLoading(false);
           return;
         }
@@ -151,23 +152,23 @@ export default function AddItem() {
       if (!data.success) throw new Error(data.error);
 
       setLoading(false);
-      toast.success("تمت إضافة الصنف بنجاح!");
+      toast.success(language === 'en' ? "Item added successfully!" : "تمت إضافة الصنف بنجاح!");
       router.push("/inventory");
     } catch (error) {
       setLoading(false);
-      toast.error(error instanceof Error ? error.message : "حدث خطأ أثناء الإضافة");
+      toast.error(error instanceof Error ? error.message : (language === 'en' ? "Error adding item" : "حدث خطأ أثناء الإضافة"));
     }
   };
 
   return (
     <div className="max-w-2xl mx-auto">
-      <AppBar title="إضافة صنف جديد" showLogo={false} />
+      <AppBar title={language === 'en' ? 'Add New Item' : 'إضافة صنف جديد'} showLogo={false} />
 
       <form onSubmit={handleSubmit} className="space-y-4 mt-6">
         <div className="flex gap-4">
           <div className="flex-1">
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
-              اسم الدواء (التجاري)
+              {language === 'en' ? 'Medicine Name (Trade)' : 'اسم الدواء (التجاري)'}
             </label>
             <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
               <input
@@ -175,7 +176,7 @@ export default function AddItem() {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                placeholder="مثال: أوجمنتين ١g"
+                placeholder={language === 'en' ? 'Example: Augmentin 1g' : 'مثال: أوجمنتين ١g'}
                 className="w-full bg-transparent border-none outline-none text-[16px] text-ink placeholder:text-[#A6B8AE]"
                 dir="auto"
               />
@@ -183,14 +184,14 @@ export default function AddItem() {
           </div>
           <div className="flex-1">
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
-              الاسم العلمي
+              {language === 'en' ? 'Scientific Name' : 'الاسم العلمي'}
             </label>
             <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
               <input
                 name="scientificName"
                 value={formData.scientificName}
                 onChange={handleChange}
-                placeholder="مثال: Amoxicillin"
+                placeholder={language === 'en' ? 'Example: Amoxicillin' : 'مثال: Amoxicillin'}
                 className="w-full bg-transparent border-none outline-none text-[16px] text-ink placeholder:text-[#A6B8AE]"
                 dir="auto"
               />
@@ -201,7 +202,7 @@ export default function AddItem() {
         <div className="flex gap-4">
           <div className="flex-1">
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
-              الشركة المصنّعة
+              {language === 'en' ? 'Manufacturer' : 'الشركة المصنّعة'}
             </label>
             <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
               <input
@@ -216,14 +217,14 @@ export default function AddItem() {
           </div>
           <div className="flex-1">
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
-              الفئة العلاجية
+              {language === 'en' ? 'Therapeutic Category' : 'الفئة العلاجية'}
             </label>
             <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
               <input
                 name="category"
                 value={formData.category}
                 onChange={handleChange}
-                placeholder="مضاد حيوي"
+                placeholder={language === 'en' ? 'Antibiotic' : 'مضاد حيوي'}
                 className="w-full bg-transparent border-none outline-none text-[16px] text-ink placeholder:text-[#A6B8AE]"
                 dir="auto"
               />
@@ -234,7 +235,7 @@ export default function AddItem() {
         <div className="flex gap-4">
           <div className="flex-1">
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
-              سعر الشراء (₪)
+              {language === 'en' ? 'Purchase Price (₪)' : 'سعر الشراء (₪)'}
             </label>
             <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
               <input
@@ -251,7 +252,7 @@ export default function AddItem() {
           </div>
           <div className="flex-1">
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
-              سعر البيع (₪)
+              {language === 'en' ? 'Selling Price (₪)' : 'سعر البيع (₪)'}
             </label>
             <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
               <input
@@ -272,7 +273,7 @@ export default function AddItem() {
         <div className="flex gap-4">
           <div className="flex-1">
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
-              الكمية الابتدائية
+              {language === 'en' ? 'Initial Quantity' : 'الكمية الابتدائية'}
             </label>
             <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
               <input
@@ -289,7 +290,7 @@ export default function AddItem() {
           {user?.role === "صيدلي" ? null : (
             <div className="flex-1">
               <label className="block text-[14px] font-semibold text-ink-soft mb-2">
-                الفرع المضاف إليه
+                {language === 'en' ? 'Target Branch' : 'الفرع المضاف إليه'}
               </label>
               <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
                 <select
@@ -312,7 +313,7 @@ export default function AddItem() {
         <div className="flex gap-4">
           <div className="flex-1">
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
-              رقم الدفعة
+              {language === 'en' ? 'Batch Number' : 'رقم الدفعة'}
             </label>
             <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
               <input
@@ -327,7 +328,7 @@ export default function AddItem() {
           </div>
           <div className="flex-1">
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
-              تاريخ الصلاحية
+              {language === 'en' ? 'Expiry Date' : 'تاريخ الصلاحية'}
             </label>
             <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
               <input
@@ -348,9 +349,9 @@ export default function AddItem() {
           <div className="flex items-center justify-between">
             <div>
               <label className="text-[16px] font-bold text-teal block">
-                دواء خاضع للرقابة (مراقبة)
+                {language === 'en' ? 'Controlled Medicine' : 'دواء خاضع للرقابة (مراقبة)'}
               </label>
-              <span className="text-xs text-ink-soft">يمنع بيع هذا الدواء إلا بصلاحيات الإدارة</span>
+              <span className="text-xs text-ink-soft">{language === 'en' ? 'Selling this medicine requires admin privileges' : 'يمنع بيع هذا الدواء إلا بصلاحيات الإدارة'}</span>
             </div>
             <input
               type="checkbox"
@@ -365,7 +366,7 @@ export default function AddItem() {
         <div className="bg-card border-2 border-mint-line rounded-xl p-5 mt-6">
           <div className="flex items-center justify-between mb-4">
             <label className="text-[16px] font-bold text-teal">
-              يُباع بالأجزاء (أشرطة / حبات)؟
+              {language === 'en' ? 'Sold in parts (Strips / Pills)?' : 'يُباع بالأجزاء (أشرطة / حبات)؟'}
             </label>
             <input
               type="checkbox"
@@ -381,49 +382,49 @@ export default function AddItem() {
           {hasSubUnit && (
             <div className="bg-teal-pale/30 p-4 rounded-xl border border-teal-pale space-y-4">
               <h3 className="font-bold text-[14px] text-teal">
-                الجزء الأول (مثال: شريط)
+                {language === 'en' ? 'First Part (e.g. Strip)' : 'الجزء الأول (مثال: شريط)'}
               </h3>
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-[12px] font-bold text-ink-soft mb-1">
-                    اسم الجزء
+                    {language === 'en' ? 'Part Name' : 'اسم الجزء'}
                   </label>
                   <select
                     value={sub1Name}
                     onChange={(e) => setSub1Name(e.target.value)}
                     className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px]"
                   >
-                    <option value="شريط">شريط</option>
-                    <option value="حبة">حبة / كبسولة</option>
-                    <option value="أمبولة">أمبولة</option>
-                    <option value="ظرف">ظرف (مغلف)</option>
-                    <option value="قطرة">قطرة</option>
-                    <option value="عبوة">عبوة</option>
+                    <option value="شريط">{language === 'en' ? 'Strip' : 'شريط'}</option>
+                    <option value="حبة">{language === 'en' ? 'Pill / Capsule' : 'حبة / كبسولة'}</option>
+                    <option value="أمبولة">{language === 'en' ? 'Ampoule' : 'أمبولة'}</option>
+                    <option value="ظرف">{language === 'en' ? 'Sachet' : 'ظرف (مغلف)'}</option>
+                    <option value="قطرة">{language === 'en' ? 'Drop' : 'قطرة'}</option>
+                    <option value="عبوة">{language === 'en' ? 'Bottle/Package' : 'عبوة'}</option>
                   </select>
                 </div>
                 <div className="flex-1">
                   <label className="block text-[12px] font-bold text-ink-soft mb-1">
-                    كم {sub1Name} في العلبة؟
+                    {language === 'en' ? `How many ${sub1Name === 'شريط' ? (language === 'en' ? 'Strips' : 'شريط') : sub1Name} in the box?` : `كم ${sub1Name} في العلبة؟`}
                   </label>
                   <input
                     type="number"
                     value={sub1Count}
                     onChange={(e) => setSub1Count(e.target.value)}
-                    placeholder="مثال: 3"
+                    placeholder={language === 'en' ? 'Example: 3' : 'مثال: 3'}
                     className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-left"
                     dir="ltr"
                   />
                 </div>
                 <div className="flex-1">
                   <label className="block text-[12px] font-bold text-ink-soft mb-1">
-                    سعر {sub1Name}
+                    {language === 'en' ? `Price of ${sub1Name === 'شريط' ? (language === 'en' ? 'Strip' : 'شريط') : sub1Name}` : `سعر ${sub1Name}`}
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     value={sub1Price}
                     onChange={(e) => setSub1Price(e.target.value)}
-                    placeholder="مثال: 12.00"
+                    placeholder={language === 'en' ? 'Example: 12.00' : 'مثال: 12.00'}
                     className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-left"
                     dir="ltr"
                   />
@@ -436,7 +437,7 @@ export default function AddItem() {
 
                   <div className="flex items-center justify-between mb-4">
                     <label className="text-[14px] font-bold text-teal">
-                      هل يباع الـ {sub1Name} مجزأ؟ (مثال: حبة)
+                      {language === 'en' ? `Is ${sub1Name === 'شريط' ? (language === 'en' ? 'Strip' : 'شريط') : sub1Name} sold in parts? (e.g. pill)` : `هل يباع الـ ${sub1Name} مجزأ؟ (مثال: حبة)`}
                     </label>
                     <input
                       type="checkbox"
@@ -451,46 +452,46 @@ export default function AddItem() {
               {sub1Name !== 'حبة' && sub1Name !== 'أمبولة' && sub1Name !== 'قطرة' && hasSubUnit2 && (
                 <div className="bg-white/50 p-4 rounded-xl border border-mint-line space-y-4">
                   <h3 className="font-bold text-[14px] text-teal">
-                    أصغر جزء (مثال: حبة)
+                    {language === 'en' ? 'Smallest Part (e.g. Pill)' : 'أصغر جزء (مثال: حبة)'}
                   </h3>
                   <div className="flex gap-4">
                     <div className="flex-1">
                       <label className="block text-[12px] font-bold text-ink-soft mb-1">
-                        اسم الجزء الأصغر
+                        {language === 'en' ? 'Smallest Part Name' : 'اسم الجزء الأصغر'}
                       </label>
                       <select
                         value={sub2Name}
                         onChange={(e) => setSub2Name(e.target.value)}
                         className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px]"
                       >
-                        <option value="حبة">حبة</option>
-                        <option value="ملي">ملي</option>
-                        <option value="نقطة">نقطة</option>
+                        <option value="حبة">{language === 'en' ? 'Pill' : 'حبة'}</option>
+                        <option value="ملي">{language === 'en' ? 'ml' : 'ملي'}</option>
+                        <option value="نقطة">{language === 'en' ? 'Drop' : 'نقطة'}</option>
                       </select>
                     </div>
                     <div className="flex-1">
                       <label className="block text-[12px] font-bold text-ink-soft mb-1">
-                        كم {sub2Name} في الـ {sub1Name}؟
+                        {language === 'en' ? `How many ${sub2Name === 'حبة' ? (language === 'en' ? 'Pills' : 'حبة') : sub2Name} in ${sub1Name === 'شريط' ? (language === 'en' ? 'Strip' : 'شريط') : sub1Name}?` : `كم ${sub2Name} في الـ ${sub1Name}؟`}
                       </label>
                       <input
                         type="number"
                         value={sub2Count}
                         onChange={(e) => setSub2Count(e.target.value)}
-                        placeholder="مثال: 10"
+                        placeholder={language === 'en' ? 'Example: 10' : 'مثال: 10'}
                         className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-left"
                         dir="ltr"
                       />
                     </div>
                     <div className="flex-1">
                       <label className="block text-[12px] font-bold text-ink-soft mb-1">
-                        سعر {sub2Name}
+                        {language === 'en' ? `Price of ${sub2Name === 'حبة' ? (language === 'en' ? 'Pill' : 'حبة') : sub2Name}` : `سعر ${sub2Name}`}
                       </label>
                       <input
                         type="number"
                         step="0.01"
                         value={sub2Price}
                         onChange={(e) => setSub2Price(e.target.value)}
-                        placeholder="مثال: 1.50"
+                        placeholder={language === 'en' ? 'Example: 1.50' : 'مثال: 1.50'}
                         className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-left"
                         dir="ltr"
                       />
@@ -507,7 +508,7 @@ export default function AddItem() {
           type="submit"
           className="w-full bg-primary text-white border-none py-[16px] rounded-xl font-sans font-bold text-[18px] mt-8 cursor-pointer shadow-sm block text-center transition-transform hover:scale-[1.02] disabled:opacity-50"
         >
-          {loading ? "جاري الحفظ..." : "حفظ الصنف"}
+          {loading ? (language === 'en' ? 'Saving...' : 'جاري الحفظ...') : (language === 'en' ? 'Save Item' : 'حفظ الصنف')}
         </button>
       </form>
     </div>

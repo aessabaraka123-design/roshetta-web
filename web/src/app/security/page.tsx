@@ -3,32 +3,34 @@
 import AppBar from "@/components/AppBar";
 import { useState } from "react";
 import toast from "react-hot-toast";
+import { useStore } from "@/store";
 
 export default function SecurityPage() {
+  const language = useStore((state: any) => state.language);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const handlePasswordChange = () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      toast.error("يرجى تعبئة كافة الحقول");
+      toast.error(language === "en" ? "Please fill in all fields" : "يرجى تعبئة كافة الحقول");
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error("كلمة المرور الجديدة غير متطابقة");
+      toast.error(language === "en" ? "New passwords do not match" : "كلمة المرور الجديدة غير متطابقة");
       return;
     }
-    toast.success("تم تغيير كلمة المرور بنجاح");
+    toast.success(language === "en" ? "Password changed successfully" : "تم تغيير كلمة المرور بنجاح");
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
   };
 
   const [permissions, setPermissions] = useState([
-    { id: 1, label: "السماح للكاشير بإرجاع الأدوية المباعة", active: false },
-    { id: 2, label: "السماح للصيادلة بتعديل أسعار الأدوية", active: false },
-    { id: 3, label: "عرض الأرباح والتكاليف لمدراء الفروع", active: true },
-    { id: 4, label: "تنبيه المالك عند كل عملية حذف فاتورة", active: true },
+    { id: 1, label: language === "en" ? "Allow cashier to return sold medicines" : "السماح للكاشير بإرجاع الأدوية المباعة", active: false },
+    { id: 2, label: language === "en" ? "Allow pharmacists to modify medicine prices" : "السماح للصيادلة بتعديل أسعار الأدوية", active: false },
+    { id: 3, label: language === "en" ? "View profits and costs for branch managers" : "عرض الأرباح والتكاليف لمدراء الفروع", active: true },
+    { id: 4, label: language === "en" ? "Alert owner on every invoice deletion" : "تنبيه المالك عند كل عملية حذف فاتورة", active: true },
   ]);
 
   const togglePermission = (id: number) => {
@@ -39,17 +41,17 @@ export default function SecurityPage() {
 
   return (
     <>
-      <AppBar title="الصلاحيات والأمان" backHref="/more" />
+      <AppBar title={language === "en" ? "Permissions & Security" : "الصلاحيات والأمان"} backHref="/more" />
       <main className="max-w-4xl mx-auto p-4 pb-24 space-y-6 mt-4">
         {/* Change Password Section */}
         <section>
           <h3 className="text-[16px] font-black text-primary mb-3">
-            تغيير كلمة المرور الخاصة بك
+            {language === "en" ? "Change Your Password" : "تغيير كلمة المرور الخاصة بك"}
           </h3>
           <div className="bg-white border border-mint-line rounded-2xl p-4 shadow-sm space-y-3">
             <div>
               <label className="block text-[13px] font-bold text-ink mb-1.5">
-                كلمة المرور الحالية
+                {language === "en" ? "Current Password" : "كلمة المرور الحالية"}
               </label>
               <input
                 type="password"
@@ -61,7 +63,7 @@ export default function SecurityPage() {
             </div>
             <div>
               <label className="block text-[13px] font-bold text-ink mb-1.5">
-                كلمة المرور الجديدة
+                {language === "en" ? "New Password" : "كلمة المرور الجديدة"}
               </label>
               <input
                 type="password"
@@ -73,7 +75,7 @@ export default function SecurityPage() {
             </div>
             <div>
               <label className="block text-[13px] font-bold text-ink mb-1.5">
-                تأكيد كلمة المرور الجديدة
+                {language === "en" ? "Confirm New Password" : "تأكيد كلمة المرور الجديدة"}
               </label>
               <input
                 type="password"
@@ -87,7 +89,7 @@ export default function SecurityPage() {
               onClick={handlePasswordChange}
               className="w-full bg-primary text-white font-bold py-3 rounded-xl mt-2 shadow-md shadow-primary/20 hover:bg-teal transition-colors"
             >
-              حفظ كلمة المرور
+              {language === "en" ? "Save Password" : "حفظ كلمة المرور"}
             </button>
           </div>
         </section>
@@ -95,7 +97,7 @@ export default function SecurityPage() {
         {/* Global Permissions Section */}
         <section>
           <h3 className="text-[16px] font-black text-primary mb-3">
-            الصلاحيات العامة للموظفين
+            {language === "en" ? "General Employee Permissions" : "الصلاحيات العامة للموظفين"}
           </h3>
           <div className="bg-white border border-mint-line rounded-2xl p-1 shadow-sm">
             {permissions.map((p, i) => (
@@ -118,7 +120,7 @@ export default function SecurityPage() {
             ))}
           </div>
           <p className="text-[12px] text-ink-soft font-semibold text-center mt-3">
-            يتم تطبيق هذه الصلاحيات على جميع فروع الصيدلية فوراً.
+            {language === "en" ? "These permissions are applied to all pharmacy branches immediately." : "يتم تطبيق هذه الصلاحيات على جميع فروع الصيدلية فوراً."}
           </p>
         </section>
       </main>

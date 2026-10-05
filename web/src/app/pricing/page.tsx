@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import RoshettaLogo from "@/components/RoshettaLogo";
+import { useStore } from "@/store";
 
 export default function Pricing() {
+  const language = useStore((state: any) => state.language);
   const router = useRouter();
   const fetcher = (url: string) => fetch(url).then((r) => r.json());
   const { data: plansData, isLoading } = useSWR(
@@ -20,21 +22,21 @@ export default function Pricing() {
     ...p,
     id: p.id || p.type,
     name: p.name,
-    description: p.description || p.desc || "تفاصيل الباقة",
+    description: p.description || p.desc || (language === 'en' ? "Plan Details" : "تفاصيل الباقة"),
     price: p.price ?? 0,
     oldPrice: p.oldPrice || p.old_price,
     isFree: p.price === 0 || p.id === "free",
     cycle:
       p.cycle ||
       (p.id === "free"
-        ? "14 يوم مجانًا"
+        ? (language === 'en' ? "14 Days Free" : "14 يوم مجانًا")
         : p.durationMonths === 1
-          ? "شهرياً"
+          ? (language === 'en' ? "Monthly" : "شهرياً")
           : p.durationMonths === 12
-            ? "سنوياً"
+            ? (language === 'en' ? "Annually" : "سنوياً")
             : p.durationMonths > 100
-              ? "مرة واحدة"
-              : `${p.durationMonths} أشهر`),
+              ? (language === 'en' ? "Once" : "مرة واحدة")
+              : (language === 'en' ? `${p.durationMonths} Months` : `${p.durationMonths} أشهر`)),
     isFeatured:
       p.id === "annual" ||
       p.id === "lifetime" ||
@@ -287,16 +289,15 @@ export default function Pricing() {
           </div>
 
           <h1 className="pricing-title">
-            النظام الأذكى <span>لإدارة</span> صيدليتك
+            {language === 'en' ? 'The Smartest System to ' : 'النظام الأذكى '}<span>{language === 'en' ? 'Manage' : 'لإدارة'}</span>{language === 'en' ? ' Your Pharmacy' : ' صيدليتك'}
           </h1>
 
           <p className="sub">
-            كل ما تحتاجه لإدارة صيدليتك في مكان واحد، بواجهة بسيطة لا تحتاج
-            شرحًا. اختر الباقة المناسبة لحجم عملك، وابدأ خلال دقائق.
+            {language === 'en' ? "Everything you need to manage your pharmacy in one place, with a simple, self-explanatory interface. Choose the right plan for your business size, and get started in minutes." : "كل ما تحتاجه لإدارة صيدليتك في مكان واحد، بواجهة بسيطة لا تحتاج شرحًا. اختر الباقة المناسبة لحجم عملك، وابدأ خلال دقائق."}
           </p>
 
           <Link href="/login" className="login-pill">
-            لديك حساب صيدلية بالفعل؟ تسجيل الدخول
+            {language === 'en' ? "Already have a pharmacy account? Log In" : "لديك حساب صيدلية بالفعل؟ تسجيل الدخول"}
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -327,7 +328,7 @@ export default function Pricing() {
 
         {isLoading ? (
           <div className="text-center py-20 text-ink-soft">
-            جاري تحميل الباقات...
+            {language === 'en' ? "Loading plans..." : "جاري تحميل الباقات..."}
           </div>
         ) : (
           <div className="grid">
@@ -363,7 +364,7 @@ export default function Pricing() {
                           >
                             <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                           </svg>
-                          الأفضل قيمة
+                          {language === 'en' ? "Best Value" : "الأفضل قيمة"}
                         </div>
                       )}
                     {p.oldPrice && p.oldPrice > p.price && (
@@ -379,7 +380,7 @@ export default function Pricing() {
                           <circle cx="12" cy="12" r="10"></circle>
                           <polyline points="12 6 12 12 16 14"></polyline>
                         </svg>
-                        لفترة محدودة
+                        {language === 'en' ? "Limited Time" : "لفترة محدودة"}
                       </div>
                     )}
                   </div>
@@ -389,7 +390,7 @@ export default function Pricing() {
                   <div className="price" style={{ position: "relative" }}>
                     {p.isFree ? (
                       <span className="num" style={{ fontSize: "32px" }}>
-                        مجانًا
+                        {language === 'en' ? "Free" : "مجانًا"}
                       </span>
                     ) : (
                       <>
@@ -440,7 +441,7 @@ export default function Pricing() {
                   }
                   className={`cta theme-${p.id || p.type}`}
                 >
-                  {p.isFree ? "ابدأ تجربتك المجانية" : "اختيار الباقة"}
+                  {p.isFree ? (language === 'en' ? "Start Free Trial" : "ابدأ تجربتك المجانية") : (language === 'en' ? "Choose Plan" : "اختيار الباقة")}
                 </button>
               </div>
             ))}
@@ -448,9 +449,9 @@ export default function Pricing() {
         )}
 
         <footer>
-          جميع الحقوق محفوظة لبرنامج روشتة © 2026
+          {language === 'en' ? 'All rights reserved for Roshetta © 2026' : 'جميع الحقوق محفوظة لبرنامج روشتة © 2026'}
           <br />
-          تم التطوير بشغف بواسطة المهندس <strong>عيسى بركة</strong>
+          {language === 'en' ? 'Developed with passion by Eng. ' : 'تم التطوير بشغف بواسطة المهندس '}<strong>{language === 'en' ? 'Aessa Baraka' : 'عيسى بركة'}</strong>
         </footer>
       </div>
     </div>

@@ -13,7 +13,8 @@ import toast from "react-hot-toast";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function Customers() {
-  const user = useStore((state) => state.user);
+  const user = useStore((state: any) => state.user);
+  const language = useStore((state: any) => state.language);
   const router = useRouter();
 
   useEffect(() => {
@@ -113,15 +114,15 @@ export default function Customers() {
       );
       const result = await res.json();
       if (result.success) {
-        toast.success("تم إضافة العميل بنجاح!");
+        toast.success(language === 'en' ? 'Customer added successfully!' : 'تم إضافة العميل بنجاح!');
         setShowAddModal(false);
         setNewCustomer({ name: "", phone: "", branch_id: "" });
         mutate();
       } else {
-        toast.error(result.error || "فشل الإضافة");
+        toast.error(result.error || (language === 'en' ? 'Add failed' : 'فشل الإضافة'));
       }
     } catch (e) {
-      toast.error("خطأ في الاتصال");
+      toast.error(language === 'en' ? 'Connection error' : 'خطأ في الاتصال');
     } finally {
       setIsLoading(false);
     }
@@ -147,16 +148,16 @@ export default function Customers() {
       );
       const result = await res.json();
       if (result.success) {
-        toast.success("تم تسجيل الدفعة بنجاح!");
+        toast.success(language === 'en' ? 'Payment recorded successfully!' : 'تم تسجيل الدفعة بنجاح!');
         setShowPayModal(false);
         setPaymentAmount("");
         setSelectedCustomer(null);
         mutate();
       } else {
-        toast.error(result.error || "فشل التسجيل");
+        toast.error(result.error || (language === 'en' ? 'Registration failed' : 'فشل التسجيل'));
       }
     } catch (e) {
-      toast.error("خطأ في الاتصال");
+      toast.error(language === 'en' ? 'Connection error' : 'خطأ في الاتصال');
     } finally {
       setIsLoading(false);
     }
@@ -168,17 +169,17 @@ export default function Customers() {
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-[22px] font-bold text-primary flex items-center gap-2">
-            العملاء والمرضى
+            {language === 'en' ? 'Customers and Patients' : 'العملاء والمرضى'}
           </h1>
           <p className="text-[15px] text-ink-soft mt-1">
-            قاعدة بيانات الزبائن المترددين وإدارة حساباتهم
+            {language === 'en' ? 'Frequent customers database and accounts management' : 'قاعدة بيانات الزبائن المترددين وإدارة حساباتهم'}
           </p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
           className="bg-primary text-white px-5 py-2.5 rounded-xl font-bold text-[14px] shadow-sm hover:bg-teal transition-all"
         >
-          + إضافة عميل جديد
+          {language === 'en' ? '+ Add New Customer' : '+ إضافة عميل جديد'}
         </button>
       </div>
 
@@ -188,7 +189,7 @@ export default function Customers() {
             <SearchBar
               value={search}
               onChange={setSearch}
-              placeholder="ابحث باسم العميل أو رقم الجوال..."
+              placeholder={language === 'en' ? 'Search by customer name or mobile...' : 'ابحث باسم العميل أو رقم الجوال...'}
             />
           </div>
           {user?.role === "manager" && branches.length > 0 && (
@@ -197,7 +198,7 @@ export default function Customers() {
               onChange={(e) => setBranchFilter(e.target.value)}
               className="p-2.5 border border-mint-line bg-white rounded-xl text-[14px] focus:outline-none focus:border-primary shadow-sm font-bold text-primary min-w-[150px]"
             >
-              <option value="all">كل الفروع</option>
+              <option value="all">{language === 'en' ? 'All Branches' : 'كل الفروع'}</option>
               {branches.map((b: any) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -210,11 +211,11 @@ export default function Customers() {
         <table className="w-full text-right">
           <thead>
             <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-              <th className="py-3 px-5 font-semibold">اسم العميل</th>
-              <th className="py-3 px-5 font-semibold">رقم التواصل</th>
-              <th className="py-3 px-5 font-semibold">آخر زيارة</th>
-              <th className="py-3 px-5 font-semibold">الرصيد / الديون</th>
-              <th className="py-3 px-5 font-semibold text-center">إجراءات</th>
+              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Customer Name' : 'اسم العميل'}</th>
+              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Contact Number' : 'رقم التواصل'}</th>
+              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Last Visit' : 'آخر زيارة'}</th>
+              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Balance / Debt' : 'الرصيد / الديون'}</th>
+              <th className="py-3 px-5 font-semibold text-center">{language === 'en' ? 'Actions' : 'إجراءات'}</th>
             </tr>
           </thead>
           <tbody>
@@ -244,7 +245,7 @@ export default function Customers() {
                     {customer.phone}
                   </td>
                   <td className="py-4 px-5 text-[14px] text-ink-soft">
-                    {customer.lastVisit || "لا يوجد زيارات"}
+                    {customer.lastVisit || (language === 'en' ? 'No visits' : 'لا يوجد زيارات')}
                   </td>
                   <td className="py-4 px-5">
                     <span
@@ -266,7 +267,7 @@ export default function Customers() {
                         }}
                         className="px-3 py-1.5 text-[12px] font-bold text-primary bg-primary-pale rounded-lg hover:bg-primary-pale/80 transition-all shadow-sm"
                       >
-                        تفاصيل الملف
+                        {language === 'en' ? 'Profile Details' : 'تفاصيل الملف'}
                       </button>
                       <button
                         onClick={() => {
@@ -288,7 +289,7 @@ export default function Customers() {
                             d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                           />
                         </svg>
-                        إيداع / تسديد
+                        {language === 'en' ? 'Deposit / Pay' : 'إيداع / تسديد'}
                       </button>
                     </div>
                   </td>
@@ -300,7 +301,7 @@ export default function Customers() {
                   colSpan={5}
                   className="py-10 text-center text-ink-soft text-[15px]"
                 >
-                  لا يوجد عملاء مسجلين
+                  {language === 'en' ? 'No registered customers' : 'لا يوجد عملاء مسجلين'}
                 </td>
               </tr>
             )}
@@ -312,13 +313,13 @@ export default function Customers() {
         <div className="fixed inset-0 bg-ink/50 z-50 flex items-center justify-center p-4">
           <div className="bg-card w-full max-w-md rounded-2xl p-6 shadow-2xl">
             <h3 className="text-[20px] font-bold text-ink mb-6">
-              إضافة عميل جديد
+              {language === 'en' ? 'Add New Customer' : 'إضافة عميل جديد'}
             </h3>
 
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-[14px] font-bold text-ink-soft mb-2">
-                  اسم العميل بالكامل
+                  {language === 'en' ? 'Full Customer Name' : 'اسم العميل بالكامل'}
                 </label>
                 <input
                   type="text"
@@ -327,12 +328,12 @@ export default function Customers() {
                     setNewCustomer({ ...newCustomer, name: e.target.value })
                   }
                   className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 outline-none focus:border-teal transition-colors"
-                  placeholder="مثال: يوسف أحمد"
+                  placeholder={language === 'en' ? 'Example: Youssef Ahmed' : 'مثال: يوسف أحمد'}
                 />
               </div>
               <div>
                 <label className="block text-[14px] font-bold text-ink-soft mb-2">
-                  رقم الهاتف / الجوال
+                  {language === 'en' ? 'Phone / Mobile Number' : 'رقم الهاتف / الجوال'}
                 </label>
                 <input
                   type="text"
@@ -348,7 +349,7 @@ export default function Customers() {
               {user?.role === "manager" && branches.length > 0 && (
                 <div>
                   <label className="block text-[14px] font-bold text-ink-soft mb-2">
-                    الفرع
+                    {language === 'en' ? 'Branch' : 'الفرع'}
                   </label>
                   <select
                     value={newCustomer.branch_id || ""}
@@ -360,7 +361,7 @@ export default function Customers() {
                     }
                     className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 outline-none focus:border-teal transition-colors text-[14px] font-bold text-primary"
                   >
-                    <option value="">الفرع الرئيسي (لكل الفروع)</option>
+                    <option value="">{language === 'en' ? 'Main Branch (All Branches)' : 'الفرع الرئيسي (لكل الفروع)'}</option>
                     {branches.map((b: any) => (
                       <option key={b.id} value={b.id}>
                         {b.name}
@@ -377,13 +378,13 @@ export default function Customers() {
                 disabled={isLoading || !newCustomer.name || !newCustomer.phone}
                 className="flex-1 bg-primary text-white font-bold py-3.5 rounded-xl shadow-md shadow-primary/20 hover:bg-primary-dark transition-all disabled:opacity-50"
               >
-                {isLoading ? "جاري الإضافة..." : "حفظ العميل"}
+                {isLoading ? (language === 'en' ? 'Adding...' : 'جاري الإضافة...') : (language === 'en' ? 'Save Customer' : 'حفظ العميل')}
               </button>
               <button
                 onClick={() => setShowAddModal(false)}
                 className="flex-1 bg-bg text-ink font-bold py-3.5 rounded-xl hover:bg-mint-line transition-all"
               >
-                إلغاء
+                {language === 'en' ? 'Cancel' : 'إلغاء'}
               </button>
             </div>
           </div>
@@ -395,7 +396,7 @@ export default function Customers() {
           <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl border border-mint-line animate-fade-in-up">
             <div className="flex justify-between items-center mb-6 border-b border-mint-line pb-4">
               <h3 className="text-[20px] font-black text-primary">
-                تسديد دفعة مالية
+                {language === 'en' ? 'Make a Payment' : 'تسديد دفعة مالية'}
               </h3>
               <button
                 onClick={() => setShowPayModal(false)}
@@ -423,8 +424,8 @@ export default function Customers() {
               >
                 <span className="font-bold text-ink-soft text-[14px]">
                   {selectedCustomer.debt < 0
-                    ? "الرصيد المتاح للعميل:"
-                    : "الديون المتبقية:"}
+                    ? (language === 'en' ? 'Available Balance:' : 'الرصيد المتاح للعميل:')
+                    : (language === 'en' ? 'Remaining Debt:' : 'الديون المتبقية:')}
                 </span>
                 <span
                   className={`font-black text-[18px] ${selectedCustomer.debt < 0 ? "text-teal" : "text-coral"}`}
@@ -435,7 +436,7 @@ export default function Customers() {
 
               <div>
                 <label className="block text-[14px] font-bold text-ink-soft mb-2">
-                  المبلغ المدفوع ($)
+                  {language === 'en' ? 'Paid Amount ($)' : 'المبلغ المدفوع ($)'}
                 </label>
                 <input
                   type="number"
@@ -455,13 +456,13 @@ export default function Customers() {
                 disabled={isLoading || !paymentAmount}
                 className="flex-1 bg-teal text-white font-bold py-3.5 rounded-xl shadow-md shadow-teal/20 hover:bg-[#259775] transition-all disabled:opacity-50"
               >
-                {isLoading ? "جاري التسجيل..." : "تأكيد الدفع"}
+                {isLoading ? (language === 'en' ? 'Recording...' : 'جاري التسجيل...') : (language === 'en' ? 'Confirm Payment' : 'تأكيد الدفع')}
               </button>
               <button
                 onClick={() => setShowPayModal(false)}
                 className="flex-1 bg-bg text-ink font-bold py-3.5 rounded-xl hover:bg-mint-line transition-all"
               >
-                إلغاء
+                {language === 'en' ? 'Cancel' : 'إلغاء'}
               </button>
             </div>
           </div>
@@ -518,8 +519,8 @@ export default function Customers() {
                 >
                   <span className="text-[13px] font-bold text-ink-soft mb-2">
                     {selectedCustomer.debt < 0
-                      ? "رصيد العميل المتاح"
-                      : "إجمالي الديون المتبقية"}
+                      ? (language === 'en' ? 'Available Customer Balance' : 'رصيد العميل المتاح')
+                      : (language === 'en' ? 'Total Remaining Debt' : 'إجمالي الديون المتبقية')}
                   </span>
                   <span
                     className={`text-[28px] font-mono font-black ${selectedCustomer.debt < 0 ? "text-teal" : "text-coral"}`}
@@ -529,10 +530,10 @@ export default function Customers() {
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-mint-line shadow-sm flex flex-col items-center justify-center">
                   <div className="text-[14px] font-bold text-ink-soft mb-2">
-                    تاريخ آخر زيارة
+                    {language === 'en' ? 'Last Visit Date' : 'تاريخ آخر زيارة'}
                   </div>
                   <div className="text-[22px] font-mono font-black text-primary">
-                    {selectedCustomer.lastVisit || "لا يوجد"}
+                    {selectedCustomer.lastVisit || (language === 'en' ? 'None' : 'لا يوجد')}
                   </div>
                 </div>
               </div>
@@ -553,32 +554,32 @@ export default function Customers() {
                       d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                     />
                   </svg>
-                  سجل المشتريات (الفواتير)
+                  {language === 'en' ? 'Purchase History (Invoices)' : 'سجل المشتريات (الفواتير)'}
                 </h4>
                 <div className="flex items-center gap-2 mb-4 bg-[#F8FAFC] p-1.5 rounded-xl border border-mint-line w-full">
                   <button
                     onClick={() => setSalesFilter("cash")}
                     className={`flex-1 py-2 rounded-lg text-[14px] font-bold transition-all ${salesFilter === "cash" ? "bg-white shadow-sm text-teal" : "text-ink-soft hover:text-primary"}`}
                   >
-                    المبيعات المدفوعة
+                    {language === 'en' ? 'Paid Sales' : 'المبيعات المدفوعة'}
                   </button>
                   <button
                     onClick={() => setSalesFilter("credit")}
                     className={`flex-1 py-2 rounded-lg text-[14px] font-bold transition-all ${salesFilter === "credit" ? "bg-white shadow-sm text-amber-dark" : "text-ink-soft hover:text-primary"}`}
                   >
-                    مبيعات الأجل
+                    {language === 'en' ? 'Credit Sales' : 'مبيعات الأجل'}
                   </button>
                   <button
                     onClick={() => setSalesFilter("payments")}
                     className={`flex-1 py-2 rounded-lg text-[14px] font-bold transition-all ${salesFilter === "payments" ? "bg-white shadow-sm text-coral" : "text-ink-soft hover:text-primary"}`}
                   >
-                    سجل الدفعات
+                    {language === 'en' ? 'Payment History' : 'سجل الدفعات'}
                   </button>
                   <button
                     onClick={() => setShowPayModal(true)}
                     className="flex-1 py-2 rounded-lg text-[14px] font-bold transition-all bg-coral-pale/20 text-coral hover:bg-coral hover:text-white border border-coral/30"
                   >
-                    إيداع / تسديد
+                    {language === 'en' ? 'Deposit / Pay' : 'إيداع / تسديد'}
                   </button>
                 </div>
 
@@ -586,7 +587,7 @@ export default function Customers() {
                   customerPayments.length === 0 ? (
                     <div className="bg-white rounded-2xl p-8 border border-mint-line text-center">
                       <div className="text-ink-soft font-bold text-[15px]">
-                        لا توجد دفعات مالية مسجلة لهذا العميل.
+                        {language === 'en' ? 'No financial payments recorded for this customer.' : 'لا توجد دفعات مالية مسجلة لهذا العميل.'}
                       </div>
                     </div>
                   ) : (
@@ -601,12 +602,12 @@ export default function Customers() {
                               {payment.id}
                             </div>
                             <div className="text-[15px] font-bold text-primary flex gap-2 items-center">
-                              {new Date(payment.date).toLocaleString("ar-EG")}
+                              {new Date(payment.date).toLocaleString(language === 'en' ? 'en-US' : 'ar-EG')}
                             </div>
                           </div>
                           <div className="text-left">
                             <div className="text-[13px] font-bold text-ink-soft mb-1">
-                              المبلغ المدفوع
+                              {language === 'en' ? 'Paid Amount' : 'المبلغ المدفوع'}
                             </div>
                             <div className="text-[20px] font-mono font-black text-coral">
                               ₪{payment.amount.toFixed(2)}
@@ -619,7 +620,7 @@ export default function Customers() {
                 ) : customerSales.length === 0 ? (
                   <div className="bg-white rounded-2xl p-8 border border-mint-line text-center">
                     <div className="text-ink-soft font-bold text-[15px]">
-                      لا يوجد سجل مشتريات حتى الآن.
+                      {language === 'en' ? 'No purchase history yet.' : 'لا يوجد سجل مشتريات حتى الآن.'}
                     </div>
                   </div>
                 ) : (
@@ -639,7 +640,7 @@ export default function Customers() {
                     }).length === 0 ? (
                       <div className="bg-white rounded-2xl p-8 border border-mint-line text-center">
                         <div className="text-ink-soft font-bold text-[15px]">
-                          لا توجد فواتير مطابقة للفلتر المحدد.
+                          {language === 'en' ? 'No invoices match the selected filter.' : 'لا توجد فواتير مطابقة للفلتر المحدد.'}
                         </div>
                       </div>
                     ) : (
@@ -668,7 +669,7 @@ export default function Customers() {
                                   {sale.id}
                                 </div>
                                 <div className="text-[15px] font-bold text-primary flex gap-2 items-center">
-                                  {new Date(sale.date).toLocaleString("ar-EG")}
+                                  {new Date(sale.date).toLocaleString(language === 'en' ? 'en-US' : 'ar-EG')}
                                   <span
                                     className={`px-2 py-0.5 rounded text-[11px] font-bold ${
                                       sale.paymentMethod === "credit" ||
@@ -679,14 +680,14 @@ export default function Customers() {
                                   >
                                     {sale.paymentMethod === "credit" ||
                                     sale.paymentMethod === "آجل"
-                                      ? "آجل (دين)"
-                                      : sale.paymentMethod}
+                                      ? (language === 'en' ? 'Credit (Debt)' : 'آجل (دين)')
+                                      : (language === 'en' && sale.paymentMethod === 'كاش' ? 'Cash' : sale.paymentMethod)}
                                   </span>
                                 </div>
                               </div>
                               <div className="text-left">
                                 <div className="text-[13px] font-bold text-ink-soft mb-1">
-                                  الإجمالي
+                                  {language === 'en' ? 'Total' : 'الإجمالي'}
                                 </div>
                                 <div className="text-[20px] font-mono font-black text-teal">
                                   ₪{sale.total.toFixed(2)}
@@ -696,7 +697,7 @@ export default function Customers() {
 
                             <div className="bg-[#F8FAFC] rounded-xl p-3 border border-mint-line/50">
                               <div className="text-[12px] font-bold text-ink-soft mb-2">
-                                الأصناف المشتراة:
+                                {language === 'en' ? 'Purchased Items:' : 'الأصناف المشتراة:'}
                               </div>
                               <div className="space-y-2">
                                 {sale.items.map((item: any, idx: number) => (

@@ -12,6 +12,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function BranchManager() {
   const user = useStore((state) => state.user);
+  const language = useStore((state: any) => state.language);
   const router = useRouter();
 
   useEffect(() => {
@@ -42,21 +43,21 @@ export default function BranchManager() {
   const controlledDrugsLog = [
     {
       id: "CD-001",
-      patient: "محمود خليل",
-      doctor: "د. سامر فريد",
+      patient: language === 'en' ? 'Mahmoud Khalil' : "محمود خليل",
+      doctor: language === 'en' ? 'Dr. Samer Farid' : "د. سامر فريد",
       drug: "Lexotanil 3mg",
       qty: 1,
       date: "2026-08-10",
-      status: "مسجل",
+      status: language === 'en' ? 'Registered' : "مسجل",
     },
     {
       id: "CD-002",
-      patient: "سعاد أحمد",
-      doctor: "د. هند محمود",
+      patient: language === 'en' ? 'Soad Ahmed' : "سعاد أحمد",
+      doctor: language === 'en' ? 'Dr. Hind Mahmoud' : "د. هند محمود",
       drug: "Rivotril 2mg",
       qty: 2,
       date: "2026-08-09",
-      status: "مسجل",
+      status: language === 'en' ? 'Registered' : "مسجل",
     },
   ];
 
@@ -64,12 +65,12 @@ export default function BranchManager() {
   const stockAdjustments = [
     {
       id: "ADJ-101",
-      drug: "شراب كحة توسيبان",
-      reason: "كسر بالزجاجة",
+      drug: language === 'en' ? 'Tussipan Cough Syrup' : "شراب كحة توسيبان",
+      reason: language === 'en' ? 'Broken bottle' : "كسر بالزجاجة",
       qty: 1,
       value: "15 ₪",
       date: "2026-08-08",
-      by: "محمد أحمد",
+      by: language === 'en' ? 'Mohamed Ahmed' : "محمد أحمد",
     },
   ];
 
@@ -77,36 +78,36 @@ export default function BranchManager() {
   const approvalsLog = [
     {
       id: "APP-501",
-      action: "إلغاء فاتورة",
-      details: "إلغاء فاتورة بقيمة 120 ₪",
+      action: language === 'en' ? 'Cancel Invoice' : "إلغاء فاتورة",
+      details: language === 'en' ? 'Cancel invoice worth 120 ₪' : "إلغاء فاتورة بقيمة 120 ₪",
       date: "2026-08-10 10:30 AM",
-      cashier: "صيدلي أحمد",
+      cashier: language === 'en' ? 'Pharmacist Ahmed' : "صيدلي أحمد",
       status: "approved",
     },
     {
       id: "APP-502",
-      action: "خصم استثنائي",
-      details: "خصم 15% لعميل دائم",
+      action: language === 'en' ? 'Special Discount' : "خصم استثنائي",
+      details: language === 'en' ? '15% discount for loyal customer' : "خصم 15% لعميل دائم",
       date: "2026-08-09 04:15 PM",
-      cashier: "صيدلي سارة",
+      cashier: language === 'en' ? 'Pharmacist Sarah' : "صيدلي سارة",
       status: "approved",
     },
   ];
 
   const handleCloseShift = () => {
     if (!cashInDrawer) {
-      toast.error("الرجاء إدخال الكاش الفعلي في الدرج");
+      toast.error(language === 'en' ? 'Please enter the actual cash in the drawer' : "الرجاء إدخال الكاش الفعلي في الدرج");
       return;
     }
     const actual = parseFloat(cashInDrawer);
     const difference = actual - systemCash;
     if (difference === 0) {
-      toast.success("✅ الصندوق مطابق تماماً. تم تقفيل الوردية بنجاح!");
+      toast.success(language === 'en' ? "✅ Drawer matches perfectly. Shift closed successfully!" : "✅ الصندوق مطابق تماماً. تم تقفيل الوردية بنجاح!");
     } else if (difference > 0) {
-      toast.success(`تم تقفيل الوردية بزيادة قدرها ${difference.toFixed(2)} ₪`);
+      toast.success(language === 'en' ? `Shift closed with an excess of ${difference.toFixed(2)} ₪` : `تم تقفيل الوردية بزيادة قدرها ${difference.toFixed(2)} ₪`);
     } else {
       toast.error(
-        `⚠️ تم تقفيل الوردية بعجز قدره ${Math.abs(difference).toFixed(2)} ₪`,
+        language === 'en' ? `⚠️ Shift closed with a shortage of ${Math.abs(difference).toFixed(2)} ₪` : `⚠️ تم تقفيل الوردية بعجز قدره ${Math.abs(difference).toFixed(2)} ₪`,
       );
     }
   };
@@ -121,26 +122,26 @@ export default function BranchManager() {
         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
         <div className="relative z-10">
           <h1 className="text-[24px] font-black mb-1">
-            إدارة الفرع (Pharmacy Manager) 💼
+            {language === 'en' ? 'Pharmacy Manager 💼' : 'إدارة الفرع (Pharmacy Manager) 💼'}
           </h1>
           <p className="text-[15px] font-medium opacity-90">
-            التحكم في الورديات، الصلاحيات، وسجلات الرقابة
+            {language === 'en' ? 'Control shifts, permissions, and control logs' : 'التحكم في الورديات، الصلاحيات، وسجلات الرقابة'}
           </p>
         </div>
         <div className="relative z-10 text-left bg-white/10 rounded-xl p-3 backdrop-blur-sm">
-          <div className="text-[11px] font-bold opacity-80">الكاشير الحالي</div>
+          <div className="text-[11px] font-bold opacity-80">{language === 'en' ? 'Current Cashier' : 'الكاشير الحالي'}</div>
           <div className="text-[16px] font-black">
-            {user?.managerName || user?.cashierName || "الكاشير"}
+            {user?.managerName || user?.cashierName || (language === 'en' ? 'Cashier' : "الكاشير")}
           </div>
         </div>
       </div>
 
       <div className="flex gap-2 mb-6 border-b border-mint-line pb-4 overflow-x-auto hide-scrollbar">
         {[
-          { id: "shift", label: "تقفيل الصندوق 💵" },
-          { id: "stock", label: "الجرد والتوالف 📦" },
-          { id: "approvals", label: "طلبات الموافقة 🛡️" },
-          { id: "drugs", label: "دفتر السموم 💊" },
+          { id: "shift", label: language === 'en' ? 'Close Drawer 💵' : "تقفيل الصندوق 💵" },
+          { id: "stock", label: language === 'en' ? 'Inventory & Damages 📦' : "الجرد والتوالف 📦" },
+          { id: "approvals", label: language === 'en' ? 'Approval Requests 🛡️' : "طلبات الموافقة 🛡️" },
+          { id: "drugs", label: language === 'en' ? 'Controlled Drugs 💊' : "دفتر السموم 💊" },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -156,12 +157,12 @@ export default function BranchManager() {
         <div className="space-y-6">
           <div className="bg-white rounded-3xl p-6 shadow-sm border border-mint-line">
             <h2 className="text-[18px] font-black text-primary mb-4">
-              إنهاء الوردية (End of Shift)
+              {language === 'en' ? 'End of Shift' : 'إنهاء الوردية (End of Shift)'}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-bg rounded-2xl p-5 border border-mint-line">
                 <div className="text-[14px] text-ink-soft font-bold mb-1">
-                  المبيعات النقدية في النظام
+                  {language === 'en' ? 'Cash Sales in System' : 'المبيعات النقدية في النظام'}
                 </div>
                 {shiftData ? (
                   <>
@@ -169,26 +170,26 @@ export default function BranchManager() {
                       {systemCash.toFixed(2)} ₪
                     </div>
                     <div className="text-[12px] font-bold mt-2 flex items-center gap-1 text-teal bg-teal-pale w-fit px-2 py-0.5 rounded-full">
-                      إجمالي {cashSalesCount} فاتورة كاش لليوم
+                      {language === 'en' ? `Total ${cashSalesCount} cash receipts today` : `إجمالي ${cashSalesCount} فاتورة كاش لليوم`}
                     </div>
                   </>
                 ) : (
                   <div className="font-mono text-[28px] font-black text-ink-soft animate-pulse">
-                    جاري التحميل...
+                    {language === 'en' ? 'Loading...' : 'جاري التحميل...'}
                   </div>
                 )}
               </div>
 
               <div className="flex flex-col justify-center">
                 <label className="block text-[14px] font-bold text-ink-soft mb-2">
-                  الكاش الفعلي في الدرج (₪)
+                  {language === 'en' ? 'Actual Cash in Drawer (₪)' : 'الكاش الفعلي في الدرج (₪)'}
                 </label>
                 <input
                   type="number"
                   value={cashInDrawer}
                   onChange={(e) => setCashInDrawer(e.target.value)}
                   className="w-full bg-bg border border-mint-line rounded-xl px-4 py-4 outline-none focus:border-teal transition-colors font-mono text-[20px] font-bold text-center"
-                  placeholder="أدخل المبلغ..."
+                  placeholder={language === 'en' ? 'Enter amount...' : 'أدخل المبلغ...'}
                 />
               </div>
             </div>
@@ -205,10 +206,10 @@ export default function BranchManager() {
               >
                 <span>
                   {parseFloat(cashInDrawer) === systemCash
-                    ? "✅ مطابق تماماً"
+                    ? language === 'en' ? "✅ Perfect Match" : "✅ مطابق تماماً"
                     : parseFloat(cashInDrawer) > systemCash
-                      ? "⬆️ زيادة في الصندوق"
-                      : "⚠️ عجز في الصندوق"}
+                      ? language === 'en' ? "⬆️ Excess in Drawer" : "⬆️ زيادة في الصندوق"
+                      : language === 'en' ? "⚠️ Shortage in Drawer" : "⚠️ عجز في الصندوق"}
                 </span>
                 <span className="font-mono text-[20px] font-black">
                   {parseFloat(cashInDrawer) === systemCash
@@ -225,7 +226,7 @@ export default function BranchManager() {
               onClick={handleCloseShift}
               className="w-full mt-6 bg-primary text-white font-bold py-4 rounded-xl shadow-md shadow-primary/20 hover:bg-primary-dark transition-all text-[16px]"
             >
-              تقفيل وتأكيد الوردية
+              {language === 'en' ? 'Close and Confirm Shift' : 'تقفيل وتأكيد الوردية'}
             </button>
           </div>
         </div>
@@ -235,20 +236,20 @@ export default function BranchManager() {
         <div className="bg-white rounded-3xl shadow-sm border border-mint-line overflow-hidden">
           <div className="p-5 border-b border-mint-line bg-bg flex justify-between items-center">
             <h2 className="text-[18px] font-black text-primary">
-              سجل الجرد والتوالف
+              {language === 'en' ? 'Inventory & Damages Log' : 'سجل الجرد والتوالف'}
             </h2>
             <button className="bg-coral text-white px-5 py-2.5 rounded-xl font-bold text-[14px] shadow-sm hover:bg-[#e11d48] transition-all">
-              + تسجيل دواء تالف
+              {language === 'en' ? '+ Log Damaged Drug' : '+ تسجيل دواء تالف'}
             </button>
           </div>
           <table className="w-full text-right">
             <thead>
               <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-                <th className="py-4 px-6 font-semibold">رقم السجل</th>
-                <th className="py-4 px-6 font-semibold">اسم الدواء</th>
-                <th className="py-4 px-6 font-semibold">السبب</th>
-                <th className="py-4 px-6 font-semibold">الكمية</th>
-                <th className="py-4 px-6 font-semibold">تاريخ التسجيل</th>
+                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Record ID' : 'رقم السجل'}</th>
+                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Drug Name' : 'اسم الدواء'}</th>
+                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Reason' : 'السبب'}</th>
+                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Quantity' : 'الكمية'}</th>
+                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Date' : 'تاريخ التسجيل'}</th>
               </tr>
             </thead>
             <tbody>
@@ -267,7 +268,7 @@ export default function BranchManager() {
                     {adj.reason}
                   </td>
                   <td className="py-4 px-6 font-bold text-[14px]">
-                    {adj.qty} علبة
+                    {adj.qty} {language === 'en' ? 'Box' : 'علبة'}
                   </td>
                   <td className="py-4 px-6 text-[14px] text-ink-soft">
                     {adj.date}
@@ -283,17 +284,17 @@ export default function BranchManager() {
         <div className="bg-white rounded-3xl shadow-sm border border-mint-line overflow-hidden">
           <div className="p-5 border-b border-mint-line bg-bg flex justify-between items-center">
             <h2 className="text-[18px] font-black text-primary">
-              سجل الصلاحيات والموافقات
+              {language === 'en' ? 'Permissions and Approvals Log' : 'سجل الصلاحيات والموافقات'}
             </h2>
           </div>
           <table className="w-full text-right">
             <thead>
               <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-                <th className="py-4 px-6 font-semibold">رقم العملية</th>
-                <th className="py-4 px-6 font-semibold">نوع الإجراء</th>
-                <th className="py-4 px-6 font-semibold">التفاصيل</th>
-                <th className="py-4 px-6 font-semibold">الصيدلي</th>
-                <th className="py-4 px-6 font-semibold">التاريخ</th>
+                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Process ID' : 'رقم العملية'}</th>
+                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Action Type' : 'نوع الإجراء'}</th>
+                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Details' : 'التفاصيل'}</th>
+                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Pharmacist' : 'الصيدلي'}</th>
+                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Date' : 'التاريخ'}</th>
               </tr>
             </thead>
             <tbody>
@@ -328,7 +329,7 @@ export default function BranchManager() {
         <div className="bg-white rounded-3xl shadow-sm border border-mint-line overflow-hidden">
           <div className="p-5 border-b border-mint-line bg-bg flex justify-between items-center">
             <h2 className="text-[18px] font-black text-primary">
-              سجل الأدوية الخاضعة للرقابة
+              {language === 'en' ? 'Controlled Drugs Log' : 'سجل الأدوية الخاضعة للرقابة'}
             </h2>
             <button className="bg-teal text-white px-5 py-2.5 rounded-xl font-bold text-[14px] shadow-sm hover:bg-[#259775] transition-all flex items-center gap-2">
               <svg
@@ -344,18 +345,18 @@ export default function BranchManager() {
                   d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
                 />
               </svg>
-              طباعة الدفتر لوزارة الصحة
+              {language === 'en' ? 'Print Log for Ministry of Health' : 'طباعة الدفتر لوزارة الصحة'}
             </button>
           </div>
           <table className="w-full text-right">
             <thead>
               <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-                <th className="py-4 px-6 font-semibold">المريض</th>
-                <th className="py-4 px-6 font-semibold">الطبيب الواصف</th>
-                <th className="py-4 px-6 font-semibold">الدواء</th>
-                <th className="py-4 px-6 font-semibold">الكمية</th>
-                <th className="py-4 px-6 font-semibold">التاريخ</th>
-                <th className="py-4 px-6 font-semibold text-center">الحالة</th>
+                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Patient' : 'المريض'}</th>
+                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Prescribing Doctor' : 'الطبيب الواصف'}</th>
+                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Drug' : 'الدواء'}</th>
+                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Quantity' : 'الكمية'}</th>
+                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Date' : 'التاريخ'}</th>
+                <th className="py-4 px-6 font-semibold text-center">{language === 'en' ? 'Status' : 'الحالة'}</th>
               </tr>
             </thead>
             <tbody>
@@ -374,7 +375,7 @@ export default function BranchManager() {
                     {drug.drug}
                   </td>
                   <td className="py-4 px-6 font-bold text-[14px]">
-                    {drug.qty} علبة
+                    {drug.qty} {language === 'en' ? 'Box' : 'علبة'}
                   </td>
                   <td className="py-4 px-6 text-[14px] text-ink-soft">
                     {drug.date}

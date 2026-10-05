@@ -14,6 +14,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function Prescriptions() {
   const user = useStore((state) => state.user);
+  const language = useStore((state: any) => state.language);
   const router = useRouter();
 
   useEffect(() => {
@@ -53,7 +54,7 @@ export default function Prescriptions() {
       );
       const result = await res.json();
       if (result.success) {
-        toast.success("تم صرف الأدوية وتحديث حالة الروشتة بنجاح!");
+        toast.success(language === 'en' ? "Medications dispensed and prescription status updated successfully!" : "تم صرف الأدوية وتحديث حالة الروشتة بنجاح!");
         mutate();
         if (selectedPrescription && selectedPrescription.id === id) {
           setSelectedPrescription({
@@ -62,10 +63,10 @@ export default function Prescriptions() {
           });
         }
       } else {
-        toast.error(result.error || "فشل التحديث");
+        toast.error(result.error || (language === 'en' ? "Update failed" : "فشل التحديث"));
       }
     } catch (e) {
-      toast.error("خطأ في الاتصال");
+      toast.error(language === 'en' ? "Connection error" : "خطأ في الاتصال");
     } finally {
       setIsLoading(false);
     }
@@ -108,7 +109,7 @@ export default function Prescriptions() {
       );
       const result = await res.json();
       if (result.success) {
-        toast.success("تم إضافة الوصفة بنجاح!");
+        toast.success(language === 'en' ? "Prescription added successfully!" : "تم إضافة الوصفة بنجاح!");
         setIsModalOpen(false);
         setNewPrescription({
           patient: "",
@@ -117,10 +118,10 @@ export default function Prescriptions() {
         });
         mutate();
       } else {
-        toast.error(result.error || "فشل الإضافة");
+        toast.error(result.error || (language === 'en' ? "Addition failed" : "فشل الإضافة"));
       }
     } catch (e) {
-      toast.error("خطأ في الاتصال");
+      toast.error(language === 'en' ? "Connection error" : "خطأ في الاتصال");
     } finally {
       setIsLoading(false);
     }
@@ -132,17 +133,17 @@ export default function Prescriptions() {
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-[22px] font-bold text-teal">
-            الوصفات الطبية (الروشتات)
+            {language === 'en' ? 'Medical Prescriptions' : 'الوصفات الطبية (الروشتات)'}
           </h1>
           <p className="text-[15px] text-ink-soft mt-1">
-            تتبع وصرف الوصفات الطبية بشكل إلكتروني
+            {language === 'en' ? 'Track and dispense medical prescriptions electronically' : 'تتبع وصرف الوصفات الطبية بشكل إلكتروني'}
           </p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
           className="bg-teal text-white px-5 py-2.5 rounded-xl font-bold text-[14px] shadow-sm hover:bg-[#259775] transition-all"
         >
-          + إدخال وصفة طبية
+          {language === 'en' ? '+ Enter Medical Prescription' : '+ إدخال وصفة طبية'}
         </button>
       </div>
 
@@ -151,19 +152,19 @@ export default function Prescriptions() {
           <SearchBar
             value={search}
             onChange={setSearch}
-            placeholder="ابحث برقم الوصفة أو اسم المريض..."
+            placeholder={language === 'en' ? "Search by prescription number or patient name..." : "ابحث برقم الوصفة أو اسم المريض..."}
           />
         </div>
 
         <table className="w-full text-right">
           <thead>
             <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-              <th className="py-3 px-5 font-semibold">رقم الروشتة</th>
-              <th className="py-3 px-5 font-semibold">المريض</th>
-              <th className="py-3 px-5 font-semibold">الطبيب المعالج</th>
-              <th className="py-3 px-5 font-semibold">التاريخ</th>
-              <th className="py-3 px-5 font-semibold">الحالة</th>
-              <th className="py-3 px-5 font-semibold text-center">إجراءات</th>
+              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Prescription No.' : 'رقم الروشتة'}</th>
+              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Patient' : 'المريض'}</th>
+              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Treating Doctor' : 'الطبيب المعالج'}</th>
+              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Date' : 'التاريخ'}</th>
+              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Status' : 'الحالة'}</th>
+              <th className="py-3 px-5 font-semibold text-center">{language === 'en' ? 'Actions' : 'إجراءات'}</th>
             </tr>
           </thead>
           <tbody>
@@ -196,7 +197,7 @@ export default function Prescriptions() {
                           : "bg-amber-pale text-amber"
                       }`}
                     >
-                      {prx.status === "dispensed" ? "مُصرفة" : "قيد الانتظار"}
+                      {prx.status === "dispensed" ? (language === 'en' ? "Dispensed" : "مُصرفة") : (language === 'en' ? "Pending" : "قيد الانتظار")}
                     </span>
                   </td>
                   <td className="py-4 px-5">
@@ -205,14 +206,14 @@ export default function Prescriptions() {
                         onClick={() => setSelectedPrescription(prx)}
                         className="px-3 py-1.5 text-[13px] font-bold text-primary bg-primary-pale rounded-lg hover:bg-primary hover:text-white transition-all"
                       >
-                        عرض
+                        {language === 'en' ? 'View' : 'عرض'}
                       </button>
                       {prx.status === "pending" && (
                         <button
                           onClick={() => handleDispense(prx.id)}
                           className="px-3 py-1.5 text-[13px] font-bold text-teal border border-teal-pale rounded-lg hover:bg-teal hover:text-white transition-all"
                         >
-                          صرف الأدوية
+                          {language === 'en' ? 'Dispense' : 'صرف الأدوية'}
                         </button>
                       )}
                     </div>
@@ -225,7 +226,7 @@ export default function Prescriptions() {
                   colSpan={6}
                   className="py-10 text-center text-ink-soft text-[15px]"
                 >
-                  لا يوجد وصفات طبية مسجلة
+                  {language === 'en' ? 'No registered medical prescriptions' : 'لا يوجد وصفات طبية مسجلة'}
                 </td>
               </tr>
             )}
@@ -238,7 +239,7 @@ export default function Prescriptions() {
           <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl border border-mint-line animate-fade-in-up">
             <div className="flex justify-between items-center mb-6 border-b border-mint-line pb-4">
               <h3 className="text-[20px] font-black text-primary">
-                إدخال وصفة طبية جديدة
+                {language === 'en' ? 'Enter New Medical Prescription' : 'إدخال وصفة طبية جديدة'}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -263,7 +264,7 @@ export default function Prescriptions() {
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-[14px] font-bold text-ink-soft mb-2">
-                  اسم المريض
+                  {language === 'en' ? 'Patient Name' : 'اسم المريض'}
                 </label>
                 <input
                   type="text"
@@ -275,12 +276,12 @@ export default function Prescriptions() {
                     })
                   }
                   className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 outline-none focus:border-teal transition-colors"
-                  placeholder="مثال: أحمد محمود"
+                  placeholder={language === 'en' ? "e.g., Ahmed Mahmoud" : "مثال: أحمد محمود"}
                 />
               </div>
               <div>
                 <label className="block text-[14px] font-bold text-ink-soft mb-2">
-                  اسم الطبيب المعالج
+                  {language === 'en' ? 'Treating Doctor Name' : 'اسم الطبيب المعالج'}
                 </label>
                 <input
                   type="text"
@@ -292,14 +293,14 @@ export default function Prescriptions() {
                     })
                   }
                   className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 outline-none focus:border-teal transition-colors"
-                  placeholder="مثال: د. سامي ناصر"
+                  placeholder={language === 'en' ? "e.g., Dr. Sami Nasser" : "مثال: د. سامي ناصر"}
                 />
               </div>
 
               <div className="border border-mint-line rounded-xl p-4 bg-mint-bg/30 space-y-3">
                 <div className="flex justify-between items-center">
                   <label className="text-[14px] font-bold text-ink-soft">
-                    الأدوية (الأصناف)
+                    {language === 'en' ? 'Medications (Items)' : 'الأدوية (الأصناف)'}
                   </label>
                   <button
                     onClick={() =>
@@ -313,7 +314,7 @@ export default function Prescriptions() {
                     }
                     className="text-teal text-[13px] font-bold hover:underline"
                   >
-                    + إضافة دواء
+                    {language === 'en' ? '+ Add Medication' : '+ إضافة دواء'}
                   </button>
                 </div>
                 {newPrescription.items.map((item, idx) => {
@@ -326,7 +327,7 @@ export default function Prescriptions() {
                       <div className="relative w-full">
                         <input
                           type="text"
-                          placeholder="اسم الدواء"
+                          placeholder={language === 'en' ? "Medication Name" : "اسم الدواء"}
                           value={item.name}
                           autoComplete="off"
                           ref={(el) => {
@@ -396,7 +397,7 @@ export default function Prescriptions() {
                                     {m.name}
                                   </span>
                                   <span className="text-[11px] text-ink-soft font-mono">
-                                    {m.qty} متوفر
+                                    {m.qty} {language === 'en' ? 'Available' : 'متوفر'}
                                   </span>
                                 </div>
                               ))}
@@ -405,7 +406,7 @@ export default function Prescriptions() {
                       </div>
                       <input
                         type="text"
-                        placeholder="الجرعة"
+                        placeholder={language === 'en' ? "Dosage" : "الجرعة"}
                         value={item.dosage}
                         onChange={(e) => {
                           const newItems = [...newPrescription.items];
@@ -437,8 +438,7 @@ export default function Prescriptions() {
               </div>
 
               <div className="bg-amber-pale/50 border border-amber/20 rounded-xl p-3 text-[13px] text-amber-dark font-semibold">
-                💡 سيتم إدراج الروشتة الجديدة كـ "قيد الانتظار" لتتمكن من صرف
-                الأدوية المذكورة فيها للمريض عبر الكاشير.
+                {language === 'en' ? '💡 The new prescription will be listed as "Pending" so you can dispense the mentioned medications to the patient via the cashier.' : '💡 سيتم إدراج الروشتة الجديدة كـ "قيد الانتظار" لتتمكن من صرف الأدوية المذكورة فيها للمريض عبر الكاشير.'}
               </div>
             </div>
 
@@ -452,13 +452,13 @@ export default function Prescriptions() {
                 }
                 className="flex-1 bg-teal text-white font-bold py-3.5 rounded-xl shadow-md shadow-teal/20 hover:bg-[#259775] transition-all disabled:opacity-50"
               >
-                {isLoading ? "جاري الحفظ..." : "حفظ الوصفة"}
+                {isLoading ? (language === 'en' ? "Saving..." : "جاري الحفظ...") : (language === 'en' ? "Save Prescription" : "حفظ الوصفة")}
               </button>
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="flex-1 bg-bg text-ink font-bold py-3.5 rounded-xl hover:bg-mint-line transition-all"
               >
-                إلغاء
+                {language === 'en' ? 'Cancel' : 'إلغاء'}
               </button>
             </div>
           </div>
@@ -470,7 +470,7 @@ export default function Prescriptions() {
           <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl border border-mint-line animate-fade-in-up">
             <div className="flex justify-between items-center mb-6 border-b border-mint-line pb-4">
               <h3 className="text-[20px] font-black text-primary">
-                تفاصيل الوصفة الطبية
+                {language === 'en' ? 'Medical Prescription Details' : 'تفاصيل الوصفة الطبية'}
               </h3>
               <button
                 onClick={() => setSelectedPrescription(null)}
@@ -495,7 +495,7 @@ export default function Prescriptions() {
             <div className="space-y-4 mb-6">
               <div className="flex justify-between items-center border-b border-mint-line pb-3">
                 <span className="text-ink-soft font-bold text-[14px]">
-                  رقم الوصفة
+                  {language === 'en' ? 'Prescription Number' : 'رقم الوصفة'}
                 </span>
                 <span className="font-mono text-ink font-black text-[15px]">
                   {selectedPrescription.id}
@@ -503,7 +503,7 @@ export default function Prescriptions() {
               </div>
               <div className="flex justify-between items-center border-b border-mint-line pb-3">
                 <span className="text-ink-soft font-bold text-[14px]">
-                  المريض
+                  {language === 'en' ? 'Patient' : 'المريض'}
                 </span>
                 <span className="text-primary font-black text-[15px]">
                   {selectedPrescription.patient}
@@ -511,7 +511,7 @@ export default function Prescriptions() {
               </div>
               <div className="flex justify-between items-center border-b border-mint-line pb-3">
                 <span className="text-ink-soft font-bold text-[14px]">
-                  الطبيب المعالج
+                  {language === 'en' ? 'Treating Doctor' : 'الطبيب المعالج'}
                 </span>
                 <span className="text-ink font-bold text-[15px]">
                   {selectedPrescription.doctor}
@@ -519,7 +519,7 @@ export default function Prescriptions() {
               </div>
               <div className="flex justify-between items-center border-b border-mint-line pb-3">
                 <span className="text-ink-soft font-bold text-[14px]">
-                  التاريخ
+                  {language === 'en' ? 'Date' : 'التاريخ'}
                 </span>
                 <span className="text-ink font-bold text-[15px]">
                   {selectedPrescription.date}
@@ -527,7 +527,7 @@ export default function Prescriptions() {
               </div>
               <div className="flex justify-between items-center pb-3">
                 <span className="text-ink-soft font-bold text-[14px]">
-                  الحالة
+                  {language === 'en' ? 'Status' : 'الحالة'}
                 </span>
                 <span
                   className={`px-3 py-1 rounded-md text-[13px] font-bold ${
@@ -537,8 +537,8 @@ export default function Prescriptions() {
                   }`}
                 >
                   {selectedPrescription.status === "dispensed"
-                    ? "مُصرفة"
-                    : "قيد الانتظار"}
+                    ? (language === 'en' ? 'Dispensed' : 'مُصرفة')
+                    : (language === 'en' ? 'Pending' : 'قيد الانتظار')}
                 </span>
               </div>
             </div>
@@ -546,16 +546,16 @@ export default function Prescriptions() {
             {selectedPrescription.items && (
               <div className="mb-6">
                 <h4 className="font-bold text-[14px] text-ink-soft mb-2">
-                  الأدوية الموصوفة:
+                  {language === 'en' ? 'Prescribed Medications:' : 'الأدوية الموصوفة:'}
                 </h4>
                 <div className="bg-bg border border-mint-line rounded-xl overflow-hidden">
                   <table className="w-full text-right text-[13px]">
                     <thead className="bg-mint-bg/50 border-b border-mint-line text-ink-soft">
                       <tr>
-                        <th className="py-2 px-3 font-semibold">الدواء</th>
-                        <th className="py-2 px-3 font-semibold">الجرعة</th>
+                        <th className="py-2 px-3 font-semibold">{language === 'en' ? 'Medication' : 'الدواء'}</th>
+                        <th className="py-2 px-3 font-semibold">{language === 'en' ? 'Dosage' : 'الجرعة'}</th>
                         <th className="py-2 px-3 font-semibold text-center">
-                          الكمية
+                          {language === 'en' ? 'Quantity' : 'الكمية'}
                         </th>
                       </tr>
                     </thead>
@@ -576,7 +576,7 @@ export default function Prescriptions() {
                                   colSpan={3}
                                   className="py-3 text-center text-ink-soft"
                                 >
-                                  لا توجد أدوية مسجلة
+                                  {language === 'en' ? 'No medications registered' : 'لا توجد أدوية مسجلة'}
                                 </td>
                               </tr>
                             );
@@ -604,7 +604,7 @@ export default function Prescriptions() {
                                 colSpan={3}
                                 className="py-3 text-center text-ink-soft"
                               >
-                                لا توجد أدوية مسجلة
+                                {language === 'en' ? 'No medications registered' : 'لا توجد أدوية مسجلة'}
                               </td>
                             </tr>
                           );
@@ -620,7 +620,7 @@ export default function Prescriptions() {
               onClick={() => setSelectedPrescription(null)}
               className="w-full bg-primary text-white font-bold py-3.5 rounded-xl shadow-md shadow-primary/20 hover:bg-primary-dark transition-all"
             >
-              إغلاق
+              {language === 'en' ? 'Close' : 'إغلاق'}
             </button>
           </div>
         </div>

@@ -11,6 +11,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function Returns() {
   const user = useStore((state) => state.user);
+  const language = useStore((state: any) => state.language);
   const router = useRouter();
 
   if (!user) {
@@ -121,8 +122,8 @@ export default function Returns() {
       if (result.success) {
         toast.success(
           refundMode === "full"
-            ? "تم استرجاع الفاتورة بنجاح!"
-            : "تم استرجاع الأصناف بنجاح!",
+            ? language === "en" ? "Invoice refunded successfully!" : "تم استرجاع الفاتورة بنجاح!"
+            : language === "en" ? "Items refunded successfully!" : "تم استرجاع الأصناف بنجاح!",
         );
         setSelectedInvoice(null);
         setSearchQuery("");
@@ -136,10 +137,10 @@ export default function Returns() {
           `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/dashboard`,
         );
       } else {
-        toast.error(result.error || "فشل في الاسترجاع");
+        toast.error(result.error || (language === "en" ? "Failed to refund" : "فشل في الاسترجاع"));
       }
     } catch (e) {
-      toast.error("حدث خطأ أثناء الاتصال بالخادم");
+      toast.error(language === "en" ? "Error connecting to server" : "حدث خطأ أثناء الاتصال بالخادم");
     } finally {
       setIsRefunding(false);
       setShowConfirmModal(false);
@@ -148,7 +149,7 @@ export default function Returns() {
 
   return (
     <main className="w-full pb-24 relative">
-      <AppBar title="المرتجعات" backHref="/" />
+      <AppBar title={language === "en" ? "Returns" : "المرتجعات"} backHref="/" />
 
       <div className="max-w-4xl mx-auto p-4 mt-4 space-y-8">
         {/* Tabs */}
@@ -157,20 +158,20 @@ export default function Returns() {
             onClick={() => setActiveTab("search")}
             className={`flex-1 py-3 text-[15px] font-bold rounded-xl transition-all ${activeTab === "search" ? "bg-primary text-white shadow-md" : "text-ink-soft hover:bg-mint-bg"}`}
           >
-            استرجاع فاتورة / أصناف
+            {language === "en" ? "Refund Invoice/Items" : "استرجاع فاتورة / أصناف"}
           </button>
           <button
             onClick={() => setActiveTab("history")}
             className={`flex-1 py-3 text-[15px] font-bold rounded-xl transition-all ${activeTab === "history" ? "bg-primary text-white shadow-md" : "text-ink-soft hover:bg-mint-bg"}`}
           >
-            سجل المرتجعات
+            {language === "en" ? "Returns History" : "سجل المرتجعات"}
           </button>
         </div>
 
         {activeTab === "search" && (
           <div className="bg-white rounded-[32px] p-6 md:p-8 shadow-sm border border-mint-line space-y-6">
             <h2 className="text-[20px] font-black text-primary">
-              البحث عن فاتورة لاسترجاعها
+              {language === "en" ? "Search for invoice to refund" : "البحث عن فاتورة لاسترجاعها"}
             </h2>
 
             <div className="relative">
@@ -194,7 +195,7 @@ export default function Returns() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ابحث برقم الفاتورة (مثال: INV...) أو اسم العميل..."
+                placeholder={language === "en" ? "Search by invoice number (e.g. INV...) or customer name..." : "ابحث برقم الفاتورة (مثال: INV...) أو اسم العميل..."}
                 className="w-full bg-bg border-2 border-mint-line rounded-2xl pr-12 pl-4 py-4 text-[16px] font-bold text-ink focus:border-primary focus:outline-none transition-colors"
               />
             </div>
@@ -215,9 +216,9 @@ export default function Returns() {
                         {sale.id}
                       </div>
                       <div className="text-[13px] text-ink-soft mt-1 flex items-center gap-2">
-                        <span>{new Date(sale.date).toLocaleString("ar-EG")}</span>
+                        <span>{new Date(sale.date).toLocaleString(language === "en" ? "en-US" : "ar-EG")}</span>
                         <span className="w-1 h-1 rounded-full bg-mint-line"></span>
-                        <span className="font-bold text-teal">{sale.branchName || "الرئيسي"}</span>
+                        <span className="font-bold text-teal">{sale.branchName || (language === "en" ? "Main" : "الرئيسي")}</span>
                       </div>
                     </div>
                     <div className="text-left">
@@ -225,7 +226,7 @@ export default function Returns() {
                         {sale.total.toLocaleString()} ₪
                       </div>
                       <div className="text-[12px] bg-teal-pale text-teal px-2 py-0.5 rounded-md mt-1 inline-block">
-                        {sale.items.length} أصناف
+                        {sale.items.length} {language === "en" ? "Items" : "أصناف"}
                       </div>
                     </div>
                   </div>
@@ -235,7 +236,7 @@ export default function Returns() {
 
             {searchQuery && searchResults.length === 0 && !selectedInvoice && (
               <div className="text-center p-8 text-ink-soft font-bold bg-bg rounded-2xl border border-mint-line">
-                لم يتم العثور على أي فاتورة متطابقة.
+                {language === "en" ? "No matching invoice found." : "لم يتم العثور على أي فاتورة متطابقة."}
               </div>
             )}
 
@@ -245,7 +246,7 @@ export default function Returns() {
                 <div className="bg-primary/5 p-4 border-b border-primary/10 flex justify-between items-start">
                   <div>
                     <h3 className="text-[18px] font-black text-primary mb-1 flex items-center gap-2">
-                      تفاصيل الفاتورة:{" "}
+                      {language === "en" ? "Invoice Details:" : "تفاصيل الفاتورة:"}{" "}
                       <span
                         className="font-mono text-ink bg-white px-2 py-0.5 rounded-md border border-mint-line"
                         dir="ltr"
@@ -254,14 +255,14 @@ export default function Returns() {
                       </span>
                     </h3>
                     <p className="text-[14px] text-ink-soft">
-                      {new Date(selectedInvoice.date).toLocaleString("ar-EG")}
+                      {new Date(selectedInvoice.date).toLocaleString(language === "en" ? "en-US" : "ar-EG")}
                     </p>
                   </div>
                   <button
                     onClick={() => setSelectedInvoice(null)}
                     className="text-ink-soft hover:text-red-500 font-bold text-[13px] bg-white px-3 py-1.5 rounded-lg border border-mint-line"
                   >
-                    إلغاء التحديد
+                    {language === "en" ? "Deselect" : "إلغاء التحديد"}
                   </button>
                 </div>
 
@@ -281,20 +282,19 @@ export default function Returns() {
                       <path d="M12 8v4" />
                       <path d="M12 16h.01" />
                     </svg>
-                    يمكنك استرجاع الفاتورة بالكامل، أو تحديد كميات معينة لكل صنف
-                    لاسترجاعها جزئياً.
+                    {language === "en" ? "You can refund the entire invoice, or specify quantities for each item to refund partially." : "يمكنك استرجاع الفاتورة بالكامل، أو تحديد كميات معينة لكل صنف لاسترجاعها جزئياً."}
                   </div>
 
                   <table className="w-full text-right mb-4 border-collapse">
                     <thead>
                       <tr className="text-[12px] text-ink-soft border-b border-mint-line">
-                        <th className="pb-2 font-bold w-1/3">الصنف</th>
-                        <th className="pb-2 font-bold">المباع</th>
+                        <th className="pb-2 font-bold w-1/3">{language === "en" ? "Item" : "الصنف"}</th>
+                        <th className="pb-2 font-bold">{language === "en" ? "Sold" : "المباع"}</th>
                         <th className="pb-2 font-bold text-center">
-                          الكمية المسترجعة
+                          {language === "en" ? "Returned Qty" : "الكمية المسترجعة"}
                         </th>
                         <th className="pb-2 font-bold text-left">
-                          قيمة الاسترجاع
+                          {language === "en" ? "Refund Value" : "قيمة الاسترجاع"}
                         </th>
                       </tr>
                     </thead>
@@ -352,7 +352,7 @@ export default function Returns() {
                   <div className="flex flex-col md:flex-row justify-between items-center bg-bg p-4 rounded-xl border border-mint-line gap-4">
                     <div className="text-center md:text-right">
                       <div className="font-bold text-ink-soft text-[13px] mb-1">
-                        الإجمالي المدفوع سابقاً:
+                        {language === "en" ? "Previously Paid Total:" : "الإجمالي المدفوع سابقاً:"}
                       </div>
                       <div className="font-mono font-bold text-[18px] text-ink">
                         {selectedInvoice.total.toLocaleString()} ₪
@@ -361,7 +361,7 @@ export default function Returns() {
                     {partialRefundTotal > 0 && (
                       <div className="text-center md:text-left bg-red-50 px-4 py-2 rounded-lg border border-red-100">
                         <div className="font-bold text-red-600 text-[13px] mb-1">
-                          إجمالي المرتجع الآن:
+                          {language === "en" ? "Current Refund Total:" : "إجمالي المرتجع الآن:"}
                         </div>
                         <div className="font-mono font-black text-[20px] text-red-600">
                           -{partialRefundTotal.toLocaleString()} ₪
@@ -379,7 +379,7 @@ export default function Returns() {
                         }}
                         className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-3.5 rounded-xl shadow-lg shadow-orange-500/30 transition-colors flex items-center justify-center gap-2"
                       >
-                        استرجاع الأصناف المحددة
+                        {language === "en" ? "Refund Selected Items" : "استرجاع الأصناف المحددة"}
                       </button>
                     )}
                     <button
@@ -402,7 +402,7 @@ export default function Returns() {
                         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                         <path d="M3 3v5h5" />
                       </svg>
-                      استرجاع الفاتورة بالكامل
+                      {language === "en" ? "Refund Entire Invoice" : "استرجاع الفاتورة بالكامل"}
                     </button>
                   </div>
                 </div>
@@ -414,13 +414,12 @@ export default function Returns() {
         {activeTab === "history" && (
           <div className="bg-white rounded-[32px] p-6 md:p-8 shadow-sm border border-mint-line">
             <h2 className="text-[20px] font-black text-primary mb-6">
-              سجل الفواتير المسترجعة (كلياً)
+              {language === "en" ? "Fully Refunded Invoices History" : "سجل الفواتير المسترجعة (كلياً)"}
             </h2>
 
             {refundedSales.length === 0 ? (
               <div className="text-center p-12 text-ink-soft font-bold bg-bg rounded-2xl border border-mint-line">
-                لا توجد فواتير مسترجعة كلياً. (المرتجعات الجزئية تظل ظاهرة في
-                المبيعات مع تحديث إجمالي الفاتورة).
+                {language === "en" ? "No fully refunded invoices. (Partial refunds remain visible in sales with updated totals)." : "لا توجد فواتير مسترجعة كلياً. (المرتجعات الجزئية تظل ظاهرة في المبيعات مع تحديث إجمالي الفاتورة)."}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -428,17 +427,17 @@ export default function Returns() {
                   <thead>
                     <tr className="bg-bg text-ink-soft text-[14px]">
                       <th className="p-4 font-bold rounded-tr-xl rounded-br-xl">
-                        رقم الفاتورة
+                        {language === "en" ? "Invoice No" : "رقم الفاتورة"}
                       </th>
-                      <th className="p-4 font-bold">التاريخ</th>
+                      <th className="p-4 font-bold">{language === "en" ? "Date" : "التاريخ"}</th>
                       <th className="p-4 font-bold">
-                        قيمة الفاتورة (قبل الاسترجاع)
+                        {language === "en" ? "Invoice Value (Pre-refund)" : "قيمة الفاتورة (قبل الاسترجاع)"}
                       </th>
                       <th className="p-4 font-bold">
-                        الفرع
+                        {language === "en" ? "Branch" : "الفرع"}
                       </th>
                       <th className="p-4 font-bold rounded-tl-xl rounded-bl-xl">
-                        الكاشير
+                        {language === "en" ? "Cashier" : "الكاشير"}
                       </th>
                     </tr>
                   </thead>
@@ -456,20 +455,20 @@ export default function Returns() {
                             {sale.id}
                           </div>
                           <div className="text-[12px] bg-red-100 text-red-600 px-2 py-0.5 rounded mt-1 inline-block font-bold">
-                            مسترجعة كلياً
+                            {language === "en" ? "Fully Refunded" : "مسترجعة كلياً"}
                           </div>
                         </td>
                         <td className="p-4 text-[14px] text-ink-soft">
-                          {new Date(sale.date).toLocaleString("ar-EG")}
+                          {new Date(sale.date).toLocaleString(language === "en" ? "en-US" : "ar-EG")}
                         </td>
                         <td className="p-4 text-[15px] font-mono font-bold text-red-500">
                           {sale.total.toLocaleString()} ₪
                         </td>
                         <td className="p-4 text-[14px] font-bold text-ink-soft">
-                          {sale.branchName || "الرئيسي"}
+                          {sale.branchName || (language === "en" ? "Main" : "الرئيسي")}
                         </td>
                         <td className="p-4 text-[14px] font-bold text-primary">
-                          {sale.cashierName || "غير معروف"}
+                          {sale.cashierName || (language === "en" ? "Unknown" : "غير معروف")}
                         </td>
                       </tr>
                     ))}
@@ -521,39 +520,38 @@ export default function Returns() {
 
               <h2 className="text-[22px] font-black text-ink mb-2">
                 {refundMode === "full"
-                  ? "استرجاع الفاتورة بالكامل؟"
-                  : "استرجاع الأصناف المحددة؟"}
+                  ? language === "en" ? "Refund Entire Invoice?" : "استرجاع الفاتورة بالكامل؟"
+                  : language === "en" ? "Refund Selected Items?" : "استرجاع الأصناف المحددة؟"}
               </h2>
 
               <p className="text-[15px] font-medium text-ink-soft mb-6 leading-relaxed">
                 {refundMode === "full" ? (
                   <>
-                    سيتم إرجاع جميع الأصناف للفاتورة{" "}
+                    {language === "en" ? "All items for invoice " : "سيتم إرجاع جميع الأصناف للفاتورة "}
                     <span
                       className="font-mono font-bold text-primary"
                       dir="ltr"
                     >
                       {selectedInvoice.id}
                     </span>{" "}
-                    إلى المخزون.
+                    {language === "en" ? " will be returned to stock." : "إلى المخزون."}
                   </>
                 ) : (
                   <>
-                    سيتم إرجاع{" "}
+                    {language === "en" ? "Will return " : "سيتم إرجاع "}
                     <span className="font-bold text-red-500">
                       {selectedItemsToRefund.length}
                     </span>{" "}
-                    أصناف محددة بقيمة{" "}
+                    {language === "en" ? " selected items valued at " : "أصناف محددة بقيمة "}
                     <span className="font-mono font-bold text-red-500">
                       {partialRefundTotal} ₪
                     </span>{" "}
-                    إلى المخزون.
+                    {language === "en" ? " to stock." : "إلى المخزون."}
                   </>
                 )}
                 <br />
                 <br />
-                <span className="text-red-500 font-bold">ملاحظة:</span> لا يمكنك
-                التراجع عن هذه العملية بعد التأكيد.
+                <span className="text-red-500 font-bold">{language === "en" ? "Note:" : "ملاحظة:"}</span> {language === "en" ? " This action cannot be undone after confirmation." : "لا يمكنك التراجع عن هذه العملية بعد التأكيد."}
               </p>
 
               <div className="flex gap-3 mt-4">
@@ -562,14 +560,14 @@ export default function Returns() {
                   disabled={isRefunding}
                   className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-red-500/30 transition-all flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isRefunding ? "جارٍ الاسترجاع..." : "تأكيد الاسترجاع"}
+                  {isRefunding ? (language === "en" ? "Refunding..." : "جارٍ الاسترجاع...") : (language === "en" ? "Confirm Refund" : "تأكيد الاسترجاع")}
                 </button>
                 <button
                   onClick={() => setShowConfirmModal(false)}
                   disabled={isRefunding}
                   className="px-6 py-3.5 font-bold text-ink-soft bg-bg border border-mint-line hover:bg-mint-bg rounded-xl transition-colors disabled:opacity-50"
                 >
-                  إلغاء
+                  {language === "en" ? "Cancel" : "إلغاء"}
                 </button>
               </div>
             </div>

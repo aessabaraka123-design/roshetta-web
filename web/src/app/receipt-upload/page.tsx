@@ -10,6 +10,7 @@ import Link from "next/link";
 export default function ReceiptUpload() {
   const router = useRouter();
   const user = useStore((state) => state.user);
+  const language = useStore((state: any) => state.language);
 
   const [payMethod, setPayMethod] = useState<"bank" | "palpay" | "jawwal">(
     "bank",
@@ -65,7 +66,7 @@ export default function ReceiptUpload() {
 
   const handleSubmit = async () => {
     if (!receiptImage) {
-      toast.error("الرجاء رفع صورة الإيصال أولاً");
+      toast.error(language === 'en' ? "Please upload the receipt image first" : "الرجاء رفع صورة الإيصال أولاً");
       return;
     }
     setIsLoading(true);
@@ -86,13 +87,13 @@ export default function ReceiptUpload() {
       );
       const data = await res.json();
       if (data.success) {
-        toast.success("✅ تم إرسال الإيصال بنجاح! سيتم مراجعته قريباً.");
+        toast.success(language === 'en' ? "✅ Receipt sent successfully! It will be reviewed shortly." : "✅ تم إرسال الإيصال بنجاح! سيتم مراجعته قريباً.");
         router.push("/");
       } else {
-        toast.error(data.error || "حدث خطأ ما");
+        toast.error(data.error || (language === 'en' ? "Something went wrong" : "حدث خطأ ما"));
       }
     } catch {
-      toast.error("فشل الاتصال بالخادم");
+      toast.error(language === 'en' ? "Failed to connect to the server" : "فشل الاتصال بالخادم");
     } finally {
       setIsLoading(false);
     }
@@ -155,19 +156,18 @@ export default function ReceiptUpload() {
                   strokeLinejoin="round"
                 />
               </svg>
-              العودة للتطبيق
+              {language === 'en' ? 'Back to App' : 'العودة للتطبيق'}
             </Link>
           </div>
 
           <div className="card">
-            <div className="title">📄 إرسال إيصال الدفع</div>
+            <div className="title">📄 {language === 'en' ? 'Send Payment Receipt' : 'إرسال إيصال الدفع'}</div>
             <div className="sub">
-              قم بتحديد الباقة وطريقة الدفع ورفع صورة الإيصال لإتمام تأكيد
-              اشتراكك. سيراجعه المسؤول قريباً وسيتم تفعيل حسابك فوراً.
+              {language === 'en' ? 'Select the plan, payment method, and upload the receipt image to confirm your subscription. It will be reviewed shortly and your account will be activated immediately.' : 'قم بتحديد الباقة وطريقة الدفع ورفع صورة الإيصال لإتمام تأكيد اشتراكك. سيراجعه المسؤول قريباً وسيتم تفعيل حسابك فوراً.'}
             </div>
 
             <div className="field">
-              <label>الباقة المطلوبة</label>
+              <label>{language === 'en' ? 'Required Plan' : 'الباقة المطلوبة'}</label>
               <select
                 value={plan}
                 onChange={(e) => setPlan(e.target.value)}
@@ -193,9 +193,9 @@ export default function ReceiptUpload() {
             <div className="method-grid">
               {(
                 [
-                  { key: "bank", label: "حوالة بنكية", icon: "🏦" },
-                  { key: "palpay", label: "بال باي", icon: "💳" },
-                  { key: "jawwal", label: "جوال باي", icon: "📱" },
+                  { key: "bank", label: language === 'en' ? "Bank Transfer" : "حوالة بنكية", icon: "🏦" },
+                  { key: "palpay", label: language === 'en' ? "PalPay" : "بال باي", icon: "💳" },
+                  { key: "jawwal", label: language === 'en' ? "Jawwal Pay" : "جوال باي", icon: "📱" },
                 ] as const
               ).map((m) => (
                 <button
@@ -214,22 +214,22 @@ export default function ReceiptUpload() {
               {payMethod === "bank" && (
                 <>
                   <div className="info-row">
-                    <strong>البنك:</strong>{" "}
+                    <strong>{language === 'en' ? 'Bank:' : 'البنك:'}</strong>{" "}
                     <span>{adminSettings?.bankName || ""}</span>
                   </div>
                   <div className="info-row">
-                    <strong>رقم الحساب:</strong>{" "}
+                    <strong>{language === 'en' ? 'Account Number:' : 'رقم الحساب:'}</strong>{" "}
                     <span dir="ltr">{adminSettings?.bankAccount || ""}</span>
                   </div>
                   {adminSettings?.bankIban && (
                     <div className="info-row">
-                      <strong>الآيبان:</strong>{" "}
+                      <strong>{language === 'en' ? 'IBAN:' : 'الآيبان:'}</strong>{" "}
                       <span dir="ltr">{adminSettings.bankIban}</span>
                     </div>
                   )}
                   {adminSettings?.companyName && (
                     <div className="info-row">
-                      <strong>الاسم:</strong>{" "}
+                      <strong>{language === 'en' ? 'Name:' : 'الاسم:'}</strong>{" "}
                       <span>{adminSettings.companyName}</span>
                     </div>
                   )}
@@ -238,12 +238,12 @@ export default function ReceiptUpload() {
               {payMethod === "palpay" && (
                 <>
                   <div className="info-row">
-                    <strong>رقم المحفظة (PalPay):</strong>{" "}
+                    <strong>{language === 'en' ? 'Wallet Number (PalPay):' : 'رقم المحفظة (PalPay):'}</strong>{" "}
                     <span dir="ltr">{adminSettings?.walletNumber || ""}</span>
                   </div>
                   {adminSettings?.companyName && (
                     <div className="info-row">
-                      <strong>الاسم:</strong>{" "}
+                      <strong>{language === 'en' ? 'Name:' : 'الاسم:'}</strong>{" "}
                       <span>{adminSettings.companyName}</span>
                     </div>
                   )}
@@ -252,12 +252,12 @@ export default function ReceiptUpload() {
               {payMethod === "jawwal" && (
                 <>
                   <div className="info-row">
-                    <strong>رقم المحفظة (Jawwal Pay):</strong>{" "}
+                    <strong>{language === 'en' ? 'Wallet Number (Jawwal Pay):' : 'رقم المحفظة (Jawwal Pay):'}</strong>{" "}
                     <span dir="ltr">{adminSettings?.walletNumber || ""}</span>
                   </div>
                   {adminSettings?.companyName && (
                     <div className="info-row">
-                      <strong>الاسم:</strong>{" "}
+                      <strong>{language === 'en' ? 'Name:' : 'الاسم:'}</strong>{" "}
                       <span>{adminSettings.companyName}</span>
                     </div>
                   )}
@@ -267,19 +267,19 @@ export default function ReceiptUpload() {
 
             {/* Optional fields */}
             <div className="field">
-              <label>اسم المحول (اختياري)</label>
+              <label>{language === 'en' ? 'Transfer Name (Optional)' : 'اسم المحول (اختياري)'}</label>
               <input
                 type="text"
-                placeholder="الاسم كما يظهر في الحوالة"
+                placeholder={language === 'en' ? 'Name as it appears in the transfer' : 'الاسم كما يظهر في الحوالة'}
                 value={transferName}
                 onChange={(e) => setTransferName(e.target.value)}
               />
             </div>
             <div className="field">
-              <label>رقم المرجع (اختياري)</label>
+              <label>{language === 'en' ? 'Reference Number (Optional)' : 'رقم المرجع (اختياري)'}</label>
               <input
                 type="text"
-                placeholder="مثال: 123456789"
+                placeholder={language === 'en' ? 'Example: 123456789' : 'مثال: 123456789'}
                 value={transferRef}
                 onChange={(e) => setTransferRef(e.target.value)}
               />
@@ -311,15 +311,15 @@ export default function ReceiptUpload() {
                     className="upload-sub"
                     style={{ color: "#16a34a", fontWeight: 700 }}
                   >
-                    ✅ تم رفع الصورة — انقر لتغييرها
+                    ✅ {language === 'en' ? 'Image uploaded — Click to change' : 'تم رفع الصورة — انقر لتغييرها'}
                   </div>
                 </>
               ) : (
                 <>
                   <div className="upload-icon">📷</div>
-                  <div className="upload-text">انقر لرفع إيصال الدفع</div>
+                  <div className="upload-text">{language === 'en' ? 'Click to upload payment receipt' : 'انقر لرفع إيصال الدفع'}</div>
                   <div className="upload-sub">
-                    صورة واضحة للحوالة البنكية أو المحفظة
+                    {language === 'en' ? 'A clear picture of the bank transfer or wallet' : 'صورة واضحة للحوالة البنكية أو المحفظة'}
                   </div>
                 </>
               )}
@@ -331,7 +331,7 @@ export default function ReceiptUpload() {
               onClick={handleSubmit}
               disabled={isLoading || !receiptImage}
             >
-              {isLoading ? "جاري الإرسال..." : "✅ إرسال الإيصال للمراجعة"}
+              {isLoading ? (language === 'en' ? "Sending..." : "جاري الإرسال...") : (language === 'en' ? "✅ Send receipt for review" : "✅ إرسال الإيصال للمراجعة")}
             </button>
           </div>
         </div>

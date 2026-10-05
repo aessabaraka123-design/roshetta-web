@@ -15,6 +15,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function SalesLog() {
   const user = useStore((state) => state.user);
+  const language = useStore((state: any) => state.language);
   const router = useRouter();
 
   useEffect(() => {
@@ -72,16 +73,16 @@ export default function SalesLog() {
       );
       const result = await res.json();
       if (result.success) {
-        toast.success(`تم استرجاع الفاتورة ${id} بنجاح`);
+        toast.success(language === 'en' ? `Invoice ${id} refunded successfully` : `تم استرجاع الفاتورة ${id} بنجاح`);
         mutate();
         if (selectedInvoice && selectedInvoice.id === id) {
           setSelectedInvoice({ ...selectedInvoice, status: "refunded" });
         }
       } else {
-        toast.error(result.error || "فشل الاسترجاع");
+        toast.error(result.error || (language === 'en' ? 'Refund failed' : 'فشل الاسترجاع'));
       }
     } catch (e) {
-      toast.error("خطأ في الاتصال");
+      toast.error(language === 'en' ? 'Connection error' : 'خطأ في الاتصال');
     } finally {
       setRefunding(false);
     }
@@ -92,9 +93,9 @@ export default function SalesLog() {
       <AppBar />
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-[22px] font-bold text-primary">سجل المبيعات</h1>
+          <h1 className="text-[22px] font-bold text-primary">{language === 'en' ? 'Sales Log' : 'سجل المبيعات'}</h1>
           <p className="text-[15px] text-ink-soft mt-1">
-            تتبع الفواتير اليومية والإيرادات السابقة
+            {language === 'en' ? 'Track daily invoices and past revenue' : 'تتبع الفواتير اليومية والإيرادات السابقة'}
           </p>
         </div>
       </div>
@@ -104,7 +105,7 @@ export default function SalesLog() {
           <SearchBar
             value={search}
             onChange={setSearch}
-            placeholder="ابحث برقم الفاتورة..."
+            placeholder={language === 'en' ? 'Search invoice number...' : 'ابحث برقم الفاتورة...'}
           />
           <div className="flex gap-2">
             {user?.role !== "صيدلي" && user?.role !== "مدير فرع" && (
@@ -113,7 +114,7 @@ export default function SalesLog() {
                 onChange={(e) => setBranchFilter(e.target.value)}
                 className="p-2 border border-ink-soft/30 bg-white rounded-lg text-[14px] focus:outline-none focus:border-primary shadow-sm"
               >
-                <option value="all">كل الفروع</option>
+                <option value="all">{language === 'en' ? 'All Branches' : 'كل الفروع'}</option>
                 {branches.map((b: any) => (
                   <option key={b.id} value={b.name}>
                     {b.name}
@@ -145,7 +146,7 @@ export default function SalesLog() {
                     : "text-primary hover:bg-primary/10 bg-primary/5"
                 }`}
               >
-                {dateFilter ? "الكل" : "اليوم"}
+                {dateFilter ? (language === 'en' ? 'All' : 'الكل') : (language === 'en' ? 'Today' : 'اليوم')}
               </button>
             </div>
           </div>
@@ -154,12 +155,12 @@ export default function SalesLog() {
         <table className="w-full text-right">
           <thead>
             <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-              <th className="py-3 px-5 font-semibold">رقم الفاتورة</th>
-              <th className="py-3 px-5 font-semibold">التاريخ والوقت</th>
-              <th className="py-3 px-5 font-semibold">العدد</th>
-              <th className="py-3 px-5 font-semibold">طريقة الدفع</th>
-              <th className="py-3 px-5 font-semibold">الإجمالي</th>
-              <th className="py-3 px-5 font-semibold text-center">إجراءات</th>
+              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Invoice Number' : 'رقم الفاتورة'}</th>
+              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Date & Time' : 'التاريخ والوقت'}</th>
+              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Count' : 'العدد'}</th>
+              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Payment Method' : 'طريقة الدفع'}</th>
+              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Total' : 'الإجمالي'}</th>
+              <th className="py-3 px-5 font-semibold text-center">{language === 'en' ? 'Actions' : 'إجراءات'}</th>
             </tr>
           </thead>
           <tbody>
@@ -189,7 +190,7 @@ export default function SalesLog() {
                         className="ml-2 text-[10px] bg-coral text-white px-2 py-0.5 rounded-full"
                         dir="rtl"
                       >
-                        مسترجعة
+                        {language === 'en' ? 'Refunded' : 'مسترجعة'}
                       </span>
                     )}
                   </td>
@@ -197,7 +198,7 @@ export default function SalesLog() {
                     {new Date(sale.date).toLocaleString("ar-EG")}
                   </td>
                   <td className="py-4 px-5 text-[14px]">
-                    {Array.isArray(sale.items) ? sale.items.length : 0} أصناف
+                    {Array.isArray(sale.items) ? sale.items.length : 0} {language === 'en' ? 'Items' : 'أصناف'}
                   </td>
                   <td className="py-4 px-5">
                     <span
@@ -208,17 +209,17 @@ export default function SalesLog() {
                       }`}
                     >
                       {sale.paymentMethod === "cash"
-                        ? "نقدي"
+                        ? (language === 'en' ? "Cash" : "نقدي")
                         : sale.paymentMethod === "bank"
-                          ? "بنكي"
+                          ? (language === 'en' ? "Bank" : "بنكي")
                           : sale.paymentMethod === "jawwal"
-                            ? "جوال باي"
+                            ? (language === 'en' ? "Jawwal Pay" : "جوال باي")
                             : sale.paymentMethod === "palpay"
-                              ? "بال باي"
+                              ? (language === 'en' ? "PalPay" : "بال باي")
                               : sale.paymentMethod === "maalchat"
-                                ? "مالتشات"
+                                ? (language === 'en' ? "MaalChat" : "مالتشات")
                                 : sale.paymentMethod === "credit"
-                                  ? "ذمم" + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
+                                  ? (language === 'en' ? "Credit" : "ذمم") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
                                   : sale.paymentMethod}
                     </span>
                   </td>
@@ -233,14 +234,14 @@ export default function SalesLog() {
                         onClick={() => setSelectedInvoice(sale)}
                         className="px-3 py-1.5 text-[13px] font-bold text-primary bg-primary-pale rounded-lg hover:bg-primary hover:text-white transition-all"
                       >
-                        عرض
+                        {language === 'en' ? 'View' : 'عرض'}
                       </button>
                       {sale.status !== "refunded" && (
                         <button
                           onClick={() => handleRefund(sale.id)}
                           className="px-3 py-1.5 text-[13px] font-bold text-coral border border-coral-pale rounded-lg hover:bg-coral hover:text-white transition-all"
                         >
-                          استرجاع
+                          {language === 'en' ? 'Refund' : 'استرجاع'}
                         </button>
                       )}
                     </div>
@@ -258,7 +259,7 @@ export default function SalesLog() {
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-mint-line dashed">
               <div>
                 <h3 className="text-[20px] font-black text-primary">
-                  تفاصيل الفاتورة
+                  {language === 'en' ? 'Invoice Details' : 'تفاصيل الفاتورة'}
                 </h3>
                 <div className="font-mono text-[14px] text-ink-soft font-bold mt-1">
                   {selectedInvoice.id.substring(0, 13)}...
@@ -287,31 +288,31 @@ export default function SalesLog() {
 
             <div className="space-y-4 mb-6">
               <div className="flex justify-between text-[14px]">
-                <span className="text-ink-soft font-bold">التاريخ والوقت:</span>
+                <span className="text-ink-soft font-bold">{language === 'en' ? 'Date & Time:' : 'التاريخ والوقت:'}</span>
                 <span className="text-ink font-semibold">
                   {new Date(selectedInvoice.date).toLocaleString("ar-EG")}
                 </span>
               </div>
               <div className="flex justify-between text-[14px]">
-                <span className="text-ink-soft font-bold">طريقة الدفع:</span>
+                <span className="text-ink-soft font-bold">{language === 'en' ? 'Payment Method:' : 'طريقة الدفع:'}</span>
                 <span className="text-ink font-semibold">
                   {selectedInvoice.paymentMethod === "cash"
-                    ? "نقدي"
+                    ? (language === 'en' ? "Cash" : "نقدي")
                     : selectedInvoice.paymentMethod === "bank"
-                      ? "بنكي"
+                      ? (language === 'en' ? "Bank" : "بنكي")
                       : selectedInvoice.paymentMethod === "jawwal"
-                        ? "جوال باي"
+                        ? (language === 'en' ? "Jawwal Pay" : "جوال باي")
                         : selectedInvoice.paymentMethod === "palpay"
-                          ? "بال باي"
+                          ? (language === 'en' ? "PalPay" : "بال باي")
                           : selectedInvoice.paymentMethod === "maalchat"
-                            ? "مالتشات"
+                            ? (language === 'en' ? "MaalChat" : "مالتشات")
                             : selectedInvoice.paymentMethod === "credit"
-                              ? "ذمم" + (selectedInvoice.customer?.name ? " (باسم: " + selectedInvoice.customer.name + ")" : "")
+                              ? (language === 'en' ? "Credit" : "ذمم") + (selectedInvoice.customer?.name ? (language === 'en' ? " (Name: " : " (باسم: ") + selectedInvoice.customer.name + ")" : "")
                               : selectedInvoice.paymentMethod}
                 </span>
               </div>
               <div className="flex justify-between text-[14px]">
-                <span className="text-ink-soft font-bold">عدد الأصناف:</span>
+                <span className="text-ink-soft font-bold">{language === 'en' ? 'Number of Items:' : 'عدد الأصناف:'}</span>
                 <span className="text-ink font-semibold">
                   {Array.isArray(selectedInvoice.items)
                     ? selectedInvoice.items.length
@@ -319,11 +320,11 @@ export default function SalesLog() {
                 </span>
               </div>
               <div className="flex justify-between text-[14px]">
-                <span className="text-ink-soft font-bold">حالة الفاتورة:</span>
+                <span className="text-ink-soft font-bold">{language === 'en' ? 'Invoice Status:' : 'حالة الفاتورة:'}</span>
                 <span
                   className={`font-bold ${selectedInvoice.status === "refunded" ? "text-coral" : "text-teal"}`}
                 >
-                  {selectedInvoice.status === "refunded" ? "مسترجعة" : "مكتملة"}
+                  {selectedInvoice.status === "refunded" ? (language === 'en' ? "Refunded" : "مسترجعة") : (language === 'en' ? "Completed" : "مكتملة")}
                 </span>
               </div>
             </div>
@@ -332,18 +333,18 @@ export default function SalesLog() {
               selectedInvoice.items.length > 0 && (
                 <div className="mb-6">
                   <h4 className="font-bold text-[15px] mb-3">
-                    الأصناف المباعة
+                    {language === 'en' ? 'Sold Items' : 'الأصناف المباعة'}
                   </h4>
                   <div className="max-h-40 overflow-y-auto border border-mint-line rounded-xl">
                     <table className="w-full text-[13px] text-right">
                       <thead className="bg-bg text-ink-soft border-b border-mint-line">
                         <tr>
-                          <th className="py-2 px-3 font-semibold">الصنف</th>
+                          <th className="py-2 px-3 font-semibold">{language === 'en' ? 'Item' : 'الصنف'}</th>
                           <th className="py-2 px-3 font-semibold text-center">
-                            الكمية
+                            {language === 'en' ? 'Quantity' : 'الكمية'}
                           </th>
                           <th className="py-2 px-3 font-semibold text-left">
-                            السعر
+                            {language === 'en' ? 'Price' : 'السعر'}
                           </th>
                         </tr>
                       </thead>
@@ -369,7 +370,7 @@ export default function SalesLog() {
               )}
 
             <div className="bg-bg rounded-xl p-4 flex justify-between items-center">
-              <span className="font-black text-ink">الإجمالي الكلي</span>
+              <span className="font-black text-ink">{language === 'en' ? 'Grand Total' : 'الإجمالي الكلي'}</span>
               <span
                 className={`font-mono text-[22px] font-black ${selectedInvoice.status === "refunded" ? "text-coral line-through" : "text-primary"}`}
               >
@@ -406,7 +407,7 @@ export default function SalesLog() {
                 }}
                 className="flex-1 bg-[#1C2733] text-white font-bold py-3.5 rounded-xl hover:bg-[#5B6A78] transition-all text-[13px]"
               >
-                تصدير PDF
+                {language === 'en' ? 'Export PDF' : 'تصدير PDF'}
               </button>
               <button
                 onClick={() => {
@@ -414,13 +415,13 @@ export default function SalesLog() {
                 }}
                 className="flex-[1.2] bg-white text-primary border-2 border-primary font-bold py-3.5 rounded-xl hover:bg-primary-pale transition-all text-[13px]"
               >
-                تعديل الفاتورة
+                {language === 'en' ? 'Edit Invoice' : 'تعديل الفاتورة'}
               </button>
               <button
                 onClick={() => setSelectedInvoice(null)}
                 className="flex-[1.2] bg-primary text-white font-bold py-3.5 rounded-xl shadow-md shadow-primary/20 hover:bg-teal transition-all text-[13px]"
               >
-                إغلاق
+                {language === 'en' ? 'Close' : 'إغلاق'}
               </button>
             </div>
           </div>

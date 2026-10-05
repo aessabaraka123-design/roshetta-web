@@ -12,16 +12,17 @@ import { useEffect } from "react";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function BranchesAndStaff() {
-  const user = useStore((state) => state.user);
+  const user = useStore((state: any) => state.user);
+  const language = useStore((state: any) => state.language);
   const router = useRouter();
 
   useEffect(() => {
     if (!user) router.push("/login");
     else if (user.role !== "manager") {
-      toast.error("ليس لديك الصلاحية للوصول إلى هذه الصفحة");
+      toast.error(language === 'en' ? 'You do not have permission to access this page' : "ليس لديك الصلاحية للوصول إلى هذه الصفحة");
       router.push("/");
     }
-  }, [user, router]);
+  }, [user, router, language]);
 
   const [activeTab, setActiveTab] = useState<"branches" | "staff">("branches");
 
@@ -76,7 +77,7 @@ export default function BranchesAndStaff() {
   };
 
   const handleSaveBranch = async () => {
-    if (!newBranch.name) return toast.error("أدخل اسم الفرع");
+    if (!newBranch.name) return toast.error(language === 'en' ? 'Enter branch name' : "أدخل اسم الفرع");
 
     setIsLoading(true);
     try {
@@ -93,22 +94,22 @@ export default function BranchesAndStaff() {
       );
       const data = await res.json();
       if (data.success) {
-        toast.success("تم إضافة الفرع بنجاح!");
+        toast.success(language === 'en' ? 'Branch added successfully!' : "تم إضافة الفرع بنجاح!");
         setShowAddBranchModal(false);
         setNewBranch({ name: "", manager: "" });
         mutateBranches();
       } else {
-        toast.error(data.error || "فشل الإضافة");
+        toast.error(data.error || (language === 'en' ? 'Add failed' : "فشل الإضافة"));
       }
     } catch (e) {
-      toast.error("خطأ في الاتصال");
+      toast.error(language === 'en' ? 'Connection error' : "خطأ في الاتصال");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSaveStaff = async () => {
-    if (!newStaff.name) return toast.error("أدخل اسم الموظف");
+    if (!newStaff.name) return toast.error(language === 'en' ? 'Enter staff name' : "أدخل اسم الموظف");
 
     setIsLoading(true);
     try {
@@ -129,7 +130,7 @@ export default function BranchesAndStaff() {
       const data = await res.json();
       if (data.success) {
         toast.success(
-          editingStaffId ? "تم تعديل الموظف بنجاح!" : "تم إضافة الموظف بنجاح!",
+          editingStaffId ? (language === 'en' ? 'Staff edited successfully!' : "تم تعديل الموظف بنجاح!") : (language === 'en' ? 'Staff added successfully!' : "تم إضافة الموظف بنجاح!"),
         );
         setShowAddStaffModal(false);
         setEditingStaffId(null);
@@ -142,10 +143,10 @@ export default function BranchesAndStaff() {
         });
         mutateStaff();
       } else {
-        toast.error(data.error || "فشل الحفظ");
+        toast.error(data.error || (language === 'en' ? 'Save failed' : "فشل الحفظ"));
       }
     } catch (e) {
-      toast.error("خطأ في الاتصال");
+      toast.error(language === 'en' ? 'Connection error' : "خطأ في الاتصال");
     } finally {
       setIsLoading(false);
     }
@@ -164,39 +165,39 @@ export default function BranchesAndStaff() {
   };
 
   const handleDeleteStaff = async (id: string) => {
-    if (!confirm("هل أنت متأكد من حذف هذا الموظف؟")) return;
+    if (!confirm(language === 'en' ? 'Are you sure you want to delete this staff member?' : "هل أنت متأكد من حذف هذا الموظف؟")) return;
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${id}`,
         { method: "DELETE" },
       );
       if (res.ok) {
-        toast.success("تم حذف الموظف");
+        toast.success(language === 'en' ? 'Staff deleted' : "تم حذف الموظف");
         mutateStaff();
       } else {
-        toast.error("فشل الحذف");
+        toast.error(language === 'en' ? 'Delete failed' : "فشل الحذف");
       }
     } catch (e) {
-      toast.error("خطأ في الاتصال");
+      toast.error(language === 'en' ? 'Connection error' : "خطأ في الاتصال");
     }
   };
 
   return (
     <>
-      <AppBar title="الفروع والموظفين" backHref="/more" />
+      <AppBar title={language === 'en' ? 'Branches and Staff' : "الفروع والموظفين"} backHref="/more" />
       <main className="max-w-4xl mx-auto p-4 pb-24 mt-4 relative">
         <div className="flex bg-mint-line/30 rounded-xl p-1 mb-6">
           <button
             onClick={() => setActiveTab("branches")}
             className={`flex-1 py-2 rounded-lg text-[14px] font-bold transition-all ${activeTab === "branches" ? "bg-white text-primary shadow-sm" : "text-ink-soft hover:text-ink"}`}
           >
-            إدارة الفروع
+            {language === 'en' ? 'Branch Management' : "إدارة الفروع"}
           </button>
           <button
             onClick={() => setActiveTab("staff")}
             className={`flex-1 py-2 rounded-lg text-[14px] font-bold transition-all ${activeTab === "staff" ? "bg-white text-primary shadow-sm" : "text-ink-soft hover:text-ink"}`}
           >
-            الموظفين
+            {language === 'en' ? 'Staff' : "الموظفين"}
           </button>
         </div>
 
@@ -219,7 +220,7 @@ export default function BranchesAndStaff() {
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              إضافة فرع جديد
+              {language === 'en' ? 'Add New Branch' : "إضافة فرع جديد"}
             </button>
 
             {branches.map((branch: any) => {
@@ -237,21 +238,21 @@ export default function BranchesAndStaff() {
                       ></span>
                     </h3>
                     <div className="text-[13px] text-ink-soft font-semibold">
-                      العنوان/المدير: {branch.addr || "غير محدد"}
+                      {language === 'en' ? 'Address/Manager: ' : "العنوان/المدير: "}{branch.addr || (language === 'en' ? 'Not specified' : "غير محدد")}
                     </div>
                   </div>
                   <div className="text-center">
                     <div className="text-[20px] font-black text-ink">
                       {bStaff.length}
                     </div>
-                    <div className="text-[11px] text-ink-soft">موظفين</div>
+                    <div className="text-[11px] text-ink-soft">{language === 'en' ? 'Staff' : "موظفين"}</div>
                   </div>
                 </div>
               );
             })}
             {branches.length === 0 && (
               <div className="text-center py-10 text-ink-soft text-[15px]">
-                لا يوجد فروع مسجلة
+                {language === 'en' ? 'No branches registered' : "لا يوجد فروع مسجلة"}
               </div>
             )}
           </div>
@@ -274,7 +275,7 @@ export default function BranchesAndStaff() {
                   d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
                 />
               </svg>
-              إضافة موظف جديد
+              {language === 'en' ? 'Add New Staff' : "إضافة موظف جديد"}
             </button>
 
             {staff.map((emp: any) => (
@@ -301,20 +302,20 @@ export default function BranchesAndStaff() {
                     onClick={() => handleEditStaff(emp)}
                     className="text-ink-soft hover:text-teal font-bold text-[12px] bg-bg px-4 py-1.5 rounded-full transition-colors"
                   >
-                    تعديل
+                    {language === 'en' ? 'Edit' : "تعديل"}
                   </button>
                   <button
                     onClick={() => handleDeleteStaff(emp.id)}
                     className="text-ink-soft hover:text-coral font-bold text-[12px] bg-bg px-4 py-1.5 rounded-full transition-colors"
                   >
-                    حذف
+                    {language === 'en' ? 'Delete' : "حذف"}
                   </button>
                 </div>
               </div>
             ))}
             {staff.length === 0 && (
               <div className="text-center py-10 text-ink-soft text-[15px]">
-                لا يوجد موظفين مسجلين
+                {language === 'en' ? 'No staff registered' : "لا يوجد موظفين مسجلين"}
               </div>
             )}
           </div>
@@ -326,7 +327,7 @@ export default function BranchesAndStaff() {
             <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl border border-mint-line animate-fade-in-up">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-[20px] font-black text-primary">
-                  إضافة فرع جديد
+                  {language === 'en' ? 'Add New Branch' : "إضافة فرع جديد"}
                 </h3>
                 <button
                   onClick={() => setShowAddBranchModal(false)}
@@ -350,7 +351,7 @@ export default function BranchesAndStaff() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-[14px] font-bold text-ink mb-2">
-                    اسم الفرع
+                    {language === 'en' ? 'Branch Name' : "اسم الفرع"}
                   </label>
                   <input
                     type="text"
@@ -358,13 +359,13 @@ export default function BranchesAndStaff() {
                     onChange={(e) =>
                       setNewBranch({ ...newBranch, name: e.target.value })
                     }
-                    placeholder="مثال: فرع تل الهوى"
+                    placeholder={language === 'en' ? 'Example: Tal Al-Hawa Branch' : "مثال: فرع تل الهوى"}
                     className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
                   />
                 </div>
                 <div>
                   <label className="block text-[14px] font-bold text-ink mb-2">
-                    العنوان أو المدير
+                    {language === 'en' ? 'Address or Manager' : "العنوان أو المدير"}
                   </label>
                   <input
                     type="text"
@@ -372,7 +373,7 @@ export default function BranchesAndStaff() {
                     onChange={(e) =>
                       setNewBranch({ ...newBranch, manager: e.target.value })
                     }
-                    placeholder="اسم المدير المسؤول أو العنوان"
+                    placeholder={language === 'en' ? 'Responsible Manager Name or Address' : "اسم المدير المسؤول أو العنوان"}
                     className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
                   />
                 </div>
@@ -381,7 +382,7 @@ export default function BranchesAndStaff() {
                   disabled={isLoading}
                   className="w-full bg-primary text-white font-bold py-3.5 rounded-xl shadow-md shadow-primary/20 hover:bg-teal transition-all mt-4 disabled:opacity-50"
                 >
-                  {isLoading ? "جاري الحفظ..." : "حفظ وإضافة"}
+                  {isLoading ? (language === 'en' ? 'Saving...' : "جاري الحفظ...") : (language === 'en' ? 'Save and Add' : "حفظ وإضافة")}
                 </button>
               </div>
             </div>
@@ -394,7 +395,7 @@ export default function BranchesAndStaff() {
             <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl border border-mint-line animate-fade-in-up">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-[20px] font-black text-primary">
-                  {editingStaffId ? "تعديل بيانات الموظف" : "إضافة موظف جديد"}
+                  {editingStaffId ? (language === 'en' ? 'Edit Staff Details' : "تعديل بيانات الموظف") : (language === 'en' ? 'Add New Staff' : "إضافة موظف جديد")}
                 </h3>
                 <button
                   onClick={() => setShowAddStaffModal(false)}
@@ -418,7 +419,7 @@ export default function BranchesAndStaff() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-[14px] font-bold text-ink mb-2">
-                    اسم الموظف
+                    {language === 'en' ? 'Staff Name' : "اسم الموظف"}
                   </label>
                   <input
                     type="text"
@@ -426,14 +427,14 @@ export default function BranchesAndStaff() {
                     onChange={(e) =>
                       setNewStaff({ ...newStaff, name: e.target.value })
                     }
-                    placeholder="الاسم الرباعي"
+                    placeholder={language === 'en' ? 'Full Name' : "الاسم الرباعي"}
                     className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[14px] font-bold text-ink mb-2">
-                      الفرع
+                      {language === 'en' ? 'Branch' : "الفرع"}
                     </label>
                     <select
                       value={newStaff.branch}
@@ -451,7 +452,7 @@ export default function BranchesAndStaff() {
                   </div>
                   <div>
                     <label className="block text-[14px] font-bold text-ink mb-2">
-                      الدور / الوظيفة
+                      {language === 'en' ? 'Role / Job' : "الدور / الوظيفة"}
                     </label>
                     <select
                       value={newStaff.role}
@@ -460,16 +461,16 @@ export default function BranchesAndStaff() {
                       }
                       className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
                     >
-                      <option>صيدلي أول</option>
-                      <option>كاشير</option>
-                      <option>صيدلي متدرب</option>
-                      <option>مدير فرع</option>
+                      <option value="صيدلي أول">{language === 'en' ? 'Senior Pharmacist' : "صيدلي أول"}</option>
+                      <option value="كاشير">{language === 'en' ? 'Cashier' : "كاشير"}</option>
+                      <option value="صيدلي متدرب">{language === 'en' ? 'Trainee Pharmacist' : "صيدلي متدرب"}</option>
+                      <option value="مدير فرع">{language === 'en' ? 'Branch Manager' : "مدير فرع"}</option>
                     </select>
                   </div>
                 </div>
                 <div>
                   <label className="block text-[14px] font-bold text-ink mb-2">
-                    رقم الجوال (اسم المستخدم للدخول)
+                    {language === 'en' ? 'Mobile Number (Login Username)' : "رقم الجوال (اسم المستخدم للدخول)"}
                   </label>
                   <input
                     type="text"
@@ -484,7 +485,7 @@ export default function BranchesAndStaff() {
                 </div>
                 <div>
                   <label className="block text-[14px] font-bold text-ink mb-2">
-                    كلمة المرور
+                    {language === 'en' ? 'Password' : "كلمة المرور"}
                   </label>
                   <input
                     type="text"
@@ -492,7 +493,7 @@ export default function BranchesAndStaff() {
                     onChange={(e) =>
                       setNewStaff({ ...newStaff, password: e.target.value })
                     }
-                    placeholder="كلمة المرور المبدئية للموظف"
+                    placeholder={language === 'en' ? 'Initial Staff Password' : "كلمة المرور المبدئية للموظف"}
                     className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-left"
                     dir="ltr"
                   />
@@ -507,9 +508,9 @@ export default function BranchesAndStaff() {
                   />
                   <div>
                     <label className="block text-[14px] font-bold text-teal">
-                      صلاحية بيع أدوية المراقبة (المخدرة)
+                      {language === 'en' ? 'Controlled Meds Selling Authority' : "صلاحية بيع أدوية المراقبة (المخدرة)"}
                     </label>
-                    <span className="text-[11px] text-ink-soft">يسمح للموظف بإضافة هذه الأدوية للفاتورة</span>
+                    <span className="text-[11px] text-ink-soft">{language === 'en' ? 'Allows staff to add these meds to invoice' : "يسمح للموظف بإضافة هذه الأدوية للفاتورة"}</span>
                   </div>
                 </div>
 
@@ -519,10 +520,10 @@ export default function BranchesAndStaff() {
                   className="w-full bg-primary text-white font-bold py-3.5 rounded-xl shadow-md shadow-primary/20 hover:bg-teal transition-all mt-4 disabled:opacity-50"
                 >
                   {isLoading
-                    ? "جاري الحفظ..."
+                    ? (language === 'en' ? 'Saving...' : "جاري الحفظ...")
                     : editingStaffId
-                      ? "حفظ التعديلات"
-                      : "إضافة الموظف"}
+                      ? (language === 'en' ? 'Save Changes' : "حفظ التعديلات")
+                      : (language === 'en' ? 'Add Staff' : "إضافة الموظف")}
                 </button>
               </div>
             </div>

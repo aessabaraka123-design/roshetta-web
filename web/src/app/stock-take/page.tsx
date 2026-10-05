@@ -12,6 +12,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function StockTake() {
   const user = useStore((state) => state.user);
+  const language = useStore((state: any) => state.language);
   const router = useRouter();
 
   useEffect(() => {
@@ -53,7 +54,7 @@ export default function StockTake() {
     try {
       const changedItems = items.filter((i) => i.actual !== i.expected);
       if (changedItems.length === 0) {
-        toast("لا يوجد فروقات لاعتمادها");
+        toast(language === 'en' ? 'No differences to approve' : "لا يوجد فروقات لاعتمادها");
         setLoading(false);
         return;
       }
@@ -67,12 +68,12 @@ export default function StockTake() {
         },
       );
 
-      if (!res.ok) throw new Error("فشل اعتماد الجرد");
+      if (!res.ok) throw new Error(language === 'en' ? 'Failed to approve stock take' : "فشل اعتماد الجرد");
 
-      toast.success("تم اعتماد الجرد وتحديث المخزون بنجاح!");
+      toast.success(language === 'en' ? 'Stock take approved and inventory updated successfully!' : "تم اعتماد الجرد وتحديث المخزون بنجاح!");
       mutate();
     } catch (error) {
-      toast.error("حدث خطأ أثناء اعتماد الجرد");
+      toast.error(language === 'en' ? 'An error occurred during stock take approval' : "حدث خطأ أثناء اعتماد الجرد");
     } finally {
       setLoading(false);
     }
@@ -80,18 +81,18 @@ export default function StockTake() {
 
   return (
     <div className="w-full">
-      <AppBar title="جرد المخزون (Stock Take)" showLogo={false} />
+      <AppBar title={language === 'en' ? 'Stock Take' : "جرد المخزون (Stock Take)"} showLogo={false} />
 
       <div className="flex gap-4 mt-5">
         <div className="flex-1">
-          <SearchBar placeholder="امسح الباركود للبحث أو تسجيل الجرد..." />
+          <SearchBar placeholder={language === 'en' ? 'Scan barcode to search or register stock take...' : "امسح الباركود للبحث أو تسجيل الجرد..."} />
         </div>
         <button
           disabled={loading}
           onClick={handleFinish}
           className="bg-primary text-white px-6 py-2 rounded-[14px] font-bold text-[16px] whitespace-nowrap shadow-sm hover:opacity-90 disabled:opacity-50"
         >
-          {loading ? "جاري الحفظ..." : "إنهاء الجرد"}
+          {loading ? (language === 'en' ? 'Saving...' : "جاري الحفظ...") : (language === 'en' ? 'Finish Stock Take' : "إنهاء الجرد")}
         </button>
       </div>
 
@@ -100,16 +101,16 @@ export default function StockTake() {
           <thead>
             <tr className="bg-bg text-ink-soft text-[14px]">
               <th className="p-4 font-semibold border-b border-mint-line">
-                الصنف
+                {language === 'en' ? 'Item' : "الصنف"}
               </th>
               <th className="p-4 font-semibold border-b border-mint-line text-center">
-                الكمية المسجلة
+                {language === 'en' ? 'Registered Quantity' : "الكمية المسجلة"}
               </th>
               <th className="p-4 font-semibold border-b border-mint-line text-center w-[150px]">
-                الكمية الفعلية
+                {language === 'en' ? 'Actual Quantity' : "الكمية الفعلية"}
               </th>
               <th className="p-4 font-semibold border-b border-mint-line text-center">
-                الفرق
+                {language === 'en' ? 'Difference' : "الفرق"}
               </th>
             </tr>
           </thead>
@@ -143,7 +144,7 @@ export default function StockTake() {
                   <td className="p-4 text-center">
                     {diff === 0 ? (
                       <span className="text-[#1E8A5F] font-bold bg-teal-pale px-3 py-1 rounded-full text-[14px]">
-                        مطابق
+                        {language === 'en' ? 'Matches' : "مطابق"}
                       </span>
                     ) : diff > 0 ? (
                       <span

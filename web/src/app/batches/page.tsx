@@ -22,29 +22,34 @@ const getExpiryStyle = (days: number) => {
     return {
       row: "bg-red-50",
       badge: "bg-red-200 text-red-800",
-      label: "منتهي الصلاحية",
+      labelAr: "منتهي الصلاحية",
+      labelEn: "Expired",
     };
   if (days <= 30)
     return {
       row: "bg-coral-pale/20",
       badge: "bg-coral-pale text-coral",
-      label: `${days} يوم`,
+      labelAr: `${days} يوم`,
+      labelEn: `${days} days`,
     };
   if (days <= 60)
     return {
       row: "bg-amber-pale/20",
       badge: "bg-amber-pale text-[#B9791C]",
-      label: `${days} يوم`,
+      labelAr: `${days} يوم`,
+      labelEn: `${days} days`,
     };
   return {
     row: "bg-white",
     badge: "bg-teal-pale text-teal",
-    label: `${days} يوم`,
+    labelAr: `${days} يوم`,
+    labelEn: `${days} days`,
   };
 };
 
 export default function BatchesPage() {
   const user = useStore((s: any) => s.user);
+  const language = useStore((s: any) => s.language);
   const router = useRouter();
   useEffect(() => {
     if (!user) router.push("/login");
@@ -108,7 +113,7 @@ export default function BatchesPage() {
 
   const handleAddBatch = async () => {
     if (!newBatch.drug_id || !newBatch.expiry_date || !newBatch.qty) {
-      toast.error("يرجى إدخال بيانات الدفعة الإلزامية");
+      toast.error(language === "en" ? "Please enter mandatory batch data" : "يرجى إدخال بيانات الدفعة الإلزامية");
       return;
     }
     setIsLoading(true);
@@ -127,7 +132,7 @@ export default function BatchesPage() {
       );
       const result = await res.json();
       if (result.success) {
-        toast.success("تمت إضافة الدفعة وتحديث المخزون!");
+        toast.success(language === "en" ? "Batch added and inventory updated!" : "تمت إضافة الدفعة وتحديث المخزون!");
         setShowAddModal(false);
         setNewBatch({
           drug_id: "",
@@ -139,9 +144,9 @@ export default function BatchesPage() {
         });
         setInventorySearch("");
         mutate();
-      } else toast.error(result.error || "فشل الإضافة");
+      } else toast.error(result.error || (language === "en" ? "Add failed" : "فشل الإضافة"));
     } catch {
-      toast.error("خطأ في الاتصال");
+      toast.error(language === "en" ? "Connection error" : "خطأ في الاتصال");
     } finally {
       setIsLoading(false);
     }
@@ -157,7 +162,7 @@ export default function BatchesPage() {
     );
     const result = await res.json();
     if (result.success) {
-      toast.success("تم الحذف");
+      toast.success(language === "en" ? "Deleted" : "تم الحذف");
       mutate();
     } else toast.error(result.error);
     setBatchToDelete(null);
@@ -169,12 +174,12 @@ export default function BatchesPage() {
 
   return (
     <>
-      <AppBar title="دفعات الصلاحيات" />
+      <AppBar title={language === "en" ? "Expiry Batches" : "دفعات الصلاحيات"} />
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-white rounded-2xl border border-mint-line p-5 text-center shadow-sm">
             <div className="text-[12px] font-bold text-ink-soft mb-1">
-              إجمالي الدفعات
+              {language === "en" ? "Total Batches" : "إجمالي الدفعات"}
             </div>
             <div className="text-[32px] font-mono font-black text-primary">
               {batches.length}
@@ -185,7 +190,7 @@ export default function BatchesPage() {
             onClick={() => setFilterExpiring("expiring")}
           >
             <div className="text-[12px] font-bold text-[#B9791C] mb-1">
-              ⚠️ تنتهي خلال 60 يوم
+              {language === "en" ? "⚠️ Expiring in 60 days" : "⚠️ تنتهي خلال 60 يوم"}
             </div>
             <div className="text-[32px] font-mono font-black text-[#B9791C]">
               {expiringCount}
@@ -196,7 +201,7 @@ export default function BatchesPage() {
             onClick={() => setFilterExpiring("expired")}
           >
             <div className="text-[12px] font-bold text-red-600 mb-1">
-              🚫 منتهية الصلاحية
+              {language === "en" ? "🚫 Expired" : "🚫 منتهية الصلاحية"}
             </div>
             <div className="text-[32px] font-mono font-black text-red-600">
               {expiredCount}
@@ -207,7 +212,7 @@ export default function BatchesPage() {
         <div className="flex gap-3 items-center">
           <input
             type="text"
-            placeholder="ابحث باسم الدواء أو رقم الدفعة..."
+            placeholder={language === "en" ? "Search by drug name or batch number..." : "ابحث باسم الدواء أو رقم الدفعة..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1 bg-white border border-mint-line rounded-xl px-4 py-3 text-[14px] outline-none focus:border-teal"
@@ -219,24 +224,24 @@ export default function BatchesPage() {
               className={`px-4 py-2 rounded-xl text-[13px] font-bold border transition-all ${filterExpiring === f ? "bg-primary text-white border-primary" : "bg-white text-ink-soft border-mint-line"}`}
             >
               {f === "all"
-                ? "الكل"
+                ? language === "en" ? "All" : "الكل"
                 : f === "expiring"
-                  ? "تنتهي قريباً"
-                  : "منتهية"}
+                  ? language === "en" ? "Expiring Soon" : "تنتهي قريباً"
+                  : language === "en" ? "Expired" : "منتهية"}
             </button>
           ))}
           <button
             onClick={() => setShowAddModal(true)}
             className="bg-primary text-white px-5 py-3 rounded-xl font-bold text-[14px] shadow-md shadow-primary/20 hover:opacity-90 whitespace-nowrap"
           >
-            + إضافة دفعة
+            {language === "en" ? "+ Add Batch" : "+ إضافة دفعة"}
           </button>
         </div>
 
         {filtered.length === 0 ? (
           <div className="bg-white rounded-2xl border border-mint-line p-12 text-center">
             <div className="text-[40px] mb-3">📦</div>
-            <div className="text-ink-soft font-bold">لا توجد دفعات مطابقة</div>
+            <div className="text-ink-soft font-bold">{language === "en" ? "No matching batches" : "لا توجد دفعات مطابقة"}</div>
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-mint-line overflow-hidden shadow-sm">
@@ -244,12 +249,12 @@ export default function BatchesPage() {
               <thead className="bg-bg border-b border-mint-line">
                 <tr>
                   {[
-                    "الدواء",
-                    "رقم الدفعة",
-                    "الكمية",
-                    "تاريخ الصلاحية",
-                    "الوقت المتبقي",
-                    "سعر الشراء",
+                    language === "en" ? "Drug" : "الدواء",
+                    language === "en" ? "Batch Number" : "رقم الدفعة",
+                    language === "en" ? "Quantity" : "الكمية",
+                    language === "en" ? "Expiry Date" : "تاريخ الصلاحية",
+                    language === "en" ? "Time Left" : "الوقت المتبقي",
+                    language === "en" ? "Purchase Price" : "سعر الشراء",
                     "",
                   ].map((h, i) => (
                     <th
@@ -286,7 +291,7 @@ export default function BatchesPage() {
                         <span
                           className={`px-2 py-1 rounded-lg text-[12px] font-bold ${s.badge}`}
                         >
-                          {s.label}
+                          {language === "en" ? s.labelEn : s.labelAr}
                         </span>
                       </td>
                       <td className="px-4 py-3 font-mono text-[13px] text-ink-soft">
@@ -326,7 +331,7 @@ export default function BatchesPage() {
           <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl border border-mint-line">
             <div className="flex justify-between items-center mb-5 border-b border-mint-line pb-4">
               <h3 className="text-[20px] font-black text-primary">
-                إضافة دفعة جديدة
+                {language === "en" ? "Add New Batch" : "إضافة دفعة جديدة"}
               </h3>
               <button
                 onClick={() => setShowAddModal(false)}
@@ -350,11 +355,11 @@ export default function BatchesPage() {
             <div className="space-y-4">
               <div className="relative">
                 <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                  الدواء *
+                  {language === "en" ? "Drug *" : "الدواء *"}
                 </label>
                 <input
                   type="text"
-                  placeholder="ابحث عن الدواء..."
+                  placeholder={language === "en" ? "Search for drug..." : "ابحث عن الدواء..."}
                   value={inventorySearch}
                   onChange={(e) => {
                     setInventorySearch(e.target.value);
@@ -389,7 +394,7 @@ export default function BatchesPage() {
                     ))}
                     {filteredInventory.length === 0 && (
                       <div className="p-3 text-ink-soft text-[13px] text-center">
-                        لا توجد نتائج
+                        {language === "en" ? "No results" : "لا توجد نتائج"}
                       </div>
                     )}
                   </div>
@@ -398,7 +403,7 @@ export default function BatchesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                    رقم الدفعة
+                    {language === "en" ? "Batch Number" : "رقم الدفعة"}
                   </label>
                   <input
                     type="text"
@@ -410,12 +415,12 @@ export default function BatchesPage() {
                       }))
                     }
                     className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 text-[14px] outline-none focus:border-primary"
-                    placeholder="اختياري"
+                    placeholder={language === "en" ? "Optional" : "اختياري"}
                   />
                 </div>
                 <div>
                   <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                    الكمية *
+                    {language === "en" ? "Quantity *" : "الكمية *"}
                   </label>
                   <input
                     type="number"
@@ -430,7 +435,7 @@ export default function BatchesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                    تاريخ الصلاحية *
+                    {language === "en" ? "Expiry Date *" : "تاريخ الصلاحية *"}
                   </label>
                   <input
                     type="date"
@@ -446,7 +451,7 @@ export default function BatchesPage() {
                 </div>
                 <div>
                   <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                    سعر الشراء (₪)
+                    {language === "en" ? "Purchase Price (₪)" : "سعر الشراء (₪)"}
                   </label>
                   <input
                     type="number"
@@ -469,13 +474,13 @@ export default function BatchesPage() {
                 disabled={isLoading}
                 className="flex-1 bg-primary text-white font-bold py-3.5 rounded-xl shadow-md shadow-primary/20 hover:opacity-90 disabled:opacity-50"
               >
-                {isLoading ? "جاري الإضافة..." : "إضافة الدفعة"}
+                {isLoading ? (language === "en" ? "Adding..." : "جاري الإضافة...") : (language === "en" ? "Add Batch" : "إضافة الدفعة")}
               </button>
               <button
                 onClick={() => setShowAddModal(false)}
                 className="flex-1 bg-bg text-ink font-bold py-3.5 rounded-xl hover:bg-mint-line transition-all"
               >
-                إلغاء
+                {language === "en" ? "Cancel" : "إلغاء"}
               </button>
             </div>
           </div>
@@ -507,23 +512,23 @@ export default function BatchesPage() {
               </svg>
             </div>
             <h3 className="text-[20px] font-black text-ink mb-2">
-              تأكيد الحذف
+              {language === "en" ? "Confirm Deletion" : "تأكيد الحذف"}
             </h3>
             <p className="text-[14px] text-ink-soft font-bold mb-6">
-              هل أنت متأكد؟ سيتم حذف هذه الدفعة وخصم كميتها من المخزون فوراً.
+              {language === "en" ? "Are you sure? This batch will be deleted and its quantity deducted from inventory immediately." : "هل أنت متأكد؟ سيتم حذف هذه الدفعة وخصم كميتها من المخزون فوراً."}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={handleDelete}
                 className="flex-1 bg-coral text-white font-bold py-3 rounded-xl shadow-md shadow-coral/20 hover:opacity-90 transition-all"
               >
-                نعم، احذف
+                {language === "en" ? "Yes, delete" : "نعم، احذف"}
               </button>
               <button
                 onClick={() => setBatchToDelete(null)}
                 className="flex-1 bg-bg text-ink font-bold py-3 rounded-xl hover:bg-mint-line transition-all"
               >
-                تراجع
+                {language === "en" ? "Cancel" : "تراجع"}
               </button>
             </div>
           </div>

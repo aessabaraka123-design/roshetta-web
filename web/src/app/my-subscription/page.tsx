@@ -4,13 +4,15 @@ import AppBar from "@/components/AppBar";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { useStore } from "@/store";
 
 export default function MySubscription() {
   const router = useRouter();
+  const language = useStore((state: any) => state.language);
 
   // Mock current subscription data
   const currentSub = {
-    planName: "الرخصة السنوية",
+    planName: language === "en" ? "Annual License" : "الرخصة السنوية",
     status: "active", // active, expiring, expired
     expiryDate: "2024-11-05",
     daysLeft: 87,
@@ -21,7 +23,7 @@ export default function MySubscription() {
 
   return (
     <>
-      <AppBar title="تفاصيل الاشتراك والباقة" backHref="/more" />
+      <AppBar title={language === "en" ? "Subscription & Plan Details" : "تفاصيل الاشتراك والباقة"} backHref="/more" />
       <main className="max-w-4xl mx-auto p-4 pb-24 mt-4 space-y-6">
         {/* Current Plan Overview Card */}
         <div className="bg-white rounded-3xl p-6 border border-mint-line shadow-sm relative overflow-hidden">
@@ -30,7 +32,7 @@ export default function MySubscription() {
           <div className="flex justify-between items-start relative z-10">
             <div>
               <div className="text-[13px] font-bold text-ink-soft mb-1">
-                باقتك الحالية
+                {language === "en" ? "Your Current Plan" : "باقتك الحالية"}
               </div>
               <div className="flex items-center gap-3 mb-4">
                 <h2 className="text-[28px] font-black text-primary">
@@ -46,17 +48,17 @@ export default function MySubscription() {
                   }`}
                 >
                   {currentSub.status === "active"
-                    ? "فعال"
+                    ? (language === "en" ? "Active" : "فعال")
                     : currentSub.status === "expiring"
-                      ? "ينتهي قريباً"
-                      : "منتهي"}
+                      ? (language === "en" ? "Expiring Soon" : "ينتهي قريباً")
+                      : (language === "en" ? "Expired" : "منتهي")}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-8">
                 <div>
                   <div className="text-[13px] text-ink-soft font-bold mb-1">
-                    تاريخ الانتهاء
+                    {language === "en" ? "Expiry Date" : "تاريخ الانتهاء"}
                   </div>
                   <div className="text-[16px] font-black text-ink">
                     {currentSub.expiryDate}
@@ -64,25 +66,25 @@ export default function MySubscription() {
                   <div
                     className={`text-[12px] font-bold mt-1 ${currentSub.daysLeft > 30 ? "text-teal" : "text-coral"}`}
                   >
-                    (متبقي {currentSub.daysLeft} يوماً)
+                    {language === "en" ? `(Remaining ${currentSub.daysLeft} days)` : `(متبقي ${currentSub.daysLeft} يوماً)`}
                   </div>
                 </div>
                 <div>
                   <div className="text-[13px] text-ink-soft font-bold mb-1">
-                    الفروع المستخدمة
+                    {language === "en" ? "Used Branches" : "الفروع المستخدمة"}
                   </div>
                   <div className="text-[16px] font-black text-ink">
                     {currentSub.currentBranches} / {currentSub.maxBranches}
                   </div>
                   <div className="text-[12px] font-bold text-ink-soft mt-1">
-                    الحد الأقصى {currentSub.maxBranches} فروع
+                    {language === "en" ? `Maximum ${currentSub.maxBranches} branches` : `الحد الأقصى ${currentSub.maxBranches} فروع`}
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="bg-primary-pale text-primary rounded-2xl p-4 flex flex-col items-center justify-center min-w-[120px]">
-              <div className="text-[12px] font-bold mb-1">تكلفة التجديد</div>
+              <div className="text-[12px] font-bold mb-1">{language === "en" ? "Renewal Cost" : "تكلفة التجديد"}</div>
               <div className="text-[20px] font-black">{currentSub.price}</div>
             </div>
           </div>
@@ -91,7 +93,11 @@ export default function MySubscription() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
             onClick={() => {
-              toast.success("تم تجديد اشتراكك بنجاح للعام القادم!");
+              toast.success(
+                language === "en" 
+                  ? "Your subscription has been successfully renewed for the next year!" 
+                  : "تم تجديد اشتراكك بنجاح للعام القادم!"
+              );
             }}
             className="bg-primary text-white font-bold py-4 rounded-xl shadow-md shadow-primary/20 hover:bg-teal transition-colors flex items-center justify-center gap-2 text-[16px]"
           >
@@ -108,7 +114,7 @@ export default function MySubscription() {
                 d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
               />
             </svg>
-            تجديد الاشتراك الحالي
+            {language === "en" ? "Renew Current Subscription" : "تجديد الاشتراك الحالي"}
           </button>
 
           <button
@@ -128,22 +134,22 @@ export default function MySubscription() {
                 d="M13 10V3L4 14h7v7l9-11h-7z"
               />
             </svg>
-            ترقية إلى باقة أعلى
+            {language === "en" ? "Upgrade to Higher Plan" : "ترقية إلى باقة أعلى"}
           </button>
         </div>
 
         {/* Plan Features */}
         <div className="bg-white rounded-3xl p-6 border border-mint-line shadow-sm">
           <h3 className="text-[18px] font-black text-primary mb-4">
-            مميزات باقتك الحالية
+            {language === "en" ? "Your Current Plan Features" : "مميزات باقتك الحالية"}
           </h3>
           <ul className="space-y-3">
             {[
-              "إدارة الفروع (حتى 3 فروع)",
-              "نقاط البيع السريعة (POS)",
-              "إدارة المخزون والتنبيهات المتقدمة",
-              "تقارير مبيعات وأرباح مفصلة",
-              "دعم فني على مدار الساعة",
+              language === "en" ? "Branch Management (up to 3 branches)" : "إدارة الفروع (حتى 3 فروع)",
+              language === "en" ? "Fast Point of Sale (POS)" : "نقاط البيع السريعة (POS)",
+              language === "en" ? "Inventory Management and Advanced Alerts" : "إدارة المخزون والتنبيهات المتقدمة",
+              language === "en" ? "Detailed Sales and Profit Reports" : "تقارير مبيعات وأرباح مفصلة",
+              language === "en" ? "24/7 Technical Support" : "دعم فني على مدار الساعة",
             ].map((feature, i) => (
               <li key={i} className="flex items-center gap-3">
                 <div className="w-6 h-6 rounded-full bg-teal-pale text-teal flex items-center justify-center shrink-0">

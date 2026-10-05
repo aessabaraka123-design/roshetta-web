@@ -1,40 +1,43 @@
 "use client";
 
 import AppBar from "@/components/AppBar";
+import { useStore } from "@/store";
 
 export default function Notifications() {
+  const language = useStore((state: any) => state.language);
+
   const notifs = [
     {
       id: 1,
       type: "coral",
       icon: "⏰",
-      title: "أوجمنتين ١g قارب على الانتهاء",
-      desc: "باقي ٣ أيام على الصلاحية — الفرع الرئيسي",
-      time: "قبل ١٠ دقائق",
+      title: language === 'en' ? "Augmentin 1g nearing expiration" : "أوجمنتين ١g قارب على الانتهاء",
+      desc: language === 'en' ? "3 days left until expiration — Main Branch" : "باقي ٣ أيام على الصلاحية — الفرع الرئيسي",
+      time: language === 'en' ? "10 mins ago" : "قبل ١٠ دقائق",
     },
     {
       id: 2,
       type: "amber",
       icon: "📦",
-      title: "فنتولين بخاخ نفدت الكمية",
-      desc: "فرع الحي الشرقي — يُنصح بطلب توريد",
-      time: "قبل ساعة",
+      title: language === 'en' ? "Ventolin inhaler out of stock" : "فنتولين بخاخ نفدت الكمية",
+      desc: language === 'en' ? "Eastern District Branch — Supply request recommended" : "فرع الحي الشرقي — يُنصح بطلب توريد",
+      time: language === 'en' ? "1 hour ago" : "قبل ساعة",
     },
     {
       id: 3,
       type: "teal",
       icon: "🔁",
-      title: "تجديد دواء مزمن",
-      desc: "هبة سلامة موعد تجديد ميتفورمين خلال يومين",
-      time: "اليوم ٨:٠٠ ص",
+      title: language === 'en' ? "Chronic medication renewal" : "تجديد دواء مزمن",
+      desc: language === 'en' ? "Heba Salama Metformin renewal due in two days" : "هبة سلامة موعد تجديد ميتفورمين خلال يومين",
+      time: language === 'en' ? "Today 8:00 AM" : "اليوم ٨:٠٠ ص",
     },
     {
       id: 4,
       type: "primary",
       icon: "✅",
-      title: "اكتمل جرد فرع البلد",
-      desc: "تطابق كامل مع سجل النظام",
-      time: "أمس",
+      title: language === 'en' ? "Al-Balad Branch inventory completed" : "اكتمل جرد فرع البلد",
+      desc: language === 'en' ? "Full match with system record" : "تطابق كامل مع سجل النظام",
+      time: language === 'en' ? "Yesterday" : "أمس",
     },
   ];
 
@@ -53,7 +56,7 @@ export default function Notifications() {
 
   return (
     <div className="max-w-3xl">
-      <AppBar title="الإشعارات" showLogo={false} />
+      <AppBar title={language === 'en' ? "Notifications" : "الإشعارات"} showLogo={false} />
 
       <div className="flex flex-col gap-3 mt-4">
         {notifs.map((n) => {

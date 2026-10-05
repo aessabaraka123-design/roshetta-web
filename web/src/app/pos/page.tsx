@@ -31,6 +31,7 @@ interface CartItem extends Med {
 }
 
 function POSContent() {
+  const language = useStore((state: any) => state.language);
   const user = useStore((state) => state.user);
   const router = useRouter();
 
@@ -58,14 +59,14 @@ function POSContent() {
     fetcher,
   );
   const pharmacyName =
-    pharmacyData?.pharmacy?.name || user?.pharmacyName || "صيدلية روشتة";
+    pharmacyData?.pharmacy?.name || user?.pharmacyName || (language === 'en' ? "Roshetta Pharmacy" : "صيدلية روشتة");
   const printerSize = pharmacyData?.pharmacy?.printerSize || "80mm";
   const showLogo =
     pharmacyData?.pharmacy?.showLogo !== undefined
       ? !!pharmacyData?.pharmacy?.showLogo
       : true;
   const receiptFooter =
-    pharmacyData?.pharmacy?.receiptFooter || "نتمنى لكم دوام الصحة والعافية";
+    pharmacyData?.pharmacy?.receiptFooter || (language === 'en' ? "Wishing you good health and wellness" : "نتمنى لكم دوام الصحة والعافية");
   const pharmacyPhone = pharmacyData?.pharmacy?.phone || "";
 
   const { data: customersData } = useSWR(
@@ -168,9 +169,9 @@ function POSContent() {
             }
           }
         });
-        toast.success("تم إضافة أدوية الوصفة للسلة بنجاح");
+        toast.success(language === 'en' ? "Prescription medicines added to cart successfully" : "تم إضافة أدوية الوصفة للسلة بنجاح");
       } catch (e) {
-        toast.error("حدث خطأ في تحميل الأدوية");
+        toast.error(language === 'en' ? "Error loading medicines" : "حدث خطأ في تحميل الأدوية");
       }
     }
   };
@@ -179,7 +180,7 @@ function POSContent() {
     // 1. Controlled Meds Check
     if (med.isControlled) {
       if (user?.role !== "manager" && !user?.controlledMedsAccess) {
-        toast.error("عذراً، ليس لديك صلاحية لبيع الأدوية المراقبة (المخدرة)!");
+        toast.error(language === 'en' ? "Sorry, you don't have permission to sell controlled medicines!" : "عذراً، ليس لديك صلاحية لبيع الأدوية المراقبة (المخدرة)!");
         return;
       }
     }
@@ -222,9 +223,9 @@ function POSContent() {
   const clearCart = () => clearPosCart();
 
   const handleCheckout = async () => {
-    if (cart.length === 0) return toast.error("السلة فارغة");
+    if (cart.length === 0) return toast.error(language === 'en' ? "Cart is empty" : "السلة فارغة");
     if (payMethod === "credit" && !selectedCustomerId)
-      return toast.error("يجب اختيار العميل عند الدفع بالآجل");
+      return toast.error(language === 'en' ? "Customer must be selected for credit payment" : "يجب اختيار العميل عند الدفع بالآجل");
 
     setLoading(true);
 
@@ -247,8 +248,8 @@ function POSContent() {
             total,
             paymentMethod: payMethod,
             customer: selectedCustomer,
-            cashierName: user?.managerName || "صيدلي 1",
-            branchName: selectedBranch || "الرئيسي",
+            cashierName: user?.managerName || (language === 'en' ? "Pharmacist 1" : "صيدلي 1"),
+            branchName: selectedBranch || (language === 'en' ? "Main" : "الرئيسي"),
             prescriptionId: selectedPrescriptionId || undefined,
           }),
         },
@@ -259,7 +260,7 @@ function POSContent() {
 
       setLastInvoice({
         id: data.saleId,
-        date: new Date().toLocaleString("ar-EG"),
+        date: new Date().toLocaleString(language === 'en' ? "en-US" : "ar-EG"),
         total,
         items: [...cart],
         method: payMethod,
@@ -270,9 +271,9 @@ function POSContent() {
       setSelectedPrescriptionId("");
       setPrescriptionSearch("");
       mutate(); // refresh inventory qty from backend
-      toast.success("تم إتمام البيع بنجاح!");
+      toast.success(language === 'en' ? "Sale completed successfully!" : "تم إتمام البيع بنجاح!");
     } catch (error: any) {
-      toast.error(`حدث خطأ أثناء حفظ الفاتورة: ${error.message}`);
+      toast.error(language === 'en' ? `Error saving invoice: ${error.message}` : `حدث خطأ أثناء حفظ الفاتورة: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -295,7 +296,7 @@ function POSContent() {
       <div className="w-full pb-10 print:hidden">
       {/* ===== TOP BAR ===== */}
       <AppBar
-        title={editInvoiceId ? `تعديل الفاتورة ${editInvoiceId}` : "الكاشير"}
+        title={editInvoiceId ? (language === 'en' ? `Edit Invoice ${editInvoiceId}` : `تعديل الفاتورة ${editInvoiceId}`) : (language === 'en' ? "Cashier" : "الكاشير")}
         showLogo={false}
         showNotifs={false}
       >
@@ -307,7 +308,7 @@ function POSContent() {
       {/* ===== BRANCH SELECTOR ===== */}
       {user?.role === "manager" && branches.length > 0 && (
         <div className="mb-4 bg-white p-3 rounded-xl border border-mint-line shadow-sm flex items-center justify-between">
-          <span className="text-[14px] font-bold text-ink">فرع البيع:</span>
+          <span className="text-[14px] font-bold text-ink">{language === 'en' ? "Sale Branch:" : "فرع البيع:"}</span>
           <select
             value={selectedBranch}
             onChange={(e) => setSelectedBranch(e.target.value)}
@@ -329,13 +330,13 @@ function POSContent() {
           {/* Search Section */}
           <div className="bg-white rounded-2xl border border-mint-line shadow-sm p-4 space-y-3">
             <h3 className="text-[13px] font-bold text-ink-soft uppercase tracking-wide">
-              🔍 إضافة دواء
+              🔍 {language === 'en' ? "Add Medicine" : "إضافة دواء"}
             </h3>
 
             {/* Drug Search */}
             <div className="relative z-20">
               <SearchBar
-                placeholder="امسح الباركود أو ابحث باسم الدواء..."
+                placeholder={language === 'en' ? "Scan barcode or search by medicine name..." : "امسح الباركود أو ابحث باسم الدواء..."}
                 value={search}
                 onChange={setSearch}
               />
@@ -353,7 +354,7 @@ function POSContent() {
                             {med.name}
                           </span>
                           <span className="text-[12px] text-ink-soft mt-0.5 flex gap-1">
-                            متوفر:{" "}
+                            {language === 'en' ? "Available:" : "متوفر:"}{" "}
                             <span className="font-mono font-bold text-teal">
                               {formatQty(med.qty, med.units)}
                             </span>
@@ -366,7 +367,7 @@ function POSContent() {
                     ))
                   ) : (
                     <div className="p-4 text-center text-ink-soft text-[14px]">
-                      لا توجد نتائج
+                      {language === 'en' ? "No results" : "لا توجد نتائج"}
                     </div>
                   )}
                 </div>
@@ -381,7 +382,7 @@ function POSContent() {
                 </span>
                 <input
                   type="text"
-                  placeholder="صرف وصفة: ابحث برقم الوصفة أو اسم المريض..."
+                  placeholder={language === 'en' ? "Dispense prescription: Search by prescription number or patient name..." : "صرف وصفة: ابحث برقم الوصفة أو اسم المريض..."}
                   value={prescriptionSearch}
                   onChange={(e) => {
                     setPrescriptionSearch(e.target.value);
@@ -403,7 +404,7 @@ function POSContent() {
                     }}
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-600 font-bold text-[11px] bg-white px-2 py-0.5 rounded-lg border border-red-200"
                   >
-                    ✕ إلغاء
+                    ✕ {language === 'en' ? "Cancel" : "إلغاء"}
                   </button>
                 )}
               </div>
@@ -428,11 +429,11 @@ function POSContent() {
                               {prx.id}
                             </span>
                             <span className="text-[12px] text-ink-soft">
-                              المريض: {prx.patient || "غير محدد"}
+                              {language === 'en' ? "Patient: " : "المريض: "}{prx.patient || (language === 'en' ? "Not specified" : "غير محدد")}
                             </span>
                           </div>
                           <span className="text-[12px] bg-teal-pale text-teal px-2 py-1 rounded-lg font-bold">
-                            صرف ▶
+                            {language === 'en' ? "Dispense ▶" : "صرف ▶"}
                           </span>
                         </div>
                       ))}
@@ -442,7 +443,7 @@ function POSContent() {
                         (p.patient && p.patient.includes(prescriptionSearch)),
                     ).length === 0 && (
                       <div className="p-4 text-center text-ink-soft text-[13px]">
-                        لا توجد وصفات معلقة مطابقة
+                        {language === 'en' ? "No matching pending prescriptions" : "لا توجد وصفات معلقة مطابقة"}
                       </div>
                     )}
                   </div>
@@ -454,7 +455,7 @@ function POSContent() {
           <div className="bg-white rounded-2xl border border-mint-line shadow-sm p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-[15px] font-bold text-ink flex items-center gap-2">
-                🛒 السلة{" "}
+                🛒 {language === 'en' ? "Cart" : "السلة"}{" "}
                 <span className="bg-primary text-white text-[12px] px-2 py-0.5 rounded-full font-mono">
                   {cart.length}
                 </span>
@@ -464,7 +465,7 @@ function POSContent() {
                   onClick={clearCart}
                   className="text-[13px] text-red-400 font-semibold hover:text-red-600 transition-colors"
                 >
-                  تفريغ الكل
+                  {language === 'en' ? "Clear All" : "تفريغ الكل"}
                 </button>
               )}
             </div>
@@ -505,7 +506,7 @@ function POSContent() {
               {cart.length === 0 && (
                 <div className="text-center py-12 text-ink-soft text-[14px] border-2 border-dashed border-mint-line rounded-xl">
                   <div className="text-4xl mb-2">🛒</div>
-                  السلة فارغة، ابحث عن دواء لإضافته
+                  {language === 'en' ? "Cart is empty, search for a medicine to add" : "السلة فارغة، ابحث عن دواء لإضافته"}
                 </div>
               )}
             </div>
@@ -517,17 +518,17 @@ function POSContent() {
           {/* Customer Selector */}
           <div className="bg-white rounded-2xl border border-mint-line shadow-sm p-4">
             <h3 className="text-[13px] font-bold text-ink-soft uppercase tracking-wide mb-3">
-              👤 العميل{" "}
+              👤 {language === 'en' ? "Customer " : "العميل "}
               {payMethod === "credit" ? (
-                <span className="text-red-500">(إلزامي للآجل)</span>
+                <span className="text-red-500">{language === 'en' ? "(Required for credit)" : "(إلزامي للآجل)"}</span>
               ) : (
-                "(اختياري)"
+                language === 'en' ? "(Optional)" : "(اختياري)"
               )}
             </h3>
             <div className="relative">
               <input
                 type="text"
-                placeholder="ابحث بالاسم أو الجوال..."
+                placeholder={language === 'en' ? "Search by name or mobile..." : "ابحث بالاسم أو الجوال..."}
                 value={customerSearch}
                 onFocus={() => setShowCustomerDropdown(true)}
                 onChange={(e) => {
@@ -569,7 +570,7 @@ function POSContent() {
                       c.phone.includes(customerSearch),
                   ).length === 0 && (
                     <div className="p-3 text-[13px] text-ink-soft text-center">
-                      لا يوجد نتائج
+                      {language === 'en' ? "No results" : "لا يوجد نتائج"}
                     </div>
                   )}
                 </div>
@@ -588,16 +589,16 @@ function POSContent() {
             {/* Payment methods — big stretched buttons */}
             <div>
               <p className="text-white/60 text-[12px] font-bold uppercase tracking-wide mb-3">
-                طريقة السداد
+                {language === 'en' ? "Payment Method" : "طريقة السداد"}
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { id: "cash", label: "نقدي", icon: "💵" },
-                  { id: "bank", label: "بنكي", icon: "🏦" },
-                  { id: "jawwal", label: "جوال باي", icon: "📱" },
-                  { id: "palpay", label: "بال باي", icon: "💳" },
-                  { id: "maalchat", label: "مالتشات", icon: "💬" },
-                  { id: "credit", label: "ذمم", icon: "📋" },
+                  { id: "cash", label: language === 'en' ? "Cash" : "نقدي", icon: "💵" },
+                  { id: "bank", label: language === 'en' ? "Bank" : "بنكي", icon: "🏦" },
+                  { id: "jawwal", label: language === 'en' ? "Jawwal Pay" : "جوال باي", icon: "📱" },
+                  { id: "palpay", label: language === 'en' ? "PalPay" : "بال باي", icon: "💳" },
+                  { id: "maalchat", label: language === 'en' ? "Maalchat" : "مالتشات", icon: "💬" },
+                  { id: "credit", label: language === 'en' ? "Credit" : "ذمم", icon: "📋" },
                 ].map((method) => (
                   <button
                     key={method.id}
@@ -621,13 +622,13 @@ function POSContent() {
             {/* Total */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-white/60 text-[12px]">عدد الأصناف</p>
+                <p className="text-white/60 text-[12px]">{language === 'en' ? "Items Count" : "عدد الأصناف"}</p>
                 <p className="text-white font-mono font-bold text-[16px]">
-                  {cart.length} صنف
+                  {cart.length} {language === 'en' ? "item(s)" : "صنف"}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-white/60 text-[12px]">الإجمالي</p>
+                <p className="text-white/60 text-[12px]">{language === 'en' ? "Total" : "الإجمالي"}</p>
                 <p className="text-white font-mono font-black text-[28px] leading-none">
                   {total.toFixed(2)} <span className="text-[16px]">₪</span>
                 </p>
@@ -641,10 +642,10 @@ function POSContent() {
               className="w-full bg-amber text-[#3A2607] border-none py-5 rounded-xl font-black text-[18px] cursor-pointer shadow-[0_6px_24px_rgba(242,169,59,0.5)] hover:opacity-90 disabled:opacity-40 transition-all"
             >
               {loading
-                ? "⏳ جاري المعالجة..."
+                ? (language === 'en' ? "⏳ Processing..." : "⏳ جاري المعالجة...")
                 : cart.length === 0
-                  ? "🛒 السلة فارغة"
-                  : `✓ إتمام البيع — ${total.toFixed(2)} ₪`}
+                  ? (language === 'en' ? "🛒 Cart is empty" : "🛒 السلة فارغة")
+                  : (language === 'en' ? `✓ Complete Sale — ${total.toFixed(2)} ₪` : `✓ إتمام البيع — ${total.toFixed(2)} ₪`)}
             </button>
           </div>
         </div>
@@ -696,19 +697,19 @@ function POSContent() {
 
               <div className="space-y-1.5 mb-1 px-1">
                 <div className="flex justify-between items-center text-[12px]">
-                  <span className="text-ink-soft font-bold">رقم الفاتورة:</span>
+                  <span className="text-ink-soft font-bold">{language === 'en' ? "Invoice No:" : "رقم الفاتورة:"}</span>
                   <span className="text-ink font-bold font-mono text-[11px]">
                     {lastInvoice.id}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-[12px]">
-                  <span className="text-ink-soft font-bold">التاريخ:</span>
+                  <span className="text-ink-soft font-bold">{language === 'en' ? "Date:" : "التاريخ:"}</span>
                   <span className="text-ink font-bold font-mono text-[11px]">
                     {lastInvoice.date}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-[12px]">
-                  <span className="text-ink-soft font-bold">الموظف:</span>
+                  <span className="text-ink-soft font-bold">{language === 'en' ? "Employee:" : "الموظف:"}</span>
                   <span className="text-ink font-bold">
                     {user?.managerName || user?.username || ""}
                   </span>
@@ -720,9 +721,9 @@ function POSContent() {
               </div>
 
               <div className="flex text-[12px] font-bold text-ink-soft mb-3 px-1">
-                <div className="flex-[2] text-right">الصنف</div>
-                <div className="w-[40px] text-center">الكمية</div>
-                <div className="flex-1 text-left">المجموع</div>
+                <div className="flex-[2] text-right">{language === 'en' ? "Item" : "الصنف"}</div>
+                <div className="w-[40px] text-center">{language === 'en' ? "Qty" : "الكمية"}</div>
+                <div className="flex-1 text-left">{language === 'en' ? "Total" : "المجموع"}</div>
               </div>
 
               <div className="space-y-3 mb-1 px-1">
@@ -753,7 +754,7 @@ function POSContent() {
 
               <div className="flex justify-between items-center mb-1 px-1">
                 <span className="text-[14px] font-bold text-ink">
-                  الإجمالي الكلي
+                  {language === 'en' ? "Grand Total" : "الإجمالي الكلي"}
                 </span>
                 <span className="text-[18px] font-black text-ink">
                   {Number(lastInvoice.total || 0).toFixed(2)}{" "}
@@ -763,22 +764,22 @@ function POSContent() {
 
               <div className="flex justify-between items-center mb-1 px-1">
                 <span className="text-[12px] font-bold text-ink-soft">
-                  طريقة الدفع
+                  {language === 'en' ? "Payment Method" : "طريقة الدفع"}
                 </span>
                 <span className="text-[12px] font-bold text-ink font-mono">
                   {lastInvoice.method === "cash"
-                    ? "نقدي"
+                    ? (language === 'en' ? "Cash" : "نقدي")
                     : lastInvoice.method === "bank"
-                      ? "بنكي"
+                      ? (language === 'en' ? "Bank" : "بنكي")
                       : lastInvoice.method === "jawwal"
-                        ? "جوال باي"
+                        ? (language === 'en' ? "Jawwal Pay" : "جوال باي")
                         : lastInvoice.method === "palpay"
-                          ? "بال باي"
+                          ? (language === 'en' ? "PalPay" : "بال باي")
                           : lastInvoice.method === "maalchat"
-                            ? "مالتشات"
+                            ? (language === 'en' ? "Maalchat" : "مالتشات")
                             : lastInvoice.method === "credit"
-                              ? "ذمم"
-                              : "نقدي"}
+                              ? (language === 'en' ? "Credit" : "ذمم")
+                              : (language === 'en' ? "Cash" : "نقدي")}
                 </span>
               </div>
 
@@ -819,7 +820,7 @@ function POSContent() {
               <div className="mt-5 flex flex-col items-center justify-center gap-1 opacity-50 grayscale">
                 <RoshettaLogo className="w-4 h-4" />
                 <span className="text-[9px] font-bold text-[#475569]">
-                  نظام روشتة لإدارة الصيدليات
+                  {language === 'en' ? "Roshetta Pharmacy Management System" : "نظام روشتة لإدارة الصيدليات"}
                 </span>
               </div>
 
@@ -841,7 +842,7 @@ function POSContent() {
                 onClick={() => window.print()}
                 className="flex-1 min-w-[100px] py-3 bg-primary text-white font-bold rounded-xl hover:bg-teal transition-all text-sm"
               >
-                طباعة حرارية
+                {language === 'en' ? "Thermal Print" : "طباعة حرارية"}
               </button>
               
               <button
@@ -870,7 +871,7 @@ function POSContent() {
                 }}
                 className="flex-1 min-w-[100px] py-3 bg-amber text-white font-bold rounded-xl hover:bg-amber/90 transition-all text-sm"
               >
-                إيصال PDF
+                {language === 'en' ? "PDF Receipt" : "إيصال PDF"}
               </button>
               
 
@@ -878,7 +879,7 @@ function POSContent() {
                 onClick={() => setShowReceipt(false)}
                 className="flex-1 min-w-[100px] py-3 bg-bg text-ink-soft font-bold rounded-xl hover:bg-mint-line transition-all text-sm"
               >
-                إغلاق
+                {language === 'en' ? "Close" : "إغلاق"}
               </button>
             </div>
           </div>
@@ -891,7 +892,7 @@ function POSContent() {
           <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-[18px] font-bold text-ink">
-                اختر وحدة البيع
+                {language === 'en' ? "Select Selling Unit" : "اختر وحدة البيع"}
               </h3>
               <button
                 onClick={() =>
@@ -903,9 +904,9 @@ function POSContent() {
               </button>
             </div>
             <p className="text-[14px] text-ink-soft mb-6">
-              الدواء{" "}
+              {language === 'en' ? "Medicine " : "الدواء "}
               <span className="font-bold text-teal">{unitModal.med.name}</span>{" "}
-              يحتوي على أجزاء، كيف تود بيعه؟
+              {language === 'en' ? "has fractions, how would you like to sell it?" : "يحتوي على أجزاء، كيف تود بيعه؟"}
             </p>
             <div className="flex flex-col gap-3">
               {unitModal.units.map((u, index) => (
@@ -932,8 +933,9 @@ function POSContent() {
 
 
 export default function POS() {
+  const language = useStore((state: any) => state.language);
   return (
-    <Suspense fallback={<div className="p-8 text-center text-ink-soft">جاري التحميل...</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-ink-soft">{language === 'en' ? "Loading..." : "جاري التحميل..."}</div>}>
       <POSContent />
     </Suspense>
   );

@@ -12,15 +12,16 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function PharmacyManager() {
   const router = useRouter();
-  const user = useStore((state) => state.user);
+  const user = useStore((state: any) => state.user);
+  const language = useStore((state: any) => state.language);
 
   useEffect(() => {
     if (!user) router.push("/login");
     else if ((user as any)?.role !== "manager") {
-      toast.error("ليس لديك الصلاحية للوصول إلى هذه الصفحة");
+      toast.error(language === "en" ? "You do not have permission to access this page" : "ليس لديك الصلاحية للوصول إلى هذه الصفحة");
       router.push("/");
     }
-  }, [user, router]);
+  }, [user, router, language]);
 
   const [activeTab, setActiveTab] = useState<
     "branches" | "staff" | "reports" | "settings" | "subscription"
@@ -33,7 +34,7 @@ export default function PharmacyManager() {
     title: "",
     amount: "",
     date: new Date().toISOString().split("T")[0],
-    type: "نثريات",
+    type: language === "en" ? "Sundries" : "نثريات",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
@@ -110,20 +111,20 @@ export default function PharmacyManager() {
 
         <div className="flex items-center gap-5 relative z-10">
           <div className="w-16 h-16 bg-gradient-to-tr from-primary to-teal text-white rounded-2xl flex items-center justify-center text-[24px] font-bold shadow-md shadow-primary/20 rotate-3">
-            س
+            {language === "en" ? "A" : "س"}
           </div>
           <div>
             <div className="flex items-center gap-3 mb-1">
               <h1 className="text-[24px] font-bold text-ink">
-                أهلاً بك، {(user as any)?.name || user?.username || "المدير العام"} 👋
+                {language === "en" ? "Welcome, " : "أهلاً بك، "} {(user as any)?.name || user?.username || (language === "en" ? "General Manager" : "المدير العام")} 👋
               </h1>
               <span className="bg-primary-pale text-primary text-[12px] font-bold px-3 py-1 rounded-full">
-                المدير العام
+                {language === "en" ? "General Manager" : "المدير العام"}
               </span>
             </div>
             <div className="flex items-center gap-3">
               <p className="text-[15px] text-ink-soft">
-                إدارة الفروع، الموظفين، والصلاحيات الخاصة بشبكة الصيدليات
+                {language === "en" ? "Manage branches, staff, and permissions for the pharmacy network" : "إدارة الفروع، الموظفين، والصلاحيات الخاصة بشبكة الصيدليات"}
               </p>
               <span className="text-mint-line">|</span>
               <button
@@ -143,7 +144,7 @@ export default function PharmacyManager() {
                     d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
                   />
                 </svg>
-                تعديل الملف الشخصي
+                {language === "en" ? "Edit Profile" : "تعديل الملف الشخصي"}
               </button>
             </div>
           </div>
@@ -155,14 +156,14 @@ export default function PharmacyManager() {
               onClick={() => setShowAddBranchModal(true)}
               className="bg-primary text-white px-5 py-2.5 rounded-xl font-bold text-[14px] shadow-sm hover:bg-teal transition-all"
             >
-              + فرع جديد
+              {language === "en" ? "+ New Branch" : "+ فرع جديد"}
             </button>
           ) : (
             <button
               onClick={() => setShowAddStaffModal(true)}
               className="bg-primary text-white px-5 py-2.5 rounded-xl font-bold text-[14px] shadow-sm hover:bg-teal transition-all"
             >
-              + موظف جديد
+              {language === "en" ? "+ New Staff" : "+ موظف جديد"}
             </button>
           )}
         </div>
@@ -174,7 +175,7 @@ export default function PharmacyManager() {
           <div className="absolute -left-6 -bottom-6 w-32 h-32 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/10 transition-colors"></div>
           <div className="flex justify-between items-start mb-6">
             <div className="text-[16px] text-ink-soft font-bold">
-              إجمالي الفروع
+              {language === "en" ? "Total Branches" : "إجمالي الفروع"}
             </div>
             <div className="w-10 h-10 rounded-full bg-primary-pale flex items-center justify-center">
               <svg
@@ -195,7 +196,7 @@ export default function PharmacyManager() {
           <div className="font-mono text-[38px] font-bold text-primary flex items-baseline gap-2 relative z-10">
             {branches.length}
             <span className="text-[15px] font-sans font-bold text-ink-soft">
-              فروع نشطة
+              {language === "en" ? "Active Branches" : "فروع نشطة"}
             </span>
           </div>
         </div>
@@ -205,7 +206,7 @@ export default function PharmacyManager() {
           <div className="absolute -left-6 -bottom-6 w-32 h-32 bg-teal/5 rounded-full blur-2xl group-hover:bg-teal/10 transition-colors"></div>
           <div className="flex justify-between items-start mb-6">
             <div className="text-[16px] text-ink-soft font-bold">
-              إجمالي الموظفين
+              {language === "en" ? "Total Staff" : "إجمالي الموظفين"}
             </div>
             <div className="w-10 h-10 rounded-full bg-teal-pale flex items-center justify-center">
               <svg
@@ -226,7 +227,7 @@ export default function PharmacyManager() {
           <div className="font-mono text-[38px] font-bold text-teal flex items-baseline gap-2 relative z-10">
             {staff.length}
             <span className="text-[15px] font-sans font-bold text-ink-soft">
-              صيادلة
+              {language === "en" ? "Pharmacists" : "صيادلة"}
             </span>
           </div>
         </div>
@@ -236,7 +237,7 @@ export default function PharmacyManager() {
           <div className="absolute -left-6 -bottom-6 w-32 h-32 bg-coral/5 rounded-full blur-2xl group-hover:bg-coral/10 transition-colors"></div>
           <div className="flex justify-between items-start mb-6">
             <div className="text-[16px] text-ink-soft font-bold">
-              الحسابات والديون
+              {language === "en" ? "Accounts & Debts" : "الحسابات والديون"}
             </div>
             <div className="w-10 h-10 rounded-full bg-coral-pale flex items-center justify-center">
               <svg
@@ -257,7 +258,7 @@ export default function PharmacyManager() {
           <div className="font-mono text-[38px] font-bold text-coral flex items-baseline gap-2 relative z-10">
             {totalDebt}
             <span className="text-[15px] font-sans font-bold text-ink-soft">
-              ₪ للموردين
+              {language === "en" ? "₪ for Suppliers" : "₪ للموردين"}
             </span>
           </div>
         </div>
@@ -273,7 +274,7 @@ export default function PharmacyManager() {
                 : "border-transparent text-ink-soft hover:bg-bg"
             }`}
           >
-            إدارة الفروع
+            {language === "en" ? "Manage Branches" : "إدارة الفروع"}
           </button>
           <button
             onClick={() => setActiveTab("staff")}
@@ -283,7 +284,7 @@ export default function PharmacyManager() {
                 : "border-transparent text-ink-soft hover:bg-bg"
             }`}
           >
-            الموظفون
+            {language === "en" ? "Staff" : "الموظفون"}
           </button>
           <button
             onClick={() => setActiveTab("reports")}
@@ -293,7 +294,7 @@ export default function PharmacyManager() {
                 : "border-transparent text-ink-soft hover:bg-bg"
             }`}
           >
-            التقارير المالية 📊
+            {language === "en" ? "Financial Reports 📊" : "التقارير المالية 📊"}
           </button>
           <button
             onClick={() => setActiveTab("settings")}
@@ -303,7 +304,7 @@ export default function PharmacyManager() {
                 : "border-transparent text-ink-soft hover:bg-bg"
             }`}
           >
-            إعدادات النظام ⚙️
+            {language === "en" ? "System Settings ⚙️" : "إعدادات النظام ⚙️"}
           </button>
           <button
             onClick={() => setActiveTab("subscription")}
@@ -313,7 +314,7 @@ export default function PharmacyManager() {
                 : "border-transparent text-ink-soft hover:bg-bg"
             }`}
           >
-            الاشتراك والفواتير 💳
+            {language === "en" ? "Subscription & Billing 💳" : "الاشتراك والفواتير 💳"}
           </button>
         </div>
 
@@ -323,7 +324,7 @@ export default function PharmacyManager() {
               value={search}
               onChange={setSearch}
               placeholder={
-                activeTab === "branches" ? "ابحث عن فرع..." : "ابحث عن موظف..."
+                activeTab === "branches" ? language === "en" ? "Search for branch..." : "ابحث عن فرع..." : language === "en" ? "Search for staff..." : "ابحث عن موظف..."
               }
             />
           </div>
@@ -334,11 +335,11 @@ export default function PharmacyManager() {
             <table className="w-full text-right">
               <thead>
                 <tr className="border-b border-mint-line text-ink-soft text-[14px] bg-card">
-                  <th className="py-3 px-5 font-semibold">رقم الفرع</th>
-                  <th className="py-3 px-5 font-semibold">اسم الفرع</th>
-                  <th className="py-3 px-5 font-semibold">المدير المسؤول</th>
-                  <th className="py-3 px-5 font-semibold">عدد الموظفين</th>
-                  <th className="py-3 px-5 font-semibold">الحالة</th>
+                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Branch Number" : "رقم الفرع"}</th>
+                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Branch Name" : "اسم الفرع"}</th>
+                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Manager in Charge" : "المدير المسؤول"}</th>
+                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Number of Staff" : "عدد الموظفين"}</th>
+                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Status" : "الحالة"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -357,7 +358,7 @@ export default function PharmacyManager() {
                       {br.manager}
                     </td>
                     <td className="py-4 px-5 text-[14px]">
-                      {br.staffCount} صيادلة
+                      {br.staffCount} {language === "en" ? "Pharmacists" : "صيادلة"}
                     </td>
                     <td className="py-4 px-5">
                       <span
@@ -367,7 +368,7 @@ export default function PharmacyManager() {
                             : "bg-amber-pale text-amber"
                         }`}
                       >
-                        {br.status === "active" ? "يعمل" : "قيد التجهيز"}
+                        {br.status === "active" ? (language === "en" ? "Active" : "يعمل") : (language === "en" ? "Preparing" : "قيد التجهيز")}
                       </span>
                     </td>
                   </tr>
@@ -380,13 +381,13 @@ export default function PharmacyManager() {
             <table className="w-full text-right">
               <thead>
                 <tr className="border-b border-mint-line text-ink-soft text-[14px] bg-card">
-                  <th className="py-3 px-5 font-semibold">الرقم الوظيفي</th>
-                  <th className="py-3 px-5 font-semibold">اسم الموظف</th>
-                  <th className="py-3 px-5 font-semibold">المسمى الوظيفي</th>
-                  <th className="py-3 px-5 font-semibold">الفرع التابع له</th>
-                  <th className="py-3 px-5 font-semibold">الراتب الأساسي</th>
-                  <th className="py-3 px-5 font-semibold">الحالة</th>
-                  <th className="py-3 px-5 font-semibold">إجراءات</th>
+                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Employee ID" : "الرقم الوظيفي"}</th>
+                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Employee Name" : "اسم الموظف"}</th>
+                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Job Title" : "المسمى الوظيفي"}</th>
+                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Branch" : "الفرع التابع له"}</th>
+                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Basic Salary" : "الراتب الأساسي"}</th>
+                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Status" : "الحالة"}</th>
+                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Actions" : "إجراءات"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -419,10 +420,10 @@ export default function PharmacyManager() {
                         }`}
                       >
                         {st.status === "active"
-                          ? "على رأس العمل"
+                          ? (language === "en" ? "On Duty" : "على رأس العمل")
                           : st.status === "suspended"
-                            ? "موقوف"
-                            : "إجازة"}
+                            ? (language === "en" ? "Suspended" : "موقوف")
+                            : (language === "en" ? "On Leave" : "إجازة")}
                       </span>
                     </td>
                     <td className="py-4 px-5">
@@ -434,7 +435,7 @@ export default function PharmacyManager() {
                           }}
                           className="text-[13px] font-bold text-primary hover:underline hover:text-teal transition-colors"
                         >
-                          تعديل
+                          {language === "en" ? "Edit" : "تعديل"}
                         </button>
                         <button
                           onClick={async () => {
@@ -458,15 +459,15 @@ export default function PharmacyManager() {
                                 mutateStaff();
                                 toast.success(
                                   newStatus === "suspended"
-                                    ? "تم إيقاف الموظف مؤقتاً"
-                                    : "تم إعادة الموظف للعمل",
+                                    ? language === "en" ? "Staff member temporarily suspended" : "تم إيقاف الموظف مؤقتاً"
+                                    : language === "en" ? "Staff member reinstated" : "تم إعادة الموظف للعمل",
                                 );
                               }
                             } catch (e) {}
                           }}
                           className={`text-[13px] font-bold hover:underline transition-colors ${st.status === "active" ? "text-amber" : "text-teal"}`}
                         >
-                          {st.status === "active" ? "توقيف" : "تفعيل"}
+                          {st.status === "active" ? (language === "en" ? "Suspend" : "توقيف") : (language === "en" ? "Activate" : "تفعيل")}
                         </button>
                         <button
                           onClick={() => setStaffToFire(st)}
@@ -563,12 +564,12 @@ export default function PharmacyManager() {
                     className={`text-[16px] font-black mb-1 ${netProfit >= 0 ? "text-teal" : "text-coral"}`}
                   >
                     {includeSalaries
-                      ? "الربح الصافي (Net Profit)"
-                      : "الربح التشغيلي (Gross Profit)"}
+                      ? language === "en" ? "Net Profit" : "الربح الصافي (Net Profit)"
+                      : language === "en" ? "Gross Profit" : "الربح التشغيلي (Gross Profit)"}
                   </div>
                   <div className="text-[13px] text-ink-soft font-bold">
                     معادلة الحساب: المبيعات - تكلفة البضاعة - المصروفات{" "}
-                    {includeSalaries ? "- الرواتب" : ""}
+                    {includeSalaries ? language === "en" ? " - Salaries" : "- الرواتب" : ""}
                   </div>
                 </div>
                 <div
@@ -707,9 +708,9 @@ export default function PharmacyManager() {
         <table className="w-full text-right">
           <thead>
             <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-              <th className="py-3 px-5 font-semibold">اسم الموظف</th>
-              <th className="py-3 px-5 font-semibold">كلمة المرور</th>
-              <th className="py-3 px-5 font-semibold">إجراءات</th>
+              <th className="py-3 px-5 font-semibold">{language === "en" ? "Employee Name" : "اسم الموظف"}</th>
+              <th className="py-3 px-5 font-semibold">{language === "en" ? "Password" : "كلمة المرور"}</th>
+              <th className="py-3 px-5 font-semibold">{language === "en" ? "Actions" : "إجراءات"}</th>
             </tr>
           </thead>
           <tbody>
@@ -771,10 +772,10 @@ export default function PharmacyManager() {
                   }
                   className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-[14px]"
                 >
-                  <option value="نثريات">نثريات (ضيافة، تنظيف...)</option>
-                  <option value="فواتير">فواتير (كهرباء، ماء، إنترنت)</option>
-                  <option value="صيانة">صيانة وإصلاحات</option>
-                  <option value="أخرى">أخرى</option>
+                  <option value="نثريات">{language === "en" ? "Sundries (Hospitality, Cleaning...)" : "نثريات (ضيافة، تنظيف...)"}</option>
+                  <option value="فواتير">{language === "en" ? "Bills (Electricity, Water, Internet)" : "فواتير (كهرباء، ماء، إنترنت)"}</option>
+                  <option value="صيانة">{language === "en" ? "Maintenance & Repairs" : "صيانة وإصلاحات"}</option>
+                  <option value="أخرى">{language === "en" ? "Other" : "أخرى"}</option>
                 </select>
               </div>
               <div>
@@ -787,7 +788,7 @@ export default function PharmacyManager() {
                   onChange={(e) =>
                     setExpenseData({ ...expenseData, title: e.target.value })
                   }
-                  placeholder="مثال: فاتورة كهرباء شهر ٨"
+                  placeholder={language === "en" ? "Example: August electricity bill" : "مثال: فاتورة كهرباء شهر ٨"}
                   className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-[14px]"
                 />
               </div>
@@ -832,7 +833,7 @@ export default function PharmacyManager() {
               <button
                 onClick={async () => {
                   if (!expenseData.title || !expenseData.amount) {
-                    toast.error("يرجى تعبئة الحقول");
+                    toast.error(language === "en" ? "Please fill in all fields" : "يرجى تعبئة الحقول");
                     return;
                   }
                   try {
@@ -851,13 +852,13 @@ export default function PharmacyManager() {
                       },
                     );
                     if ((await res.json()).success) {
-                      toast.success("تم تسجيل المصروف بنجاح");
+                      toast.success(language === "en" ? "Expense recorded successfully" : "تم تسجيل المصروف بنجاح");
                       setShowExpenseModal(false);
                       setExpenseData({
                         title: "",
                         amount: "",
                         date: new Date().toISOString().split("T")[0],
-                        type: "نثريات",
+                        type: language === "en" ? "Sundries" : "نثريات",
                       });
                     }
                   } catch (e) {}
@@ -875,7 +876,7 @@ export default function PharmacyManager() {
         <div className="fixed inset-0 bg-ink/50 z-50 flex items-center justify-center p-4">
           <div className="bg-card w-full max-w-md rounded-2xl p-6 shadow-2xl">
             <h3 className="text-[20px] font-bold text-ink mb-6">
-              {editingStaff ? "تعديل بيانات الموظف" : "إضافة موظف جديد"}
+              {editingStaff ? (language === "en" ? "Edit Staff Data" : "تعديل بيانات الموظف") : (language === "en" ? "Add New Staff" : "إضافة موظف جديد")}
             </h3>
 
             <div className="space-y-4">
@@ -890,7 +891,7 @@ export default function PharmacyManager() {
                     setEditingStaff({ ...editingStaff, name: e.target.value })
                   }
                   className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
-                  placeholder="الاسم الرباعي"
+                  placeholder={language === "en" ? "Full Name" : "الاسم الرباعي"}
                 />
               </div>
               <div>
@@ -898,16 +899,16 @@ export default function PharmacyManager() {
                   المسمى الوظيفي
                 </label>
                 <select
-                  value={editingStaff?.role || "صيدلي / كاشير"}
+                  value={editingStaff?.role || language === "en" ? "Pharmacist / Cashier" : "صيدلي / كاشير"}
                   onChange={(e) =>
                     setEditingStaff({ ...editingStaff, role: e.target.value })
                   }
                   className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary bg-white"
                 >
-                  <option>صيدلي / كاشير</option>
-                  <option>مدير فرع</option>
-                  <option>مساعد صيدلي</option>
-                  <option>مستودع</option>
+                  <option>{language === "en" ? "Pharmacist / Cashier" : "صيدلي / كاشير"}</option>
+                  <option>{language === "en" ? "Branch Manager" : "مدير فرع"}</option>
+                  <option>{language === "en" ? "Pharmacy Assistant" : "مساعد صيدلي"}</option>
+                  <option>{language === "en" ? "Warehouse" : "مستودع"}</option>
                 </select>
               </div>
               <div>
@@ -921,7 +922,7 @@ export default function PharmacyManager() {
                   }
                   className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary bg-white"
                 >
-                  <option value="">اختر الفرع...</option>
+                  <option value="">{language === "en" ? "Select Branch..." : "اختر الفرع..."}</option>
                   {branches.map((br: any) => (
                     <option key={br.id} value={br.name}>
                       {br.name}
@@ -944,7 +945,7 @@ export default function PharmacyManager() {
                       })
                     }
                     className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
-                    placeholder="مثال: 1500"
+                    placeholder={language === "en" ? "Example: 1500" : "مثال: 1500"}
                   />
                 </div>
                 <div>
@@ -1000,7 +1001,7 @@ export default function PharmacyManager() {
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute left-3 top-3.5 text-ink-soft hover:text-primary transition-colors"
                       title={
-                        showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"
+                        showPassword ? language === "en" ? "Hide Password" : "إخفاء كلمة المرور" : language === "en" ? "Show Password" : "إظهار كلمة المرور"
                       }
                     >
                       {showPassword ? (
@@ -1058,10 +1059,10 @@ export default function PharmacyManager() {
                       );
                       if ((await res.json()).success) {
                         mutateStaff();
-                        toast.success("تم تحديث بيانات الموظف بنجاح!");
-                      } else toast.error("حدث خطأ أثناء التحديث");
+                        toast.success(language === "en" ? "Staff data updated successfully!" : "تم تحديث بيانات الموظف بنجاح!");
+                      } else toast.error(language === "en" ? "Error during update" : "حدث خطأ أثناء التحديث");
                     } catch (e) {
-                      toast.error("تعذر الاتصال بالخادم");
+                      toast.error(language === "en" ? "Could not connect to server" : "تعذر الاتصال بالخادم");
                     }
                   } else {
                     try {
@@ -1075,10 +1076,10 @@ export default function PharmacyManager() {
                       );
                       if ((await res.json()).success) {
                         mutateStaff();
-                        toast.success("تم إضافة الموظف الجديد بنجاح!");
-                      } else toast.error("حدث خطأ أثناء الإضافة");
+                        toast.success(language === "en" ? "New staff added successfully!" : "تم إضافة الموظف الجديد بنجاح!");
+                      } else toast.error(language === "en" ? "Error during addition" : "حدث خطأ أثناء الإضافة");
                     } catch (e) {
-                      toast.error("تعذر الاتصال بالخادم");
+                      toast.error(language === "en" ? "Could not connect to server" : "تعذر الاتصال بالخادم");
                     }
                   }
                   setShowAddStaffModal(false);
@@ -1087,7 +1088,7 @@ export default function PharmacyManager() {
                 }}
                 className="flex-1 py-3 bg-primary text-white font-bold rounded-xl hover:bg-teal transition-all"
               >
-                {editingStaff?.id ? "حفظ التعديلات" : "تعيين الموظف"}
+                {editingStaff?.id ? language === "en" ? "Save Changes" : "حفظ التعديلات" : language === "en" ? "Appoint Staff" : "تعيين الموظف"}
               </button>
               <button
                 onClick={async () => {
@@ -1145,7 +1146,7 @@ export default function PharmacyManager() {
                     if (data.success) {
                       mutateStaff();
                       setStaffToFire(null);
-                      toast.success("تم!");
+                      toast.success(language === "en" ? "Done!" : "تم!");
                     } else toast.error(data.error);
                   } catch (e) {
                     toast.error("Error");
@@ -1412,7 +1413,7 @@ export default function PharmacyManager() {
             <div className="mt-8 flex gap-3">
               <button
                 onClick={async () => {
-                  toast.success("تم حفظ تعديلات الملف الشخصي بنجاح!");
+                  toast.success(language === "en" ? "Profile changes saved successfully!" : "تم حفظ تعديلات الملف الشخصي بنجاح!");
                   setShowChangePasswordModal(false);
                 }}
                 className="flex-1 py-3 bg-primary text-white font-bold rounded-xl hover:bg-teal transition-all shadow-md shadow-primary/20"
@@ -1450,7 +1451,7 @@ export default function PharmacyManager() {
                     setNewBranch({ ...newBranch, name: e.target.value })
                   }
                   className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
-                  placeholder="مثال: فرع النصيرات"
+                  placeholder={language === "en" ? "Example: Nuseirat Branch" : "مثال: فرع النصيرات"}
                 />
               </div>
               <div>
@@ -1464,7 +1465,7 @@ export default function PharmacyManager() {
                     setNewBranch({ ...newBranch, manager: e.target.value })
                   }
                   className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
-                  placeholder="اسم الصيدلي"
+                  placeholder={language === "en" ? "Pharmacist Name" : "اسم الصيدلي"}
                 />
               </div>
               <div>
@@ -1478,8 +1479,8 @@ export default function PharmacyManager() {
                   }
                   className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary bg-white"
                 >
-                  <option value="preparing">قيد التجهيز</option>
-                  <option value="active">يعمل</option>
+                  <option value="preparing">{language === "en" ? "Preparing" : "قيد التجهيز"}</option>
+                  <option value="active">{language === "en" ? "Active" : "يعمل"}</option>
                 </select>
               </div>
             </div>
@@ -1488,7 +1489,7 @@ export default function PharmacyManager() {
               <button
                 onClick={async () => {
                   if (!newBranch.name || !newBranch.manager) {
-                    toast.error("يرجى تعبئة بيانات الفرع");
+                    toast.error(language === "en" ? "Please fill in branch details" : "يرجى تعبئة بيانات الفرع");
                     return;
                   }
 
@@ -1513,7 +1514,7 @@ export default function PharmacyManager() {
                         status: "preparing",
                       });
                       setShowAddBranchModal(false);
-                      toast.success("تم!");
+                      toast.success(language === "en" ? "Done!" : "تم!");
                     } else toast.error(data.error);
                   } catch (e) {
                     toast.error("Error");

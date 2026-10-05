@@ -9,7 +9,8 @@ import { useStore } from "@/store";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function OwnerSupportPage() {
-  const user = useStore((state) => state.user);
+  const user = useStore((state: any) => state.user);
+  const language = useStore((state: any) => state.language);
   const [activeTab, setActiveTab] = useState<"new" | "history">("new");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
@@ -26,7 +27,7 @@ export default function OwnerSupportPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!subject || !message) {
-      toast.error("يرجى تعبئة جميع الحقول");
+      toast.error(language === 'en' ? "Please fill all fields" : "يرجى تعبئة جميع الحقول");
       return;
     }
     setLoading(true);
@@ -52,13 +53,13 @@ export default function OwnerSupportPage() {
       const resData = await res.json();
       if (!resData.success) throw new Error(resData.error);
 
-      toast.success("تم إرسال تذكرتك بنجاح، سيقوم الدعم الفني بالرد قريباً");
+      toast.success(language === 'en' ? "Ticket submitted successfully, support will reply soon" : "تم إرسال تذكرتك بنجاح، سيقوم الدعم الفني بالرد قريباً");
       setSubject("");
       setMessage("");
       setActiveTab("history");
       mutate(); // refresh tickets list
     } catch (err) {
-      toast.error("حدث خطأ أثناء إرسال التذكرة");
+      toast.error(language === 'en' ? "Error submitting ticket" : "حدث خطأ أثناء إرسال التذكرة");
     } finally {
       setLoading(false);
     }
@@ -66,20 +67,20 @@ export default function OwnerSupportPage() {
 
   return (
     <>
-      <AppBar title="الدعم الفني" backHref="/more" />
+      <AppBar title={language === 'en' ? "Technical Support" : "الدعم الفني"} backHref="/more" />
       <main className="max-w-4xl mx-auto p-4 pb-24 space-y-6 mt-4">
         <div className="flex bg-mint-line/30 rounded-xl p-1 mb-2">
           <button
             onClick={() => setActiveTab("new")}
             className={`flex-1 py-2 rounded-lg text-[14px] font-bold transition-all ${activeTab === "new" ? "bg-white text-primary shadow-sm" : "text-ink-soft hover:text-ink"}`}
           >
-            تذكرة جديدة
+            {language === 'en' ? "New Ticket" : "تذكرة جديدة"}
           </button>
           <button
             onClick={() => setActiveTab("history")}
             className={`flex-1 py-2 rounded-lg text-[14px] font-bold transition-all ${activeTab === "history" ? "bg-white text-primary shadow-sm" : "text-ink-soft hover:text-ink"}`}
           >
-            تذاكري السابقة
+            {language === 'en' ? "My Previous Tickets" : "تذاكري السابقة"}
           </button>
         </div>
 
@@ -90,24 +91,24 @@ export default function OwnerSupportPage() {
           >
             <div>
               <label className="block text-[14px] font-bold text-ink mb-2">
-                موضوع التذكرة
+                {language === 'en' ? "Ticket Subject" : "موضوع التذكرة"}
               </label>
               <input
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="مثال: مشكلة في الطابعة"
+                placeholder={language === 'en' ? "Example: Printer issue" : "مثال: مشكلة في الطابعة"}
                 className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
               />
             </div>
             <div>
               <label className="block text-[14px] font-bold text-ink mb-2">
-                التفاصيل
+                {language === 'en' ? "Details" : "التفاصيل"}
               </label>
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="اشرح المشكلة أو الاستفسار بالتفصيل هنا..."
+                placeholder={language === 'en' ? "Explain the problem or inquiry in detail here..." : "اشرح المشكلة أو الاستفسار بالتفصيل هنا..."}
                 rows={5}
                 className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary resize-none"
               ></textarea>
@@ -130,7 +131,7 @@ export default function OwnerSupportPage() {
                   d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
                 />
               </svg>
-              {loading ? "جاري الإرسال..." : "إرسال التذكرة"}
+              {loading ? (language === 'en' ? "Sending..." : "جاري الإرسال...") : (language === 'en' ? "Submit Ticket" : "إرسال التذكرة")}
             </button>
           </form>
         ) : (
@@ -153,8 +154,8 @@ export default function OwnerSupportPage() {
                     className={`text-[12px] font-bold px-3 py-1 rounded-full ${ticket.status === "resolved" || ticket.status === "مغلقة" ? "bg-mint-line text-ink-soft" : "bg-amber-pale text-amber"}`}
                   >
                     {ticket.status === "resolved"
-                      ? "مغلقة"
-                      : "مفتوحة / قيد المراجعة"}
+                      ? (language === 'en' ? "Closed" : "مغلقة")
+                      : (language === 'en' ? "Open / Under Review" : "مفتوحة / قيد المراجعة")}
                   </span>
                   <span className="text-[12px] font-semibold text-ink-soft">
                     {ticket.date}
@@ -164,7 +165,7 @@ export default function OwnerSupportPage() {
             ))}
             {tickets.length === 0 && (
               <div className="text-center p-8 text-ink-soft border border-dashed border-mint-line rounded-2xl">
-                لا يوجد لديك أي تذاكر سابقة
+                {language === 'en' ? "You have no previous tickets" : "لا يوجد لديك أي تذاكر سابقة"}
               </div>
             )}
           </div>
