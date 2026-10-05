@@ -214,8 +214,10 @@ export default function Returns() {
                       >
                         {sale.id}
                       </div>
-                      <div className="text-[13px] text-ink-soft mt-1">
-                        {new Date(sale.date).toLocaleString("ar-EG")}
+                      <div className="text-[13px] text-ink-soft mt-1 flex items-center gap-2">
+                        <span>{new Date(sale.date).toLocaleString("ar-EG")}</span>
+                        <span className="w-1 h-1 rounded-full bg-mint-line"></span>
+                        <span className="font-bold text-teal">{sale.branchName || "الرئيسي"}</span>
                       </div>
                     </div>
                     <div className="text-left">
@@ -432,6 +434,9 @@ export default function Returns() {
                       <th className="p-4 font-bold">
                         قيمة الفاتورة (قبل الاسترجاع)
                       </th>
+                      <th className="p-4 font-bold">
+                        الفرع
+                      </th>
                       <th className="p-4 font-bold rounded-tl-xl rounded-bl-xl">
                         الكاشير
                       </th>
@@ -459,6 +464,9 @@ export default function Returns() {
                         </td>
                         <td className="p-4 text-[15px] font-mono font-bold text-red-500">
                           {sale.total.toLocaleString()} ₪
+                        </td>
+                        <td className="p-4 text-[14px] font-bold text-ink-soft">
+                          {sale.branchName || "الرئيسي"}
                         </td>
                         <td className="p-4 text-[14px] font-bold text-primary">
                           {sale.cashierName || "غير معروف"}
