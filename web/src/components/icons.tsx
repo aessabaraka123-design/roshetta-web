@@ -1,8 +1,8 @@
 export const LogoMark = ({ className = "w-6 h-6" }: { className?: string }) => (
   <img 
-    src="/logo.jpg" 
+    src="/logo.png" 
     alt="Roshetta Logo" 
-    className={`${className} object-cover mix-blend-multiply`} 
+    className={`${className} object-cover`} 
   />
 );
 
