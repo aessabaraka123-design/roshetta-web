@@ -5,6 +5,7 @@ import AppBar from "@/components/AppBar";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
+import { useTranslation } from "@/i18n";
 import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -12,6 +13,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export default function Dashboard() {
   const router = useRouter();
   const user = useStore((state) => state.user);
+  const { t, language } = useTranslation();
 
   const [mounted, setMounted] = useState(false);
 
@@ -75,7 +77,7 @@ export default function Dashboard() {
             })}{" "}
             —{" "}
             {isManager
-              ? "إليك ملخص فروعك اليوم"
+              ? "{t.dashboard.summary_today}"
               : `إليك ملخص فرع ${user.branch || ""} اليوم`}
           </p>
         </div>
@@ -111,7 +113,7 @@ export default function Dashboard() {
               <small className="text-[16px] font-bold text-white/80">₪</small>
             </div>
             <div className="text-[14px] font-bold mt-2 flex items-center gap-1 text-white bg-white/20 w-fit px-2 py-0.5 rounded-full">
-              {stats.invoicesToday} فاتورة
+              {stats.invoicesToday} {t.dashboard.invoice}
             </div>
           </div>
 
@@ -218,7 +220,7 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center justify-between mt-5 mb-4">
-          <h2 className="text-[20px] font-black text-primary">تنبيهات عاجلة</h2>
+          <h2 className="text-[20px] font-black text-primary">{t.dashboard.urgent_alerts}</h2>
           <Link
             href="/notifs"
             className="text-[14px] text-teal font-bold hover:underline"
