@@ -3,9 +3,11 @@
 import { useRouter } from "next/navigation";
 import AppBar from "@/components/AppBar";
 import toast from "react-hot-toast";
+import { useStore } from "@/store";
 
 export default function UpgradePlan() {
   const router = useRouter();
+  const language = useStore((state: any) => state.language);
 
   const handleUpgrade = (planName: string) => {
     toast.success(language === "en" ? `Upgrade request to ${planName} sent successfully!` : `تم إرسال طلب الترقية إلى باقة ${planName} بنجاح!`);
@@ -126,8 +128,8 @@ export default function UpgradePlan() {
 
   return (
     <>
-      <AppBar title="ترقية الباقة" backHref="/my-subscription" />
-      <div className="pricing-page-container" dir="rtl">
+      <AppBar title={language === "en" ? "Upgrade Plan" : "ترقية الباقة"} backHref="/my-subscription" />
+      <div className="pricing-page-container" dir={language === "en" ? "ltr" : "rtl"}>
         <style dangerouslySetInnerHTML={{ __html: customStyles }} />
         <div className="bg-decor">
           <svg
@@ -155,31 +157,29 @@ export default function UpgradePlan() {
         <div className="wrap mt-2">
           <header className="hero">
             <h1 className="pricing-title">
-              اختر الباقة المناسبة <span>لترقية</span> صيدليتك
+              {language === "en" ? <>Choose the right plan to <span>upgrade</span> your pharmacy</> : <>اختر الباقة المناسبة <span>لترقية</span> صيدليتك</>}
             </h1>
             <p className="sub">
-              يمكنك الترقية في أي وقت بكل سهولة. سيتم احتساب قيمة الأيام
-              المتبقية من اشتراكك الحالي وخصمها من قيمة الاشتراك الجديد
-              تلقائياً.
+              {language === "en" ? "You can upgrade at any time with ease. The value of the remaining days of your current subscription will be calculated and deducted from the new subscription value automatically." : "يمكنك الترقية في أي وقت بكل سهولة. سيتم احتساب قيمة الأيام المتبقية من اشتراكك الحالي وخصمها من قيمة الاشتراك الجديد تلقائياً."}
             </p>
           </header>
 
           <div className="grid">
             <div className="card">
-              <div className="plan-name">الرخصة الدائمة</div>
+              <div className="plan-name">{language === "en" ? "Lifetime License" : "الرخصة الدائمة"}</div>
               <div className="plan-desc">
-                امتلك النظام للأبد بدون أي التزامات شهرية أو سنوية.
+                {language === "en" ? "Own the system forever without any monthly or annual commitments." : "امتلك النظام للأبد بدون أي التزامات شهرية أو سنوية."}
               </div>
               <div className="price-row">
                 <div className="price">
                   <span className="num">1,499</span>
                   <span className="cur">$</span>
                 </div>
-                <div className="price-cycle">تُدفع مرة واحدة فقط</div>
+                <div className="price-cycle">{language === "en" ? "Paid only once" : "تُدفع مرة واحدة فقط"}</div>
               </div>
               <ul className="features">
                 <li>
-                  كل الميزات متضمّنة{" "}
+                  {language === "en" ? "All features included" : "كل الميزات متضمّنة"}{" "}
                   <span className="check">
                     <svg viewBox="0 0 12 12">
                       <path
@@ -192,7 +192,7 @@ export default function UpgradePlan() {
                   </span>
                 </li>
                 <li>
-                  لا يوجد أي رسوم إضافية{" "}
+                  {language === "en" ? "No additional fees" : "لا يوجد أي رسوم إضافية"}{" "}
                   <span className="check">
                     <svg viewBox="0 0 12 12">
                       <path
@@ -205,7 +205,7 @@ export default function UpgradePlan() {
                   </span>
                 </li>
                 <li>
-                  استضافة سحابية مجانية لمدة سنة{" "}
+                  {language === "en" ? "Free cloud hosting for one year" : "استضافة سحابية مجانية لمدة سنة"}{" "}
                   <span className="check">
                     <svg viewBox="0 0 12 12">
                       <path
@@ -218,7 +218,7 @@ export default function UpgradePlan() {
                   </span>
                 </li>
                 <li>
-                  دعم فنّي VIP{" "}
+                  {language === "en" ? "VIP Technical Support" : "دعم فنّي VIP"}{" "}
                   <span className="check">
                     <svg viewBox="0 0 12 12">
                       <path
@@ -232,29 +232,29 @@ export default function UpgradePlan() {
                 </li>
               </ul>
               <button
-                onClick={() => handleUpgrade("الرخصة الدائمة")}
+                onClick={() => handleUpgrade(language === "en" ? "Lifetime License" : "الرخصة الدائمة")}
                 className="cta"
               >
-                ترقية للرخصة الدائمة
+                {language === "en" ? "Upgrade to Lifetime License" : "ترقية للرخصة الدائمة"}
               </button>
             </div>
 
             <div className="card featured">
-              <div className="ribbon">الأكثر توفيرًا</div>
-              <div className="plan-name">الاشتراك السنوي</div>
+              <div className="ribbon">{language === "en" ? "Most Cost-Effective" : "الأكثر توفيرًا"}</div>
+              <div className="plan-name">{language === "en" ? "Annual Subscription" : "الاشتراك السنوي"}</div>
               <div className="plan-desc">
-                وفّر 20% مع الاشتراك السنوي واشترِ راحة بالك.
+                {language === "en" ? "Save 20% with an annual subscription and buy your peace of mind." : "وفّر 20% مع الاشتراك السنوي واشترِ راحة بالك."}
               </div>
               <div className="price-row">
                 <div className="price">
                   <span className="num">499</span>
                   <span className="cur">$</span>
                 </div>
-                <div className="price-cycle">سنويًا</div>
+                <div className="price-cycle">{language === "en" ? "Annually" : "سنويًا"}</div>
               </div>
               <ul className="features">
                 <li>
-                  كل ميزات الباقة الشهرية{" "}
+                  {language === "en" ? "All features of the monthly plan" : "كل ميزات الباقة الشهرية"}{" "}
                   <span className="check">
                     <svg viewBox="0 0 12 12">
                       <path
@@ -267,7 +267,7 @@ export default function UpgradePlan() {
                   </span>
                 </li>
                 <li>
-                  فروع غير محدودة{" "}
+                  {language === "en" ? "Unlimited branches" : "فروع غير محدودة"}{" "}
                   <span className="check">
                     <svg viewBox="0 0 12 12">
                       <path
@@ -280,7 +280,7 @@ export default function UpgradePlan() {
                   </span>
                 </li>
                 <li>
-                  تحديثات مجانية مستمرة{" "}
+                  {language === "en" ? "Continuous free updates" : "تحديثات مجانية مستمرة"}{" "}
                   <span className="check">
                     <svg viewBox="0 0 12 12">
                       <path
@@ -293,7 +293,7 @@ export default function UpgradePlan() {
                   </span>
                 </li>
                 <li>
-                  مستشار مبيعات خاص{" "}
+                  {language === "en" ? "Dedicated Sales Consultant" : "مستشار مبيعات خاص"}{" "}
                   <span className="check">
                     <svg viewBox="0 0 12 12">
                       <path
@@ -307,28 +307,28 @@ export default function UpgradePlan() {
                 </li>
               </ul>
               <button
-                onClick={() => handleUpgrade("الاشتراك السنوي")}
+                onClick={() => handleUpgrade(language === "en" ? "Annual Subscription" : "الاشتراك السنوي")}
                 className="cta gold"
               >
-                ترقية للاشتراك السنوي
+                {language === "en" ? "Upgrade to Annual Subscription" : "ترقية للاشتراك السنوي"}
               </button>
             </div>
 
             <div className="card">
-              <div className="plan-name">الاشتراك الشهري</div>
+              <div className="plan-name">{language === "en" ? "Monthly Subscription" : "الاشتراك الشهري"}</div>
               <div className="plan-desc">
-                الخيار الأمثل لإدارة صيدليتك بدفع بسيط شهريًا.
+                {language === "en" ? "The perfect choice to manage your pharmacy with a simple monthly payment." : "الخيار الأمثل لإدارة صيدليتك بدفع بسيط شهريًا."}
               </div>
               <div className="price-row">
                 <div className="price">
                   <span className="num">49</span>
                   <span className="cur">$</span>
                 </div>
-                <div className="price-cycle">شهريًا</div>
+                <div className="price-cycle">{language === "en" ? "Monthly" : "شهريًا"}</div>
               </div>
               <ul className="features">
                 <li>
-                  كل ميزات التجربة{" "}
+                  {language === "en" ? "All trial features" : "كل ميزات التجربة"}{" "}
                   <span className="check">
                     <svg viewBox="0 0 12 12">
                       <path
@@ -341,7 +341,7 @@ export default function UpgradePlan() {
                   </span>
                 </li>
                 <li>
-                  تقارير وتحليلات ذكية{" "}
+                  {language === "en" ? "Smart reports and analytics" : "تقارير وتحليلات ذكية"}{" "}
                   <span className="check">
                     <svg viewBox="0 0 12 12">
                       <path
@@ -354,7 +354,7 @@ export default function UpgradePlan() {
                   </span>
                 </li>
                 <li>
-                  حتى 3 فروع{" "}
+                  {language === "en" ? "Up to 3 branches" : "حتى 3 فروع"}{" "}
                   <span className="check">
                     <svg viewBox="0 0 12 12">
                       <path
@@ -367,7 +367,7 @@ export default function UpgradePlan() {
                   </span>
                 </li>
                 <li>
-                  دعم فنّي فوري (واتساب){" "}
+                  {language === "en" ? "Instant Technical Support (WhatsApp)" : "دعم فنّي فوري (واتساب)"}{" "}
                   <span className="check">
                     <svg viewBox="0 0 12 12">
                       <path
@@ -381,10 +381,10 @@ export default function UpgradePlan() {
                 </li>
               </ul>
               <button
-                onClick={() => handleUpgrade("الاشتراك الشهري")}
+                onClick={() => handleUpgrade(language === "en" ? "Monthly Subscription" : "الاشتراك الشهري")}
                 className="cta solid-deep"
               >
-                تجديد أو ترقية للشهرية
+                {language === "en" ? "Renew or Upgrade to Monthly" : "تجديد أو ترقية للشهرية"}
               </button>
             </div>
           </div>
