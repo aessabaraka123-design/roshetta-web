@@ -65,9 +65,9 @@ export default function ReceiptUpload() {
             price: p.price ?? 0,
           })),
         );
-        if (rawPlans.length > 0) {
-          setPlan(String(rawPlans[0].id || rawPlans[0].type));
-        }
+        if (rawPlans.length > 0 && !new URLSearchParams(window.location.search).get('plan')) {
+            setPlan(String(rawPlans[0].id || rawPlans[0].type));
+          }
       })
       .catch((err) => console.error("Error fetching plans", err));
   }, [user, router]);
