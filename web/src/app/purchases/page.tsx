@@ -960,7 +960,7 @@ export default function PurchasesPage() {
                                 {d.name}
                               </span>
                               <span className="text-[13px] font-mono text-ink-soft">
-                                في المخزون: {formatQty(d.qty, d.units)}
+                                {language === "en" ? "In Stock:" : "في المخزون:"} {formatQty(d.qty, d.units, language)}
                               </span>
                             </button>
                           ))}

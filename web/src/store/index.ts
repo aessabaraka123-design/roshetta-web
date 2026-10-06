@@ -70,7 +70,7 @@ export const useStore = create<StoreState>()(
 
       addToPosCart: (med, unit) =>
         set((state) => {
-          const u = unit || { name: "علبة", count: 1, price: med.price };
+          const u = unit || { name: "Box", count: 1, price: med.price };
           const cartItemId = `${med.id}-${u.name}`;
 
           const existing = state.posCart.find(

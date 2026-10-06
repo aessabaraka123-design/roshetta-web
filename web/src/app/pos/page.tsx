@@ -356,7 +356,7 @@ function POSContent() {
                           <span className="text-[12px] text-ink-soft mt-0.5 flex gap-1">
                             {language === 'en' ? "Available:" : "متوفر:"}{" "}
                             <span className="font-mono font-bold text-teal">
-                              {formatQty(med.qty, med.units)}
+                              {formatQty(med.qty, med.units, language)}
                             </span>
                           </span>
                         </div>

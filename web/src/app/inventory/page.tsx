@@ -393,7 +393,7 @@ export default function Inventory() {
               </div>
               <div className="flex items-center justify-between mb-4">
                 <span className="font-bold text-[14px] text-primary">
-                  {language === 'en' ? 'Qty:' : 'الكمية:'} {formatQty(med.qty, med.units)}
+                  {language === 'en' ? 'Qty:' : 'الكمية:'} {formatQty(med.qty, med.units, language)}
                 </span>
                 <span className="font-mono text-[16px] font-bold text-primary">
                   {med.price || 0} ₪
