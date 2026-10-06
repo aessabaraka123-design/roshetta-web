@@ -156,10 +156,10 @@ export const exportComprehensivePDF = async (
         <!-- Top Items Table -->
         <h3 style="color: #0f3d2e; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center; gap: 8px; page-break-before: auto;">
           <span style="width: 4px; height: 18px; background: #0f3d2e; border-radius: 4px; display: inline-block;"></span>
-          الأدوية الأكثر مبيعاً
+          ${language === "en" ? "Top Selling Medicines" : "الأدوية الأكثر مبيعاً"}
         </h3>
         ${generateTable(
-          ["اسم الدواء", "الكمية المباعة", "إجمالي الإيرادات"],
+          [language === "en" ? "Medicine Name" : "اسم الدواء", language === "en" ? "Quantity Sold" : "الكمية المباعة", language === "en" ? "Total Revenue" : "إجمالي الإيرادات"],
           (report.topItems || []).map((i: any) => [
             i.name,
             `<span style="background: #f1f5f9; padding: 2px 8px; border-radius: 12px; font-size: 12px;">${i.qty} ${language === "en" ? "Pack" : "عبوة"}</span>`,
@@ -309,7 +309,7 @@ export const exportInvoicePDF = async (
 
         <div style="margin-top: 60px; text-align: center; border-top: 2px dashed #e2e8f0; padding-top: 20px;">
           <h3 style="color: #0f3d2e; font-size: 16px; margin: 0 0 5px 0;">${language === "en" ? "Thank you for your visit, wishing you good health" : "شكراً لزيارتكم ونتمنى لكم دوام الصحة والعافية"}</h3>
-          <p style="margin: 0; font-size: 12px; color: #94a3b8;">${language === "en" ? "This invoice was issued by" : "تم إصدار هذه الفاتورة من"} نظام روشتة</p>
+          <p style="margin: 0; font-size: 12px; color: #94a3b8;">${language === "en" ? "This invoice was issued by" : "تم إصدار هذه الفاتورة من"} ${language === "en" ? "Roshetta System" : "نظام روشتة"}</p>
         </div>
       </div>
     </div>
