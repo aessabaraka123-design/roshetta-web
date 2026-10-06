@@ -96,7 +96,7 @@ export default function More() {
   return (
     <>
       <div className="flex items-center justify-between mt-5 mb-3">
-        <h2 className="text-[20px] font-bold text-primary">الإعدادات</h2>
+        <h2 className="text-[20px] font-bold text-primary">{language === "en" ? "Settings" : "الإعدادات"}</h2>
       </div>
 
       <div className="flex items-center gap-3 bg-card border border-mint-line rounded-[16px] p-4 mb-5 shadow-sm">
@@ -105,10 +105,10 @@ export default function More() {
         </div>
         <div>
           <div className="text-[18px] font-bold text-ink">
-            {user?.managerName || "مدير النظام"}
+            {user?.managerName || (language === "en" ? "System Manager" : "مدير النظام")}
           </div>
           <div className="text-[14px] text-ink-soft mt-0.5">
-            {user?.pharmacyName || "الصيدلية"}
+            {user?.pharmacyName || (language === "en" ? "Pharmacy" : "الصيدلية")}
           </div>
         </div>
       </div>
@@ -154,7 +154,7 @@ export default function More() {
               <div
                 className={`text-[15px] font-bold ${item.isUpgrade ? "text-amber-dark" : "text-ink"}`}
               >
-                {item.label}
+                {tLabel(item.label)}
                 {item.isUpgrade && (
                   <span className="ml-2 text-[10px] bg-amber text-white px-2 py-0.5 rounded-full inline-block animate-pulse">
                     جديد
@@ -230,7 +230,7 @@ export default function More() {
               />
             </svg>
           </div>
-          <div className="text-[15px] font-bold text-coral">تسجيل الخروج</div>
+          <div className="text-[15px] font-bold text-coral">{language === "en" ? "Logout" : "تسجيل الخروج"}</div>
         </div>
       </div>
     </>
