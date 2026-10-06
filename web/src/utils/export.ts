@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { useStore } from "@/store";
 
 export const exportToExcel = (data: any[], filename: string) => {
   const worksheet = XLSX.utils.json_to_sheet(data);
@@ -15,6 +16,7 @@ export const exportComprehensivePDF = async (
   dateRange: string,
   filename: string,
 ) => {
+  const language = useStore.getState().language;
   const container = document.createElement("div");
   container.style.position = "absolute";
   container.style.top = "-9999px";
@@ -22,7 +24,7 @@ export const exportComprehensivePDF = async (
   container.style.width = "210mm";
   container.style.minHeight = "297mm";
   container.style.backgroundColor = "#ffffff";
-  container.style.direction = "rtl";
+  container.style.direction = language === "en" ? "ltr" : "rtl";
   container.style.fontFamily = "Cairo, Tahoma, sans-serif";
   container.style.color = "#1f2937";
 
@@ -75,16 +77,16 @@ export const exportComprehensivePDF = async (
               </svg>
             </div>
             <div>
-              <h1 style="margin: 0; color: #0f3d2e; font-size: 28px; font-weight: 900;">التقرير المالي الشامل</h1>
+              <h1 style="margin: 0; color: #0f3d2e; font-size: 28px; font-weight: 900;">${language === "en" ? "Comprehensive Financial Report" : "التقرير المالي الشامل"}</h1>
               <h2 style="margin: 5px 0 0 0; color: #64748b; font-size: 16px; font-weight: normal;">صيدلية: <strong style="color: #334155;">${pharmacyName}</strong></h2>
             </div>
           </div>
           <div style="text-align: left; background: #f8fafc; padding: 12px 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
             <div style="margin-bottom: 8px; font-size: 13px; color: #64748b;">
-              <span style="font-weight: bold; color: #334155;">تاريخ الإصدار:</span> <span dir="ltr">${new Date().toLocaleDateString("en-GB")}</span>
+              <span style="font-weight: bold; color: #334155;">${language === "en" ? "Issue Date:" : "تاريخ الإصدار:"}</span> <span dir="ltr">${new Date().toLocaleDateString("en-GB")}</span>
             </div>
             <div style="font-size: 13px; color: #64748b;">
-              <span style="font-weight: bold; color: #334155;">فترة التقرير:</span> <span dir="ltr">${dateRange}</span>
+              <span style="font-weight: bold; color: #334155;">${language === "en" ? "Report Period:" : "فترة التقرير:"}</span> <span dir="ltr">${dateRange}</span>
             </div>
           </div>
         </div>
@@ -96,19 +98,19 @@ export const exportComprehensivePDF = async (
         </h3>
         <div style="display: flex; gap: 15px; margin-bottom: 30px;">
           <div style="flex: 1; background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #10b981; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">إجمالي المبيعات</div>
+            <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">${language === "en" ? "Total Sales" : "إجمالي المبيعات"}</div>
             <div style="font-size: 26px; font-weight: 900; color: #0f3d2e;">₪${(report.totalRevenue || 0).toLocaleString()}</div>
           </div>
           <div style="flex: 1; background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #3b82f6; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">الربح الإجمالي</div>
+            <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">${language === "en" ? "Gross Profit" : "الربح الإجمالي"}</div>
             <div style="font-size: 26px; font-weight: 900; color: #0f3d2e;">₪${(report.totalProfit || 0).toLocaleString()}</div>
           </div>
           <div style="flex: 1; background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #ef4444; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">إجمالي المصروفات</div>
+            <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">${language === "en" ? "Total Expenses" : "إجمالي المصروفات"}</div>
             <div style="font-size: 26px; font-weight: 900; color: #0f3d2e;">₪${(report.totalExpenses || 0).toLocaleString()}</div>
           </div>
           <div style="flex: 1; background: #f0fdf4; border: 1px solid #bbf7d0; border-right: 4px solid #0f3d2e; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 13px; color: #166534; margin-bottom: 8px; font-weight: bold;">صافي الربح</div>
+            <div style="font-size: 13px; color: #166534; margin-bottom: 8px; font-weight: bold;">${language === "en" ? "Net Profit" : "صافي الربح"}</div>
             <div style="font-size: 26px; font-weight: 900; color: #166534;">₪${(report.netProfit || 0).toLocaleString()}</div>
           </div>
         </div>
@@ -120,11 +122,11 @@ export const exportComprehensivePDF = async (
         </h3>
         <div style="display: flex; gap: 15px; margin-bottom: 40px;">
           <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 13px; color: #64748b; margin-bottom: 5px;">كاش</div>
+            <div style="font-size: 13px; color: #64748b; margin-bottom: 5px;">${language === "en" ? "Cash" : "كاش"}</div>
             <div style="font-size: 18px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.cash || 0).toLocaleString()}</div>
           </div>
           <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 13px; color: #64748b; margin-bottom: 5px;">بطاقة بنكية</div>
+            <div style="font-size: 13px; color: #64748b; margin-bottom: 5px;">${language === "en" ? "Credit Card" : "بطاقة بنكية"}</div>
             <div style="font-size: 18px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.card || 0).toLocaleString()}</div>
           </div>
           <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center;">
@@ -132,7 +134,7 @@ export const exportComprehensivePDF = async (
             <div style="font-size: 18px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.credit || 0).toLocaleString()}</div>
           </div>
           <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 13px; color: #64748b; margin-bottom: 5px;">تأمين</div>
+            <div style="font-size: 13px; color: #64748b; margin-bottom: 5px;">${language === "en" ? "Insurance" : "تأمين"}</div>
             <div style="font-size: 18px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.insurance || 0).toLocaleString()}</div>
           </div>
         </div>
@@ -143,7 +145,7 @@ export const exportComprehensivePDF = async (
           المبيعات اليومية
         </h3>
         ${generateTable(
-          ["التاريخ", "إجمالي المبيعات", "إجمالي الربح"],
+          ["التاريخ", language === "en" ? "Total Sales" : "إجمالي المبيعات", language === "en" ? "Gross Profit" : "إجمالي الربح"],
           (report.dailyTrend || []).map((t: any) => [
             `<span dir="ltr">${t.date}</span>`,
             `<strong style="color: #0f3d2e;">₪${(t.revenue || 0).toLocaleString()}</strong>`,
@@ -160,7 +162,7 @@ export const exportComprehensivePDF = async (
           ["اسم الدواء", "الكمية المباعة", "إجمالي الإيرادات"],
           (report.topItems || []).map((i: any) => [
             i.name,
-            `<span style="background: #f1f5f9; padding: 2px 8px; border-radius: 12px; font-size: 12px;">${i.qty} عبوة</span>`,
+            `<span style="background: #f1f5f9; padding: 2px 8px; border-radius: 12px; font-size: 12px;">${i.qty} ${language === "en" ? "Pack" : "عبوة"}</span>`,
             `₪${(i.revenue || 0).toLocaleString()}`,
           ]),
         )}
@@ -220,9 +222,9 @@ export const exportInvoicePDF = async (
     return `<table style="width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; font-size: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden;">
       <thead>
         <tr style="background-color: #0f3d2e; color: white;">
-          <th style="padding: 12px 15px; text-align: right; font-weight: bold; border-bottom: 2px solid #0a291f; width: 40%;">الصنف</th>
-          <th style="padding: 12px 15px; text-align: center; font-weight: bold; border-bottom: 2px solid #0a291f;">الكمية</th>
-          <th style="padding: 12px 15px; text-align: center; font-weight: bold; border-bottom: 2px solid #0a291f;">السعر الإفرادي</th>
+          <th style="padding: 12px 15px; text-align: right; font-weight: bold; border-bottom: 2px solid #0a291f; width: 40%;">${language === "en" ? "Item" : "الصنف"}</th>
+          <th style="padding: 12px 15px; text-align: center; font-weight: bold; border-bottom: 2px solid #0a291f;">${language === "en" ? "Qty" : "الكمية"}</th>
+          <th style="padding: 12px 15px; text-align: center; font-weight: bold; border-bottom: 2px solid #0a291f;">${language === "en" ? "Unit Price" : "السعر الإفرادي"}</th>
           <th style="padding: 12px 15px; text-align: center; font-weight: bold; border-bottom: 2px solid #0a291f;">الإجمالي</th>
         </tr>
       </thead>
@@ -270,18 +272,18 @@ export const exportInvoicePDF = async (
               </svg>
             </div>
             <div>
-              <h1 style="margin: 0; color: #0f3d2e; font-size: 28px; font-weight: 900;">فاتورة مبيعات</h1>
+              <h1 style="margin: 0; color: #0f3d2e; font-size: 28px; font-weight: 900;">${language === "en" ? "Sales Invoice" : "فاتورة مبيعات"}</h1>
               <h2 style="margin: 5px 0 0 0; color: #64748b; font-size: 16px;">صيدلية: <strong style="color: #334155;">${pharmacyName}</strong></h2>
             </div>
           </div>
           <div style="text-align: left; background: #f8fafc; padding: 12px 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
             <div style="margin-bottom: 8px; font-size: 13px; color: #64748b;">
-              <span style="font-weight: bold; color: #334155;">رقم الفاتورة:</span> <span dir="ltr">#${invoiceNumber}</span>
+              <span style="font-weight: bold; color: #334155;">${language === "en" ? "Invoice No:" : "رقم الفاتورة:"}</span> <span dir="ltr">#${invoiceNumber}</span>
             </div>
             <div style="margin-bottom: 8px; font-size: 13px; color: #64748b;">
               <span style="font-weight: bold; color: #334155;">التاريخ:</span> <span dir="ltr">${new Date().toLocaleString("en-GB")}</span>
             </div>
-            ${invoiceData.customerName ? `<div style="font-size: 13px; color: #64748b;"><span style="font-weight: bold; color: #334155;">العميل:</span> ${invoiceData.customerName}</div>` : ""}
+            ${invoiceData.customerName ? `<div style="font-size: 13px; color: #64748b;"><span style="font-weight: bold; color: #334155;">${language === "en" ? "Customer:" : "العميل:"}</span> ${invoiceData.customerName}</div>` : ""}
           </div>
         </div>
 
@@ -306,8 +308,8 @@ export const exportInvoicePDF = async (
         </div>
 
         <div style="margin-top: 60px; text-align: center; border-top: 2px dashed #e2e8f0; padding-top: 20px;">
-          <h3 style="color: #0f3d2e; font-size: 16px; margin: 0 0 5px 0;">شكراً لزيارتكم ونتمنى لكم دوام الصحة والعافية</h3>
-          <p style="margin: 0; font-size: 12px; color: #94a3b8;">تم إصدار هذه الفاتورة من نظام روشتة</p>
+          <h3 style="color: #0f3d2e; font-size: 16px; margin: 0 0 5px 0;">${language === "en" ? "Thank you for your visit, wishing you good health" : "شكراً لزيارتكم ونتمنى لكم دوام الصحة والعافية"}</h3>
+          <p style="margin: 0; font-size: 12px; color: #94a3b8;">${language === "en" ? "This invoice was issued by" : "تم إصدار هذه الفاتورة من"} نظام روشتة</p>
         </div>
       </div>
     </div>
