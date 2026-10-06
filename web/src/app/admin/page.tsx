@@ -651,24 +651,24 @@ export default function PharmacyManager() {
                 <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
                   <div>
                     <h3 className="font-black text-[22px] mb-1">
-                      الاشتراك السنوي (Premium)
+                      {language === "en" ? "Annual Subscription (Premium)" : "الاشتراك السنوي (Premium)"}
                     </h3>
                     <p className="text-white/80 font-bold mb-4">
-                      يسمح لك بإدارة حتى 5 فروع مع تقارير متقدمة.
+                      {language === "en" ? "Allows you to manage up to 5 branches with advanced reports." : "يسمح لك بإدارة حتى 5 فروع مع تقارير متقدمة."}
                     </p>
 
                     <div className="flex gap-4">
                       <div className="bg-white/20 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/20">
                         <div className="text-[12px] text-white/80">
-                          الفروع المستخدمة
+                          {language === "en" ? "Branches Used" : "الفروع المستخدمة"}
                         </div>
-                        <div className="font-bold font-mono text-[18px]">
-                          3 / 5
-                        </div>
+                        <div className="font-bold font-mono text-[18px]" dir="ltr">
+                            3 / 5
+                          </div>
                       </div>
                       <div className="bg-white/20 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/20">
                         <div className="text-[12px] text-white/80">
-                          تاريخ التجديد القادم
+                          {language === "en" ? "Next Renewal Date" : "تاريخ التجديد القادم"}
                         </div>
                         <div className="font-bold font-mono text-[18px]">
                           2027/05/10
@@ -682,10 +682,10 @@ export default function PharmacyManager() {
                       href="/pricing"
                       className="bg-white text-primary text-center px-6 py-3 rounded-xl font-black shadow-lg hover:-translate-y-1 transition-all cursor-pointer"
                     >
-                      ترقية الباقة (فروع أكثر)
+                      {language === "en" ? "Upgrade Plan (More Branches)" : "ترقية الباقة (فروع أكثر)"}
                     </a>
                     <button className="bg-transparent border-2 border-white/30 text-white px-6 py-3 rounded-xl font-bold hover:bg-white/10 transition-colors">
-                      تحميل فواتير الاشتراك
+                      {language === "en" ? "Download Invoices" : "تحميل فواتير الاشتراك"}
                     </button>
                   </div>
                 </div>
