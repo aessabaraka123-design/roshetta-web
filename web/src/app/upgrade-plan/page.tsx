@@ -10,10 +10,7 @@ export default function UpgradePlan() {
   const language = useStore((state: any) => state.language);
 
   const handleUpgrade = (planName: string) => {
-    toast.success(language === "en" ? `Upgrade request to ${planName} sent successfully!` : `تم إرسال طلب الترقية إلى باقة ${planName} بنجاح!`);
-    setTimeout(() => {
-      router.push("/my-subscription");
-    }, 1500);
+    router.push("/receipt-upload");
   };
 
   const customStyles = `
