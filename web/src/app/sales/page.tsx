@@ -195,7 +195,7 @@ export default function SalesLog() {
                     )}
                   </td>
                   <td className="py-4 px-5 text-[14px] text-ink-soft">
-                    {new Date(sale.date).toLocaleString("ar-EG")}
+                    {new Date(sale.date).toLocaleString(language === "en" ? "en-US" : "ar-EG")}
                   </td>
                   <td className="py-4 px-5 text-[14px]">
                     {Array.isArray(sale.items) ? sale.items.length : 0} {language === 'en' ? 'Items' : 'أصناف'}
@@ -290,7 +290,7 @@ export default function SalesLog() {
               <div className="flex justify-between text-[14px]">
                 <span className="text-ink-soft font-bold">{language === 'en' ? 'Date & Time:' : 'التاريخ والوقت:'}</span>
                 <span className="text-ink font-semibold">
-                  {new Date(selectedInvoice.date).toLocaleString("ar-EG")}
+                  {new Date(selectedInvoice.date).toLocaleString(language === "en" ? "en-US" : "ar-EG")}
                 </span>
               </div>
               <div className="flex justify-between text-[14px]">

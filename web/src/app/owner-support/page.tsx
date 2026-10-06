@@ -45,7 +45,7 @@ export default function OwnerSupportPage() {
             subject,
             text: message,
             sender: user?.managerName || "مدير النظام",
-            date: new Date().toLocaleString("ar-EG"),
+            date: new Date().toLocaleString(language === "en" ? "en-US" : "ar-EG"),
             priority: "medium",
           }),
         },

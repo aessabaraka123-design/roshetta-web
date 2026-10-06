@@ -260,7 +260,7 @@ function POSContent() {
 
       setLastInvoice({
         id: data.saleId,
-        date: new Date().toLocaleString(language === 'en' ? "en-US" : "ar-EG"),
+        date: new Date().toLocaleString(language === 'en' ? "en-US" : language === "en" ? "en-US" : "ar-EG"),
         total,
         items: [...cart],
         method: payMethod,

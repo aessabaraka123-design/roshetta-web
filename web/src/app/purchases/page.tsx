@@ -599,7 +599,7 @@ export default function PurchasesPage() {
                             )}
                           </div>
                           <p className="text-[12px] text-ink-soft">
-                            {new Date(inv.date).toLocaleDateString("ar-EG", {
+                            {new Date(inv.date).toLocaleDateString(language === "en" ? "en-US" : "ar-EG", {
                               year: "numeric",
                               month: "long",
                               day: "numeric",
@@ -1718,7 +1718,7 @@ export default function PurchasesPage() {
                   </p>
                 )}
                 <p className="text-[13px] text-ink-soft mt-1">
-                  {new Date(showPreview.date).toLocaleDateString("ar-EG", {
+                  {new Date(showPreview.date).toLocaleDateString(language === "en" ? "en-US" : "ar-EG", {
                     weekday: "long",
                     year: "numeric",
                     month: "long",
@@ -1930,7 +1930,7 @@ export default function PurchasesPage() {
                   التاريخ:{" "}
                   {new Date(
                     (pdfInvoice || showPreview).date,
-                  ).toLocaleDateString("ar-EG", {
+                  ).toLocaleDateString(language === "en" ? "en-US" : "ar-EG", {
                     year: "numeric",
                     month: "long",
                     day: "numeric",

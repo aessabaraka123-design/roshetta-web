@@ -216,7 +216,7 @@ export default function Returns() {
                         {sale.id}
                       </div>
                       <div className="text-[13px] text-ink-soft mt-1 flex items-center gap-2">
-                        <span>{new Date(sale.date).toLocaleString(language === "en" ? "en-US" : "ar-EG")}</span>
+                        <span>{new Date(sale.date).toLocaleString(language === "en" ? "en-US" : language === "en" ? "en-US" : "ar-EG")}</span>
                         <span className="w-1 h-1 rounded-full bg-mint-line"></span>
                         <span className="font-bold text-teal">{sale.branchName || (language === "en" ? "Main" : "الرئيسي")}</span>
                       </div>
@@ -255,7 +255,7 @@ export default function Returns() {
                       </span>
                     </h3>
                     <p className="text-[14px] text-ink-soft">
-                      {new Date(selectedInvoice.date).toLocaleString(language === "en" ? "en-US" : "ar-EG")}
+                      {new Date(selectedInvoice.date).toLocaleString(language === "en" ? "en-US" : language === "en" ? "en-US" : "ar-EG")}
                     </p>
                   </div>
                   <button
@@ -459,7 +459,7 @@ export default function Returns() {
                           </div>
                         </td>
                         <td className="p-4 text-[14px] text-ink-soft">
-                          {new Date(sale.date).toLocaleString(language === "en" ? "en-US" : "ar-EG")}
+                          {new Date(sale.date).toLocaleString(language === "en" ? "en-US" : language === "en" ? "en-US" : "ar-EG")}
                         </td>
                         <td className="p-4 text-[15px] font-mono font-bold text-red-500">
                           {sale.total.toLocaleString()} ₪

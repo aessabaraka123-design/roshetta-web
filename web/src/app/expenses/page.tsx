@@ -243,7 +243,7 @@ export default function ExpensesPage() {
                       {e.description}
                     </div>
                     <div className="text-[12px] text-ink-soft mt-0.5 flex items-center gap-2">
-                      <span>{new Date(e.date).toLocaleString("ar-EG")}</span>
+                      <span>{new Date(e.date).toLocaleString(language === "en" ? "en-US" : "ar-EG")}</span>
                       {e.branch_id &&
                         branches.find((b: any) => b.id === e.branch_id) && (
                           <span className="px-2 py-0.5 bg-mint-line/30 rounded-full text-primary font-bold">

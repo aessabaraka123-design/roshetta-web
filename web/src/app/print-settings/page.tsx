@@ -79,7 +79,7 @@ export default function PrintSettings() {
     }
   };
 
-  const currentDate = new Date().toLocaleString(language === "en" ? "en-US" : "ar-EG", {
+  const currentDate = new Date().toLocaleString(language === "en" ? "en-US" : language === "en" ? "en-US" : "ar-EG", {
     dateStyle: "short",
     timeStyle: "short",
   });

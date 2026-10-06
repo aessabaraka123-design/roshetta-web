@@ -70,7 +70,7 @@ export default function Dashboard() {
             suppressHydrationWarning
             className="text-[15px] text-ink-soft font-medium"
           >
-            {new Date().toLocaleDateString("ar-EG", {
+            {new Date().toLocaleDateString(language === "en" ? "en-US" : language === "en" ? "en-US" : "ar-EG", {
               weekday: "long",
               day: "numeric",
               month: "long",
