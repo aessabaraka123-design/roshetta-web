@@ -43,7 +43,7 @@ export default function AppBar({
   );
 
   const unreadCount =
-    notifsData?.notifications?.filter((n: any) => !n.isRead).length || 0;
+    notifsData?.notifications?.filter((n: any) => !n.is_read).length || 0;
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -90,9 +90,9 @@ export default function AppBar({
                   notifsData.notifications.slice(0, 5).map((notif: any) => (
                     <div
                       key={notif.id}
-                      className={`p-3 rounded-xl text-sm ${notif.isRead ? "bg-bg text-ink-soft" : "bg-teal-pale text-teal font-semibold"}`}
+                      className={`p-3 rounded-xl text-sm ${notif.is_read ? "bg-bg text-ink-soft" : "bg-teal-pale text-teal font-semibold"}`}
                     >
-                      {notif.message}
+                      {notif.title}
                     </div>
                   ))
                 ) : (
