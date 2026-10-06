@@ -36,14 +36,14 @@ export default function AppBar({
 
   const { data: notifsData } = useSWR(
     user && showNotifs
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/notifs`
+      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/notifications`
       : null,
     fetcher,
     { refreshInterval: 60000 },
   );
 
   const unreadCount =
-    notifsData?.notifs?.filter((n: any) => !n.isRead).length || 0;
+    notifsData?.notifications?.filter((n: any) => !n.isRead).length || 0;
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -86,8 +86,8 @@ export default function AppBar({
             <div className={`absolute top-12 ${isRtl ? 'left-0' : 'right-0'} w-80 bg-white rounded-2xl shadow-xl border border-mint-line p-4 z-50`}>
               <h3 className="font-bold text-ink mb-3">{t.appbar.notifications}</h3>
               <div className="space-y-3 max-h-[300px] overflow-y-auto no-scrollbar">
-                {notifsData?.notifs?.length > 0 ? (
-                  notifsData.notifs.slice(0, 5).map((notif: any) => (
+                {notifsData?.notifications?.length > 0 ? (
+                  notifsData.notifications.slice(0, 5).map((notif: any) => (
                     <div
                       key={notif.id}
                       className={`p-3 rounded-xl text-sm ${notif.isRead ? "bg-bg text-ink-soft" : "bg-teal-pale text-teal font-semibold"}`}

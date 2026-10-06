@@ -238,14 +238,14 @@ export default function PurchasesPage() {
       }
     });
     setCartItems(newCart);
-    toast.success(`تم جلب ${low.length} صنف ناقص!`);
+    toast.success(language === "en" ? `Fetched ${low.length} short items!` : `تم جلب ${low.length} صنف ناقص!`);
   };
 
   const handleSave = async () => {
     if (!form.supplier_name && !form.supplier_id && form.status !== "draft")
-      return toast.error("يجب تحديد المورد للفاتورة الفعلية");
+      return toast.error(language === "en" ? "Supplier must be selected for actual invoices" : "يجب تحديد المورد للفاتورة الفعلية");
     if (cartItems.length === 0)
-      return toast.error("الفاتورة فارغة، أضف أصناف أولاً");
+      return toast.error(language === "en" ? "Invoice is empty, add items first" : "الفاتورة فارغة، أضف أصناف أولاً");
     setLoading(true);
     try {
       if (editingId) {
@@ -282,16 +282,16 @@ export default function PurchasesPage() {
       if (r.success) {
         toast.success(
           form.status === "draft"
-            ? "تم حفظ الطلبية المبدئية!"
-            : "تم حفظ الفاتورة بنجاح!",
+            ? (language === "en" ? "Draft order saved!" : "تم حفظ الطلبية المبدئية!")
+            : (language === "en" ? "Purchase invoice saved!" : "تم حفظ فاتورة المشتريات!"),
         );
         setShowAdd(false);
         setEditingId(null);
         setCartItems([]);
         mutate();
-      } else toast.error(r.error || "خطأ في الحفظ");
+      } else toast.error(r.error || (language === "en" ? "Save error" : "خطأ في الحفظ"));
     } catch {
-      toast.error("خطأ في الاتصال بالخادم");
+      toast.error(language === "en" ? "Server connection error" : "خطأ في الاتصال بالخادم");
     } finally {
       setLoading(false);
     }
@@ -299,7 +299,7 @@ export default function PurchasesPage() {
 
   const handleQuickAdd = async () => {
     if (!newItem.name || !newItem.price_sell) {
-      toast.error("أدخل اسم وسعر الصنف");
+      toast.error(language === "en" ? "Enter item name and price" : "أدخل اسم وسعر الصنف");
       return;
     }
     setLoading(true);
@@ -326,7 +326,7 @@ export default function PurchasesPage() {
       );
       const r = await res.json();
       if (r.success) {
-        toast.success("تم إضافة الصنف!");
+        toast.success(language === "en" ? "Item added!" : "تم إضافة الصنف!");
         setCartItems((c) => [
           ...c,
           {
@@ -359,7 +359,7 @@ export default function PurchasesPage() {
         mutateInv();
       } else toast.error(r.error);
     } catch {
-      toast.error("خطأ في الاتصال");
+      toast.error(language === "en" ? "Connection error" : "خطأ في الاتصال");
     } finally {
       setLoading(false);
     }
@@ -374,7 +374,7 @@ export default function PurchasesPage() {
       )
     ).json();
     if (r.success) {
-      toast.success("تم الحذف");
+      toast.success(language === "en" ? "Deleted successfully" : "تم الحذف");
       mutate();
     } else toast.error(r.error);
   };
@@ -794,7 +794,7 @@ export default function PurchasesPage() {
                   {/* Supplier */}
                   <div>
                     <label className="block text-[13px] font-black text-ink-soft uppercase tracking-wide mb-1.5">
-                      المورد{" "}
+                      {language === "en" ? "Supplier" : "المورد"} {" "}
                       {form.status === "completed" && (
                         <span className="text-coral">*</span>
                       )}
@@ -943,7 +943,7 @@ export default function PurchasesPage() {
                             setShowDrop(true);
                           }}
                           onFocus={() => setShowDrop(true)}
-                          placeholder="ابحث عن صنف وأضفه..."
+                          placeholder={language === "en" ? "Search and add item..." : "ابحث عن صنف وأضفه..."}
                           className="flex-1 bg-transparent text-[15px] outline-none placeholder:text-ink-soft/70"
                         />
                       </div>
@@ -1007,7 +1007,7 @@ export default function PurchasesPage() {
                     </button>
                   </div>
                   <p className="text-[13px] text-ink-soft">
-                    {cartItems.length} صنف مضاف • اضغط على الصنف لتعديل الكمية
+                    {cartItems.length} {language === "en" ? "items added • Click on item to edit quantity" : "صنف مضاف • اضغط على الصنف لتعديل الكمية"}
                     والسعر
                   </p>
                 </div>
