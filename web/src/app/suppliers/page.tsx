@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { useStore } from "@/store";
 import toast from "react-hot-toast";
 import AppBar from "@/components/AppBar";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());

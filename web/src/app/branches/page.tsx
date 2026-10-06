@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AppBar from "@/components/AppBar";
+import ConfirmModal from "@/components/ConfirmModal";
 import toast from "react-hot-toast";
 
 import useSWR from "swr";
@@ -164,8 +165,7 @@ export default function BranchesAndStaff() {
     setShowAddStaffModal(true);
   };
 
-  const handleDeleteStaff = async (id: string) => {
-    if (!confirm(language === 'en' ? 'Are you sure you want to delete this staff member?' : "هل أنت متأكد من حذف هذا الموظف؟")) return;
+  const executeDeleteStaff = async (id: string) => {
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${id}`,

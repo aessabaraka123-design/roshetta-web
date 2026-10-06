@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import AppBar from "@/components/AppBar";
+import ConfirmModal from "@/components/ConfirmModal";
 import useSWR from "swr";
 import { useStore } from "@/store";
 import { useRouter } from "next/navigation";
@@ -55,6 +56,7 @@ export default function PurchasesPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [itemSearch, setItemSearch] = useState("");
   const [showDrop, setShowDrop] = useState(false);
   const [cartItems, setCartItems] = useState<any[]>([]);
@@ -365,8 +367,7 @@ export default function PurchasesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("هل أنت متأكد من حذف هذه الفاتورة؟")) return;
+  const executeDelete = async (id: string) => {
     const r = await (
       await fetch(
         `${API}/api/pharmacies/${user?.pharmacy_id}/purchase-invoices/${id}`,
@@ -685,7 +686,7 @@ export default function PurchasesPage() {
                         )}
                       </button>
                       <button
-                        onClick={() => handleDelete(inv.id)}
+                        onClick={() => setDeleteTarget(inv.id)}
                         className="px-4 py-2 bg-bg text-coral rounded-xl text-[13px] font-bold hover:bg-coral-pale transition-all"
                       >
                         {language === 'en' ? "Delete" : "حذف"}
