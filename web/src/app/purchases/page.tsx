@@ -813,7 +813,7 @@ export default function PurchasesPage() {
                       }}
                       className="w-full bg-white border border-mint-line rounded-xl px-4 py-3 text-[14px] font-bold text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                     >
-                      <option value="">اختر المورد...</option>
+                      <option value="">{language === "en" ? "Select Supplier..." : "اختر المورد..."}</option>
                       {suppliers.map((s: any) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
@@ -825,7 +825,7 @@ export default function PurchasesPage() {
                   {/* Invoice Number */}
                   <div>
                     <label className="block text-[13px] font-black text-ink-soft uppercase tracking-wide mb-1.5">
-                      رقم فاتورة المورد
+                      {language === "en" ? "Supplier Invoice No" : "رقم فاتورة المورد"}
                     </label>
                     <input
                       type="text"
@@ -836,7 +836,7 @@ export default function PurchasesPage() {
                           invoice_number: e.target.value,
                         }))
                       }
-                      placeholder="اختياري"
+                      placeholder={language === "en" ? "Optional" : "اختياري"}
                       className="w-full bg-white border border-mint-line rounded-xl px-4 py-3 text-[14px] font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                     />
                   </div>
@@ -872,7 +872,7 @@ export default function PurchasesPage() {
                   {form.status !== "draft" && (
                     <div>
                       <label className="block text-[13px] font-black text-ink-soft uppercase tracking-wide mb-1.5">
-                        المبلغ المدفوع (₪)
+                        {language === "en" ? "Paid Amount (₪)" : "المبلغ المدفوع (₪)"}
                       </label>
                       <input
                         type="number"
@@ -892,7 +892,7 @@ export default function PurchasesPage() {
                 <div className="p-5 border-t border-mint-line bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
                   <div className="flex justify-between items-center mb-1">
                     <span className="text-[14px] font-bold text-ink-soft">
-                      الإجمالي الكلي
+                      {language === "en" ? "Grand Total" : "الإجمالي الكلي"}
                     </span>
                     <span className="text-[24px] font-mono font-black text-primary">
                       ₪{cartTotal.toFixed(2)}
@@ -1003,7 +1003,7 @@ export default function PurchasesPage() {
                           d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                         />
                       </svg>
-                      جلب النواقص
+                      {language === "en" ? "Fetch Shortages" : "جلب النواقص"}
                     </button>
                   </div>
                   <p className="text-[13px] text-ink-soft">
@@ -1032,10 +1032,10 @@ export default function PurchasesPage() {
                         </svg>
                       </div>
                       <p className="text-[18px] font-black text-ink-soft">
-                        لم تضف أصنافاً بعد
+                        {language === "en" ? "No items added yet" : "لم تضف أصنافاً بعد"}
                       </p>
                       <p className="text-[14px] text-ink-soft/70 mt-2">
-                        ابحث عن صنف في الأعلى لإضافته للفاتورة
+                        {language === "en" ? "Search for an item above to add to the invoice" : "ابحث عن صنف في الأعلى لإضافته للفاتورة"}
                       </p>
                     </div>
                   ) : (
@@ -1450,15 +1450,15 @@ export default function PurchasesPage() {
                 {loading
                   ? "جاري الحفظ..."
                   : form.status === "draft"
-                    ? "💾 حفظ كطلبية مبدئية"
-                    : "✅ حفظ وإدخال للمخزون"}
+                    ? language === "en" ? "💾 Save as Draft" : "💾 حفظ كطلبية مبدئية"
+                    : language === "en" ? "✅ Save and Enter to Stock" : "✅ حفظ وإدخال للمخزون"}
               </button>
               <button
                 type="button"
                 onClick={() => setShowAdd(false)}
                 className="px-8 py-4 bg-bg text-ink text-[16px] font-bold rounded-2xl hover:bg-mint-line transition-all"
               >
-                إلغاء
+                {language === "en" ? "Cancel" : "إلغاء"}
               </button>
             </div>
           </div>
@@ -1638,7 +1638,7 @@ export default function PurchasesPage() {
                       setNewItem({ ...newItem, barcode: e.target.value })
                     }
                     className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-mono font-bold outline-none focus:border-primary transition-colors text-start"
-                    placeholder="اختياري"
+                    placeholder={language === "en" ? "Optional" : "اختياري"}
                   />
                 </div>
               </div>
@@ -1710,11 +1710,11 @@ export default function PurchasesPage() {
                   </svg>
                 </div>
                 <h2 className="text-[22px] font-black text-ink">
-                  {showPreview.supplier_name || "بدون مورد"}
+                  {showPreview.supplier_name || language === "en" ? "No Supplier" : "بدون مورد"}
                 </h2>
                 {showPreview.invoice_number && (
                   <p className="text-[14px] font-mono text-ink-soft mt-1">
-                    رقم الفاتورة: {showPreview.invoice_number}
+                    {language === "en" ? "Invoice No:" : "رقم الفاتورة:"} {showPreview.invoice_number}
                   </p>
                 )}
                 <p className="text-[13px] text-ink-soft mt-1">
@@ -1764,7 +1764,7 @@ export default function PurchasesPage() {
               <div className="mt-4 pt-4 border-t-2 border-dashed border-mint-line space-y-2">
                 <div className="flex justify-between">
                   <span className="text-[16px] font-black text-ink">
-                    الإجمالي الكلي
+                    {language === "en" ? "Grand Total" : "الإجمالي الكلي"}
                   </span>
                   <span className="text-[22px] font-mono font-black text-primary">
                     ₪{(showPreview.total_cost || 0).toFixed(2)}
@@ -1866,7 +1866,7 @@ export default function PurchasesPage() {
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                   />
                 </svg>
-                تنزيل PDF
+                {language === "en" ? "Download PDF" : "تنزيل PDF"}
               </button>
             </div>
           </div>
@@ -1906,8 +1906,8 @@ export default function PurchasesPage() {
                   }}
                 >
                   {(pdfInvoice || showPreview).status === "completed"
-                    ? "فاتورة مشتريات"
-                    : "طلب شراء مبدئي"}
+                    ? language === "en" ? "Purchase Invoice" : "فاتورة مشتريات"
+                    : language === "en" ? "Purchase Order (Draft)" : "طلب شراء مبدئي"}
                 </h1>
                 <p
                   style={{
@@ -1916,7 +1916,7 @@ export default function PurchasesPage() {
                     marginTop: "8px",
                   }}
                 >
-                  رقم الفاتورة:{" "}
+                  {language === "en" ? "Invoice No:" : "رقم الفاتورة:"}{" "}
                   {(pdfInvoice || showPreview).invoice_number ||
                     (pdfInvoice || showPreview).id}
                 </p>
@@ -1927,7 +1927,7 @@ export default function PurchasesPage() {
                     marginTop: "4px",
                   }}
                 >
-                  التاريخ:{" "}
+                  {language === "en" ? "Date:" : "التاريخ:"}{" "}
                   {new Date(
                     (pdfInvoice || showPreview).date,
                   ).toLocaleDateString(language === "en" ? "en-US" : "ar-EG", {
@@ -1947,8 +1947,8 @@ export default function PurchasesPage() {
                   }}
                 >
                   {(pdfInvoice || showPreview).status === "completed"
-                    ? "فاتورة قادمة من:"
-                    : "فاتورة إلى:"}
+                    ? language === "en" ? "Invoice from:" : "فاتورة قادمة من:"
+                    : language === "en" ? "Invoice to:" : "فاتورة إلى:"}
                 </h2>
                 <h3
                   style={{
@@ -1958,7 +1958,7 @@ export default function PurchasesPage() {
                     color: "#14b8a6",
                   }}
                 >
-                  {(pdfInvoice || showPreview).supplier_name || "بدون مورد"}
+                  {(pdfInvoice || showPreview).supplier_name || language === "en" ? "No Supplier" : "بدون مورد"}
                 </h3>
                 <p
                   style={{
@@ -1969,8 +1969,8 @@ export default function PurchasesPage() {
                   }}
                 >
                   {(pdfInvoice || showPreview).status === "completed"
-                    ? "هذه الفاتورة توثق استلام أدوية من المورد المذكور وإدخالها للمخزون بشكل فعلي."
-                    : "هذا طلب شراء مبدئي موجه للمورد المذكور لتجهيز الطلبية."}
+                    ? language === "en" ? "This invoice documents the receipt of medicines from the mentioned supplier and their actual entry into the inventory." : "هذه الفاتورة توثق استلام أدوية من المورد المذكور وإدخالها للمخزون بشكل فعلي."
+                    : language === "en" ? "This is a draft purchase order directed to the mentioned supplier to prepare the order." : "هذا طلب شراء مبدئي موجه للمورد المذكور لتجهيز الطلبية."}
                 </p>
               </div>
             </div>
@@ -2147,7 +2147,7 @@ export default function PurchasesPage() {
                       fontWeight: "bold",
                     }}
                   >
-                    الإجمالي الكلي:
+                    {language === "en" ? "Grand Total" : "الإجمالي الكلي"}:
                   </span>
                   <span
                     style={{
@@ -2174,7 +2174,7 @@ export default function PurchasesPage() {
                     }}
                   >
                     <span style={{ fontSize: "15px", color: "#475569" }}>
-                      المدفوع:
+                      {language === "en" ? "Paid:" : "المدفوع:"}
                     </span>
                     <span
                       style={{
@@ -2211,7 +2211,7 @@ export default function PurchasesPage() {
                         color: "#ef4444",
                       }}
                     >
-                      المتبقي (دين):
+                      {language === "en" ? "Remaining (Debt):" : "المتبقي (دين):"}
                     </span>
                     <span
                       style={{
@@ -2245,7 +2245,7 @@ export default function PurchasesPage() {
                 paddingTop: "20px",
               }}
             >
-              <p>شكراً لتعاملكم معنا.</p>
+              <p>{language === "en" ? "Thank you for doing business with us." : "شكراً لتعاملكم معنا."}</p>
               <p style={{ marginTop: "4px" }}>
                 تم إصدار هذه الفاتورة من نظام روشتة لإدارة الصيدليات
               </p>
