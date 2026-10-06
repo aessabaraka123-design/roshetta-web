@@ -1007,8 +1007,8 @@ export default function PurchasesPage() {
                     </button>
                   </div>
                   <p className="text-[13px] text-ink-soft">
-                    {cartItems.length} {language === "en" ? "items added • Click on item to edit quantity" : "صنف مضاف • اضغط على الصنف لتعديل الكمية"}
-                    والسعر
+                    {cartItems.length} {language === "en" ? "items added • Click on item to edit quantity and price" : "صنف مضاف • اضغط على الصنف لتعديل الكمية والسعر"}
+
                   </p>
                 </div>
 
