@@ -28,10 +28,11 @@ export default function ReceiptUpload() {
       router.push("/login");
       return;
     }
-    if (!user.isReadOnly) {
-      router.push("/");
-      return;
-    }
+    // Allow active users to upload a receipt for renewal
+    // if (!user.isReadOnly) {
+    //   router.push("/");
+    //   return;
+    // }
 
     fetch(
       (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
