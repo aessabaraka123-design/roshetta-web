@@ -81,6 +81,7 @@ const translateFeature = (feature: string, lang: string) => {
 
 export default function Pricing() {
   const language = useStore((state: any) => state.language);
+  const setLanguage = useStore((state: any) => state.setLanguage);
   const router = useRouter();
   const fetcher = (url: string) => fetch(url).then((r) => r.json());
   const { data: plansData, isLoading } = useSWR(
@@ -299,7 +300,28 @@ export default function Pricing() {
   `;
 
   return (
-    <div className="pricing-page-container" dir="rtl">
+    <div className="pricing-page-container" dir={language === "en" ? "ltr" : "rtl"}>
+      <button
+        type="button"
+        onClick={() => setLanguage(language === "en" ? "ar" : "en")}
+        style={{
+          position: "absolute",
+          top: "24px",
+          insetInlineEnd: "24px",
+          zIndex: 50,
+          background: "var(--paper)",
+          border: "1px solid var(--line)",
+          padding: "8px 16px",
+          borderRadius: "8px",
+          cursor: "pointer",
+          fontWeight: 600,
+          color: "var(--deep)",
+          fontSize: "14px",
+          boxShadow: "var(--shadow)"
+        }}
+      >
+        {language === "en" ? "عربي" : "English"}
+      </button>
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
       <div className="bg-decor">
         <svg
