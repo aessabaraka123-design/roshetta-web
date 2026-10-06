@@ -11,6 +11,7 @@ export default function Login() {
   const router = useRouter();
   const loginFn = useStore((state) => state.login);
   const language = useStore((state: any) => state.language);
+  const setLanguage = useStore((state: any) => state.setLanguage);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -225,7 +226,13 @@ export default function Login() {
   };
 
   return (
-    <div className="login-page-container" dir="rtl">
+    <div className="login-page-container" dir={language === "en" ? "ltr" : "rtl"}>
+      <button 
+        style={{ position: 'absolute', top: 20, right: language === 'en' ? 20 : 'auto', left: language === 'en' ? 'auto' : 20, zIndex: 10, background: 'var(--paper)', border: '1px solid var(--line)', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, color: 'var(--deep)' }}
+        onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
+      >
+        {language === 'en' ? 'عربي' : 'English'}
+      </button>
       <style>{customStyles}</style>
 
       <div className="bg-decor">
@@ -257,21 +264,21 @@ export default function Login() {
             <div className="brand-mark">
               <RoshettaLogo className="w-12 h-12" />
             </div>
-            <div className="brand-name">روشتة</div>
+            <div className="brand-name">{language === "en" ? "Roshetta" : "روشتة"}</div>
           </div>
-          <h1>مرحباً بك مجدداً في نظام إدارة الصيدليات</h1>
-          <p>يرجى إدخال بيانات الدخول الخاصة بصيدليتك</p>
+          <h1>{language === "en" ? "Welcome back to Pharmacy Management System" : "مرحباً بك مجدداً في نظام إدارة الصيدليات"}</h1>
+          <p>{language === "en" ? "Please enter your login details" : "يرجى إدخال بيانات الدخول الخاصة بصيدليتك"}</p>
         </div>
 
         <div className="card">
           <div className="card-title">
-            <h2>تسجيل الدخول</h2>
-            <p>أدخل بياناتك للمتابعة</p>
+            <h2>{language === "en" ? "Login" : "تسجيل الدخول"}</h2>
+            <p>{language === "en" ? "Enter your details to continue" : "أدخل بياناتك للمتابعة"}</p>
           </div>
 
           <form onSubmit={handleLogin}>
             <div className="field">
-              <label>البريد الإلكتروني</label>
+              <label>{language === "en" ? "Email" : "البريد الإلكتروني"}</label>
               <div className="input-wrap">
                 <input
                   type="email"
@@ -304,7 +311,7 @@ export default function Login() {
             </div>
 
             <div className="field">
-              <label>كلمة المرور</label>
+              <label>{language === "en" ? "Password" : "كلمة المرور"}</label>
               <div className="input-wrap">
                 <input
                   type="password"
@@ -362,24 +369,24 @@ export default function Login() {
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
               />
-              <label htmlFor="rememberMe">تذكرني</label>
+              <label htmlFor="rememberMe">{language === "en" ? "Remember me" : "تذكرني"}</label>
             </div>
 
             <button disabled={loading} type="submit" className="submit-btn">
-              {loading ? "جاري الدخول..." : "تسجيل الدخول"}
+              {loading ? (language === "en" ? "Logging in..." : "جاري الدخول...") : (language === "en" ? "Login" : "تسجيل الدخول")}
             </button>
 
             <div className="footer-row">
-              ليس لديك حساب؟ <Link href="/pricing">اشترك الآن</Link>
+              {language === "en" ? "Don't have an account? " : "ليس لديك حساب؟ "} <Link href="/pricing">{language === "en" ? "Subscribe now" : "اشترك الآن"}</Link>
             </div>
           </form>
         </div>
 
         <div className="legal">
-          بالمتابعة أنت توافق على <Link href="#">شروط الاستخدام</Link> و
-          <Link href="#">سياسة الخصوصية</Link>
+          {language === "en" ? "By continuing you agree to " : "بالمتابعة أنت توافق على "} <Link href="#">{language === "en" ? "Terms of Use" : "شروط الاستخدام"}</Link> {language === "en" ? "and" : "و"}
+          <Link href="#">{language === "en" ? "Privacy Policy" : "سياسة الخصوصية"}</Link>
         </div>
-        <div className="credit">تم التطوير بواسطة م. عيسى بركة</div>
+        <div className="credit">{language === "en" ? "Developed by Eng. Aessa Baraka" : "تم التطوير بواسطة م. عيسى بركة"}</div>
       </div>
     </div>
   );
