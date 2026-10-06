@@ -259,7 +259,7 @@ export default function Login() {
         <div className="header">
           <div className="brand">
             <div className="brand-mark">
-              <RoshettaLogo className="w-12 h-12" />
+              <RoshettaLogo className="h-12 w-auto" />
             </div>
             <div className="brand-name">{language === "en" ? "Roshetta" : "روشتة"}</div>
           </div>

@@ -1,8 +1,8 @@
-export const LogoMark = ({ className = "w-6 h-6" }: { className?: string }) => (
+export const LogoMark = ({ className = "h-6 w-auto" }: { className?: string }) => (
   <img 
     src="/logo.png" 
     alt="Roshetta Logo" 
-    className={`${className} object-cover`} 
+    className={`${className} object-contain max-w-full`} 
   />
 );
 

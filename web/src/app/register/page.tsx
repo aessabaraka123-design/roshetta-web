@@ -520,7 +520,7 @@ function RegisterPageContent() {
           <div className="badge flex gap-2 items-center">
             <RoshettaLogo
               showText={true}
-              className="w-5 h-5"
+              className="h-6 w-auto"
               textClassName="font-bold text-[14px] text-ink"
             />
           </div>

@@ -2,7 +2,7 @@
 import { useStore } from "@/store";
 
 export default function RoshettaLogo({
-  className = "w-10 h-10",
+  className = "h-10 w-auto",
   showText = false,
   textClassName = "font-bold text-[22px]",
 }: {
@@ -17,9 +17,9 @@ export default function RoshettaLogo({
       <img
         src="/logo.png"
         alt="Roshetta Logo"
-        className={`${className} object-contain drop-shadow-sm`}
+        className={`${className} max-w-full object-contain drop-shadow-sm`}
       />
-      {showText && <span className={textClassName}>{language === "en" ? "Roshetta" : "روشتة"}</span>}
+      
     </div>
   );
 }
