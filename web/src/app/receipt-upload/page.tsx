@@ -176,25 +176,23 @@ export default function ReceiptUpload() {
 
             <div className="field">
               <label>{language === 'en' ? 'Required Plan' : 'الباقة المطلوبة'}</label>
-              <select
-                value={plan}
-                onChange={(e) => setPlan(e.target.value)}
-                style={{
+              {(() => {
+              const selectedP = plans.find(p => p.id === plan);
+              return (
+                <div style={{
                   border: "1.5px solid var(--line)",
                   borderRadius: "10px",
                   padding: "10px 14px",
                   fontSize: "14px",
                   fontFamily: "'Cairo',sans-serif",
-                  outline: "none",
-                  background: "#fff",
-                }}
-              >
-                {plans.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} - ${p.price}
-                  </option>
-                ))}
-              </select>
+                  background: "#f8fafc",
+                  color: "var(--deep)",
+                  fontWeight: 600
+                }}>
+                  {selectedP ? `${selectedP.name} - ${selectedP.price}` : (language === "en" ? "Loading..." : "جاري التحميل...")}
+                </div>
+              );
+            })()}
             </div>
 
             {/* Payment Methods */}
