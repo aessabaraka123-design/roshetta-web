@@ -10,7 +10,12 @@ export default function UpgradePlan() {
   const language = useStore((state: any) => state.language);
 
   const handleUpgrade = (planName: string) => {
-    router.push("/receipt-upload");
+    let id = "monthly";
+    if (planName.includes("Lifetime") || planName.includes("دائمة") || planName.includes("حياة")) id = "lifetime";
+    else if (planName.includes("Annual") || planName.includes("سنوي")) id = "annual";
+    else if (planName.includes("Free") || planName.includes("مجاني")) id = "free";
+    
+    router.push("/receipt-upload?plan=" + id);
   };
 
   const customStyles = `

@@ -22,6 +22,13 @@ export default function ReceiptUpload() {
   const [isLoading, setIsLoading] = useState(false);
   const [adminSettings, setAdminSettings] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search).get('plan');
+      if (p) setPlan(p);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) {

@@ -92,7 +92,7 @@ export default function MySubscription() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
-            onClick={() => router.push("/receipt-upload")}
+            onClick={() => router.push("/receipt-upload?plan=annual")}
             className="bg-primary text-white font-bold py-4 rounded-xl shadow-md shadow-primary/20 hover:bg-teal transition-colors flex items-center justify-center gap-2 text-[16px]"
           >
             <svg
