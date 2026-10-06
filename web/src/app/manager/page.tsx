@@ -128,7 +128,7 @@ export default function BranchManager() {
             {language === 'en' ? 'Control shifts, permissions, and control logs' : 'التحكم في الورديات، الصلاحيات، وسجلات الرقابة'}
           </p>
         </div>
-        <div className="relative z-10 text-left bg-white/10 rounded-xl p-3 backdrop-blur-sm">
+        <div className="relative z-10 text-end bg-white/10 rounded-xl p-3 backdrop-blur-sm">
           <div className="text-[11px] font-bold opacity-80">{language === 'en' ? 'Current Cashier' : 'الكاشير الحالي'}</div>
           <div className="text-[16px] font-black">
             {user?.managerName || user?.cashierName || (language === 'en' ? 'Cashier' : "الكاشير")}
@@ -242,7 +242,7 @@ export default function BranchManager() {
               {language === 'en' ? '+ Log Damaged Drug' : '+ تسجيل دواء تالف'}
             </button>
           </div>
-          <table className="w-full text-right">
+          <table className="w-full text-start">
             <thead>
               <tr className="border-b border-mint-line text-ink-soft text-[14px]">
                 <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Record ID' : 'رقم السجل'}</th>
@@ -287,7 +287,7 @@ export default function BranchManager() {
               {language === 'en' ? 'Permissions and Approvals Log' : 'سجل الصلاحيات والموافقات'}
             </h2>
           </div>
-          <table className="w-full text-right">
+          <table className="w-full text-start">
             <thead>
               <tr className="border-b border-mint-line text-ink-soft text-[14px]">
                 <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Process ID' : 'رقم العملية'}</th>
@@ -348,7 +348,7 @@ export default function BranchManager() {
               {language === 'en' ? 'Print Log for Ministry of Health' : 'طباعة الدفتر لوزارة الصحة'}
             </button>
           </div>
-          <table className="w-full text-right">
+          <table className="w-full text-start">
             <thead>
               <tr className="border-b border-mint-line text-ink-soft text-[14px]">
                 <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Patient' : 'المريض'}</th>

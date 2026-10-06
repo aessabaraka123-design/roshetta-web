@@ -245,7 +245,7 @@ export default function BatchesPage() {
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-mint-line overflow-hidden shadow-sm">
-            <table className="w-full text-right">
+            <table className="w-full text-start">
               <thead className="bg-bg border-b border-mint-line">
                 <tr>
                   {[

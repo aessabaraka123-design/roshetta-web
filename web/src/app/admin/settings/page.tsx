@@ -103,7 +103,7 @@ export default function AdminSettings() {
         {loading ? (
           <div className="p-10 text-center text-ink-soft">جاري التحميل...</div>
         ) : (
-          <table className="w-full text-right">
+          <table className="w-full text-start">
             <thead>
               <tr className="border-b border-mint-line text-ink-soft text-[14px]">
                 <th className="py-3 px-5 font-semibold">اسم الصيدلية</th>

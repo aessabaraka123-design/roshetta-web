@@ -221,7 +221,7 @@ export default function Returns() {
                         <span className="font-bold text-teal">{sale.branchName || (language === "en" ? "Main" : "الرئيسي")}</span>
                       </div>
                     </div>
-                    <div className="text-left">
+                    <div className="text-end">
                       <div className="font-mono font-bold text-ink text-[16px]">
                         {sale.total.toLocaleString()} ₪
                       </div>
@@ -285,7 +285,7 @@ export default function Returns() {
                     {language === "en" ? "You can refund the entire invoice, or specify quantities for each item to refund partially." : "يمكنك استرجاع الفاتورة بالكامل، أو تحديد كميات معينة لكل صنف لاسترجاعها جزئياً."}
                   </div>
 
-                  <table className="w-full text-right mb-4 border-collapse">
+                  <table className="w-full text-start mb-4 border-collapse">
                     <thead>
                       <tr className="text-[12px] text-ink-soft border-b border-mint-line">
                         <th className="pb-2 font-bold w-1/3">{language === "en" ? "Item" : "الصنف"}</th>
@@ -293,7 +293,7 @@ export default function Returns() {
                         <th className="pb-2 font-bold text-center">
                           {language === "en" ? "Returned Qty" : "الكمية المسترجعة"}
                         </th>
-                        <th className="pb-2 font-bold text-left">
+                        <th className="pb-2 font-bold text-end">
                           {language === "en" ? "Refund Value" : "قيمة الاسترجاع"}
                         </th>
                       </tr>
@@ -338,7 +338,7 @@ export default function Returns() {
                                 </button>
                               </div>
                             </td>
-                            <td className="py-4 text-[14px] font-mono font-bold text-red-500 text-left">
+                            <td className="py-4 text-[14px] font-mono font-bold text-red-500 text-end">
                               {returned > 0
                                 ? `-${(item.price * returned).toLocaleString()} ₪`
                                 : "-"}
@@ -350,7 +350,7 @@ export default function Returns() {
                   </table>
 
                   <div className="flex flex-col md:flex-row justify-between items-center bg-bg p-4 rounded-xl border border-mint-line gap-4">
-                    <div className="text-center md:text-right">
+                    <div className="text-center md:text-start">
                       <div className="font-bold text-ink-soft text-[13px] mb-1">
                         {language === "en" ? "Previously Paid Total:" : "الإجمالي المدفوع سابقاً:"}
                       </div>
@@ -359,7 +359,7 @@ export default function Returns() {
                       </div>
                     </div>
                     {partialRefundTotal > 0 && (
-                      <div className="text-center md:text-left bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                      <div className="text-center md:text-end bg-red-50 px-4 py-2 rounded-lg border border-red-100">
                         <div className="font-bold text-red-600 text-[13px] mb-1">
                           {language === "en" ? "Current Refund Total:" : "إجمالي المرتجع الآن:"}
                         </div>
@@ -423,7 +423,7 @@ export default function Returns() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-right">
+                <table className="w-full text-start">
                   <thead>
                     <tr className="bg-bg text-ink-soft text-[14px]">
                       <th className="p-4 font-bold rounded-tr-xl rounded-br-xl">

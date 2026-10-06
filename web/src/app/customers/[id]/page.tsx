@@ -109,7 +109,7 @@ export default function CustomerProfile() {
             </h2>
           </div>
           <div className="flex-1 overflow-y-auto">
-            <table className="w-full text-right">
+            <table className="w-full text-start">
               <thead>
                 <tr className="border-b border-mint-line text-ink-soft text-[14px]">
                   <th className="py-3 px-5 font-semibold">رقم الفاتورة</th>

@@ -156,7 +156,7 @@ export default function Prescriptions() {
           />
         </div>
 
-        <table className="w-full text-right">
+        <table className="w-full text-start">
           <thead>
             <tr className="border-b border-mint-line text-ink-soft text-[14px]">
               <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Prescription No.' : 'رقم الروشتة'}</th>
@@ -549,7 +549,7 @@ export default function Prescriptions() {
                   {language === 'en' ? 'Prescribed Medications:' : 'الأدوية الموصوفة:'}
                 </h4>
                 <div className="bg-bg border border-mint-line rounded-xl overflow-hidden">
-                  <table className="w-full text-right text-[13px]">
+                  <table className="w-full text-start text-[13px]">
                     <thead className="bg-mint-bg/50 border-b border-mint-line text-ink-soft">
                       <tr>
                         <th className="py-2 px-3 font-semibold">{language === 'en' ? 'Medication' : 'الدواء'}</th>

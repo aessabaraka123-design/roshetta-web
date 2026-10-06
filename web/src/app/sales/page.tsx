@@ -152,7 +152,7 @@ export default function SalesLog() {
           </div>
         </div>
 
-        <table className="w-full text-right">
+        <table className="w-full text-start">
           <thead>
             <tr className="border-b border-mint-line text-ink-soft text-[14px]">
               <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Invoice Number' : 'رقم الفاتورة'}</th>
@@ -336,14 +336,14 @@ export default function SalesLog() {
                     {language === 'en' ? 'Sold Items' : 'الأصناف المباعة'}
                   </h4>
                   <div className="max-h-40 overflow-y-auto border border-mint-line rounded-xl">
-                    <table className="w-full text-[13px] text-right">
+                    <table className="w-full text-[13px] text-start">
                       <thead className="bg-bg text-ink-soft border-b border-mint-line">
                         <tr>
                           <th className="py-2 px-3 font-semibold">{language === 'en' ? 'Item' : 'الصنف'}</th>
                           <th className="py-2 px-3 font-semibold text-center">
                             {language === 'en' ? 'Quantity' : 'الكمية'}
                           </th>
-                          <th className="py-2 px-3 font-semibold text-left">
+                          <th className="py-2 px-3 font-semibold text-end">
                             {language === 'en' ? 'Price' : 'السعر'}
                           </th>
                         </tr>
@@ -358,7 +358,7 @@ export default function SalesLog() {
                             <td className="py-2 px-3 text-center">
                               {item.cartQty || item.qty}
                             </td>
-                            <td className="py-2 px-3 font-mono font-bold text-left">
+                            <td className="py-2 px-3 font-mono font-bold text-end">
                               {item.price || 0} ₪
                             </td>
                           </tr>

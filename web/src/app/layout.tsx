@@ -3,6 +3,7 @@ import { IBM_Plex_Sans_Arabic, IBM_Plex_Mono } from "next/font/google";
 import Sidebar from "@/components/Sidebar";
 import { Toaster } from "react-hot-toast";
 import MainLayoutWrapper from "@/components/MainLayoutWrapper";
+import LanguageWrapper from "@/components/LanguageWrapper";
 import SocketProvider from "@/components/SocketProvider";
 import "./globals.css";
 
@@ -38,14 +39,15 @@ export default function RootLayout({
   return (
     <html
       lang="ar"
-      dir="rtl"
+      
       suppressHydrationWarning
       className={`${ibmPlexSansArabic.variable} ${ibmPlexMono.variable} h-full antialiased font-sans`}
     >
       <body
-        className="min-h-full bg-bg text-ink selection:bg-primary-pale flex"
+        className="min-h-full bg-bg text-ink selection:bg-primary-pale"
         suppressHydrationWarning
       >
+        <LanguageWrapper>
         <SocketProvider>
           <Toaster
             position="top-center"
@@ -69,6 +71,7 @@ export default function RootLayout({
             <MainLayoutWrapper>{children}</MainLayoutWrapper>
           </div>
         </SocketProvider>
+        </LanguageWrapper>
       </body>
     </html>
   );

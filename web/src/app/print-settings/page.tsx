@@ -122,7 +122,7 @@ export default function PrintSettings() {
                 onChange={(e) =>
                   setFormData({ ...formData, phone: e.target.value })
                 }
-                className="w-full bg-bg border border-mint-line rounded-xl p-3 text-[15px] outline-none focus:border-primary text-left"
+                className="w-full bg-bg border border-mint-line rounded-xl p-3 text-[15px] outline-none focus:border-primary text-end"
                 dir="ltr"
                 placeholder="059xxxxxxx"
               />
@@ -262,27 +262,27 @@ export default function PrintSettings() {
             </div>
 
             <div className="flex text-[12px] font-bold text-ink-soft mb-3 px-1">
-              <div className="flex-[2] text-right">{language === "en" ? "Item" : "الصنف"}</div>
+              <div className="flex-[2] text-start">{language === "en" ? "Item" : "الصنف"}</div>
               <div className="w-[40px] text-center">{language === "en" ? "Qty" : "الكمية"}</div>
-              <div className="flex-1 text-left">{language === "en" ? "Total" : "المجموع"}</div>
+              <div className="flex-1 text-end">{language === "en" ? "Total" : "المجموع"}</div>
             </div>
 
             <div className="space-y-3 mb-1 px-1">
               <div className="flex text-[12px] text-ink items-center">
-                <div className="flex-[2] text-right font-bold truncate pr-1">
+                <div className="flex-[2] text-start font-bold truncate pr-1">
                   {language === "en" ? "Panadol Advance" : "بنادول ادفانس"}
                 </div>
                 <div className="w-[40px] text-center font-mono">1</div>
-                <div className="flex-1 text-left font-mono font-bold">
+                <div className="flex-1 text-end font-mono font-bold">
                   15.00
                 </div>
               </div>
               <div className="flex text-[12px] text-ink items-center">
-                <div className="flex-[2] text-right font-bold truncate pr-1">
+                <div className="flex-[2] text-start font-bold truncate pr-1">
                   {language === "en" ? "Augmentin 1g" : "أوجمنتين 1 جم"}
                 </div>
                 <div className="w-[40px] text-center font-mono">1</div>
-                <div className="flex-1 text-left font-mono font-bold">
+                <div className="flex-1 text-end font-mono font-bold">
                   45.00
                 </div>
               </div>

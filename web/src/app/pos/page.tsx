@@ -627,7 +627,7 @@ function POSContent() {
                   {cart.length} {language === 'en' ? "item(s)" : "صنف"}
                 </p>
               </div>
-              <div className="text-right">
+              <div className="text-start">
                 <p className="text-white/60 text-[12px]">{language === 'en' ? "Total" : "الإجمالي"}</p>
                 <p className="text-white font-mono font-black text-[28px] leading-none">
                   {total.toFixed(2)} <span className="text-[16px]">₪</span>
@@ -721,9 +721,9 @@ function POSContent() {
               </div>
 
               <div className="flex text-[12px] font-bold text-ink-soft mb-3 px-1">
-                <div className="flex-[2] text-right">{language === 'en' ? "Item" : "الصنف"}</div>
+                <div className="flex-[2] text-start">{language === 'en' ? "Item" : "الصنف"}</div>
                 <div className="w-[40px] text-center">{language === 'en' ? "Qty" : "الكمية"}</div>
-                <div className="flex-1 text-left">{language === 'en' ? "Total" : "المجموع"}</div>
+                <div className="flex-1 text-end">{language === 'en' ? "Total" : "المجموع"}</div>
               </div>
 
               <div className="space-y-3 mb-1 px-1">
@@ -732,13 +732,13 @@ function POSContent() {
                     key={i}
                     className="flex text-[12px] text-ink items-center"
                   >
-                    <div className="flex-[2] text-right font-bold truncate pr-1">
+                    <div className="flex-[2] text-start font-bold truncate pr-1">
                       {item.displayName || item.name}
                     </div>
                     <div className="w-[40px] text-center font-mono">
                       {item.cartQty || item.qty || 1}
                     </div>
-                    <div className="flex-1 text-left font-mono font-bold">
+                    <div className="flex-1 text-end font-mono font-bold">
                       {(
                         Number(item.unitPrice || item.price || 0) *
                         Number(item.cartQty || item.qty || 1)

@@ -721,7 +721,7 @@ export default function Inventory() {
                                 part1_name: e.target.value,
                               })
                             }
-                            className="w-full border border-mint-line rounded-lg p-2 text-[12px] outline-none focus:border-primary text-right"
+                            className="w-full border border-mint-line rounded-lg p-2 text-[12px] outline-none focus:border-primary text-start"
                           >
                             <option value="شريط">{language === 'en' ? 'Strip' : 'شريط'}</option>
                             <option value="حبة">{language === 'en' ? 'Pill / Capsule' : 'حبة / كبسولة'}</option>
@@ -799,7 +799,7 @@ export default function Inventory() {
                                   part2_name: e.target.value,
                                 })
                               }
-                              className="w-full border border-mint-line rounded-lg p-2 text-[12px] outline-none focus:border-primary text-right"
+                              className="w-full border border-mint-line rounded-lg p-2 text-[12px] outline-none focus:border-primary text-start"
                             >
                               <option value="حبة">{language === 'en' ? 'Pill' : 'حبة'}</option>
                               <option value="مل">{language === 'en' ? 'ml' : 'مل'}</option>

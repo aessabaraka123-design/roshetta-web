@@ -479,7 +479,7 @@ export default function BranchesAndStaff() {
                       setNewStaff({ ...newStaff, phone: e.target.value })
                     }
                     placeholder="05X XXX XXXX"
-                    className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-left"
+                    className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-end"
                     dir="ltr"
                   />
                 </div>
@@ -494,7 +494,7 @@ export default function BranchesAndStaff() {
                       setNewStaff({ ...newStaff, password: e.target.value })
                     }
                     placeholder={language === 'en' ? 'Initial Staff Password' : "كلمة المرور المبدئية للموظف"}
-                    className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-left"
+                    className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-end"
                     dir="ltr"
                   />
                 </div>

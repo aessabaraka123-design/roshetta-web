@@ -457,7 +457,7 @@ export default function Reports() {
                           className="flex items-center gap-4"
                           title={`₪${b.revenue.toLocaleString()}`}
                         >
-                          <div className="w-24 text-right font-black text-[13px] text-[#1E293B] truncate shrink-0">
+                          <div className="w-24 text-start font-black text-[13px] text-[#1E293B] truncate shrink-0">
                             {b.name}
                           </div>
                           <div className="flex-1 h-3.5 bg-slate-100 rounded-full flex justify-start items-center">
@@ -470,7 +470,7 @@ export default function Reports() {
                               }}
                             />
                           </div>
-                          <div className="w-12 text-left font-bold text-[13px] text-ink-soft shrink-0">
+                          <div className="w-12 text-end font-bold text-[13px] text-ink-soft shrink-0">
                             {percentage}%
                           </div>
                         </div>
@@ -508,7 +508,7 @@ export default function Reports() {
                           {item.name}
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-start">
                         <div className="text-[14px] font-bold text-primary">
                           {item.qty} {language === "en" ? "box" : "علبة"}
                         </div>

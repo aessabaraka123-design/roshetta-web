@@ -608,18 +608,18 @@ export default function PurchasesPage() {
                         </div>
                       </div>
                       {/* Price Block */}
-                      <div className="shrink-0 text-left">
+                      <div className="shrink-0 text-end">
                         <p className="text-[22px] font-mono font-black text-ink leading-tight">
                           ₪{(inv.total_cost || 0).toFixed(2)}
                         </p>
                         {(inv.remaining || 0) > 0 && (
-                          <p className="text-[12px] font-bold text-coral text-left">
+                          <p className="text-[12px] font-bold text-coral text-end">
                             {language === 'en' ? "Remaining" : "متبقي"} ₪{(inv.remaining || 0).toFixed(2)}
                           </p>
                         )}
                         {(inv.remaining || 0) <= 0 &&
                           inv.status !== "draft" && (
-                            <p className="text-[12px] font-bold text-teal text-left">
+                            <p className="text-[12px] font-bold text-teal text-end">
                               {language === 'en' ? "Fully Paid ✓" : "مدفوعة بالكامل ✓"}
                             </p>
                           )}
@@ -954,7 +954,7 @@ export default function PurchasesPage() {
                               key={d.id}
                               type="button"
                               onClick={() => addItemToCart(d)}
-                              className="w-full flex items-center justify-between px-5 py-3 hover:bg-bg transition-colors text-right border-b border-mint-line last:border-0"
+                              className="w-full flex items-center justify-between px-5 py-3 hover:bg-bg transition-colors text-start border-b border-mint-line last:border-0"
                             >
                               <span className="text-[15px] font-bold text-ink">
                                 {d.name}
@@ -1125,7 +1125,7 @@ export default function PurchasesPage() {
                             >
                               {/* الكمية */}
                               <div>
-                                <label className="block text-[11px] font-bold text-ink-soft mb-2 text-right">
+                                <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
                                   الكمية (علبة)
                                 </label>
                                 <div className="flex items-center bg-white rounded-xl border border-[#CBD5E1] overflow-hidden w-full h-[42px]">
@@ -1160,7 +1160,7 @@ export default function PurchasesPage() {
                               </div>
                               {/* سعر الشراء */}
                               <div>
-                                <label className="block text-[11px] font-bold text-ink-soft mb-2 text-right">
+                                <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
                                   سعر شراء العلبة
                                 </label>
                                 <div className="relative">
@@ -1183,7 +1183,7 @@ export default function PurchasesPage() {
                               </div>
                               {/* سعر البيع */}
                               <div>
-                                <label className="block text-[11px] font-bold text-ink-soft mb-2 text-right">
+                                <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
                                   سعر بيع العلبة
                                 </label>
                                 <div className="relative">
@@ -1206,7 +1206,7 @@ export default function PurchasesPage() {
                               </div>
                               {/* الإجمالي */}
                               <div>
-                                <label className="block text-[11px] font-bold text-ink-soft mb-2 text-right">
+                                <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
                                   الإجمالي للعلب
                                 </label>
                                 <div className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl px-3 text-[15px] font-mono font-black text-primary text-center h-[42px] flex items-center justify-center">
@@ -1258,12 +1258,12 @@ export default function PurchasesPage() {
 
                               {hasParts && (
                                 <div className="mt-4 pt-4 border-t border-ink-soft/30">
-                                  <h4 className="text-[12px] font-bold text-ink-soft mb-4 text-right">
+                                  <h4 className="text-[12px] font-bold text-ink-soft mb-4 text-start">
                                     الجزء الأول (مثال: شريط)
                                   </h4>
                                   <div className="flex flex-wrap gap-4 mb-5">
                                     <div className="flex-1 min-w-[100px]">
-                                      <label className="block text-[11px] font-bold text-ink-soft mb-2 text-right">
+                                      <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
                                         اسم الجزء
                                       </label>
                                       <select
@@ -1271,7 +1271,7 @@ export default function PurchasesPage() {
                                         onChange={(e) =>
                                           upd("part1_name", e.target.value)
                                         }
-                                        className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[13px] font-bold text-ink outline-none focus:border-primary text-right h-[40px]"
+                                        className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[13px] font-bold text-ink outline-none focus:border-primary text-start h-[40px]"
                                       >
                                         <option value="شريط">شريط</option>
                                         <option value="أمبولة">أمبولة</option>
@@ -1280,7 +1280,7 @@ export default function PurchasesPage() {
                                       </select>
                                     </div>
                                     <div className="flex-1 min-w-[110px]">
-                                      <label className="block text-[11px] font-bold text-ink-soft mb-2 text-right">
+                                      <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
                                         كم {p1Name} في العلبة؟
                                       </label>
                                       <input
@@ -1297,7 +1297,7 @@ export default function PurchasesPage() {
                                       />
                                     </div>
                                     <div className="flex-1 min-w-[100px]">
-                                      <label className="block text-[11px] font-bold text-ink-soft mb-2 text-right">
+                                      <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
                                         سعر الـ {p1Name}
                                       </label>
                                       <div className="relative">
@@ -1356,7 +1356,7 @@ export default function PurchasesPage() {
                                   {hasSubparts && (
                                     <div className="mt-4 pt-4 border-t border-ink-soft/30 flex flex-wrap gap-4">
                                       <div className="flex-1 min-w-[100px]">
-                                        <label className="block text-[11px] font-bold text-ink-soft mb-2 text-right">
+                                        <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
                                           اسم الجزء
                                         </label>
                                         <select
@@ -1364,7 +1364,7 @@ export default function PurchasesPage() {
                                           onChange={(e) =>
                                             upd("part2_name", e.target.value)
                                           }
-                                          className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[13px] font-bold text-ink outline-none focus:border-primary text-right h-[40px]"
+                                          className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[13px] font-bold text-ink outline-none focus:border-primary text-start h-[40px]"
                                         >
                                           <option value="حبة">حبة</option>
                                           <option value="مل">مل</option>
@@ -1372,7 +1372,7 @@ export default function PurchasesPage() {
                                         </select>
                                       </div>
                                       <div className="flex-1 min-w-[110px]">
-                                        <label className="block text-[11px] font-bold text-ink-soft mb-2 text-right">
+                                        <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
                                           كم {p2Name} في الـ {p1Name}؟
                                         </label>
                                         <input
@@ -1389,7 +1389,7 @@ export default function PurchasesPage() {
                                         />
                                       </div>
                                       <div className="flex-1 min-w-[100px]">
-                                        <label className="block text-[11px] font-bold text-ink-soft mb-2 text-right">
+                                        <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
                                           سعر الـ {p2Name}
                                         </label>
                                         <div className="relative">
@@ -1527,7 +1527,7 @@ export default function PurchasesPage() {
                     setNewItem({ ...newItem, name: e.target.value })
                   }
                   autoFocus
-                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[14px] font-bold outline-none focus:border-primary transition-colors text-right"
+                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[14px] font-bold outline-none focus:border-primary transition-colors text-start"
                   placeholder="مثال: أموكسيل 500"
                 />
               </div>
@@ -1544,7 +1544,7 @@ export default function PurchasesPage() {
                     onChange={(e) =>
                       setNewItem({ ...newItem, scientificName: e.target.value })
                     }
-                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold outline-none focus:border-primary transition-colors text-right"
+                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold outline-none focus:border-primary transition-colors text-start"
                     placeholder="مثال: Pfizer"
                   />
                 </div>
@@ -1558,7 +1558,7 @@ export default function PurchasesPage() {
                     onChange={(e) =>
                       setNewItem({ ...newItem, category: e.target.value })
                     }
-                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold outline-none focus:border-primary transition-colors text-right"
+                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold outline-none focus:border-primary transition-colors text-start"
                     placeholder="مثال: مضاد حيوي"
                   />
                 </div>
@@ -1637,7 +1637,7 @@ export default function PurchasesPage() {
                     onChange={(e) =>
                       setNewItem({ ...newItem, barcode: e.target.value })
                     }
-                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-mono font-bold outline-none focus:border-primary transition-colors text-right"
+                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-mono font-bold outline-none focus:border-primary transition-colors text-start"
                     placeholder="اختياري"
                   />
                 </div>
@@ -1729,7 +1729,7 @@ export default function PurchasesPage() {
                   <StatusBadge inv={showPreview} />
                 </div>
               </div>
-              <table className="w-full text-right">
+              <table className="w-full text-start">
                 <thead>
                   <tr className="border-b border-mint-line">
                     <th className="pb-2 text-[13px] font-black text-ink-soft">
@@ -1738,7 +1738,7 @@ export default function PurchasesPage() {
                     <th className="pb-2 text-[13px] font-black text-ink-soft text-center">
                       الكمية
                     </th>
-                    <th className="pb-2 text-[13px] font-black text-ink-soft text-left">
+                    <th className="pb-2 text-[13px] font-black text-ink-soft text-end">
                       السعر
                     </th>
                   </tr>
@@ -1753,7 +1753,7 @@ export default function PurchasesPage() {
                         <td className="py-3 text-[14px] font-mono text-center text-ink">
                           {item.qty}
                         </td>
-                        <td className="py-3 text-[14px] font-mono font-bold text-ink text-left">
+                        <td className="py-3 text-[14px] font-mono font-bold text-ink text-end">
                           ₪{(item.purchase_price || 0).toFixed(2)}
                         </td>
                       </tr>

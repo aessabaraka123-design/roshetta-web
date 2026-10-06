@@ -411,7 +411,7 @@ export default function AddItem() {
                     value={sub1Count}
                     onChange={(e) => setSub1Count(e.target.value)}
                     placeholder={language === 'en' ? 'Example: 3' : 'مثال: 3'}
-                    className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-left"
+                    className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-end"
                     dir="ltr"
                   />
                 </div>
@@ -425,7 +425,7 @@ export default function AddItem() {
                     value={sub1Price}
                     onChange={(e) => setSub1Price(e.target.value)}
                     placeholder={language === 'en' ? 'Example: 12.00' : 'مثال: 12.00'}
-                    className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-left"
+                    className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-end"
                     dir="ltr"
                   />
                 </div>
@@ -478,7 +478,7 @@ export default function AddItem() {
                         value={sub2Count}
                         onChange={(e) => setSub2Count(e.target.value)}
                         placeholder={language === 'en' ? 'Example: 10' : 'مثال: 10'}
-                        className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-left"
+                        className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-end"
                         dir="ltr"
                       />
                     </div>
@@ -492,7 +492,7 @@ export default function AddItem() {
                         value={sub2Price}
                         onChange={(e) => setSub2Price(e.target.value)}
                         placeholder={language === 'en' ? 'Example: 1.50' : 'مثال: 1.50'}
-                        className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-left"
+                        className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-end"
                         dir="ltr"
                       />
                     </div>
