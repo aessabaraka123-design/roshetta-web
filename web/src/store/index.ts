@@ -40,7 +40,8 @@ interface StoreState {
   language: 'ar' | 'en';
   setLanguage: (lang: 'ar' | 'en') => void;
   user: User | null;
-  login: (user: User) => void;
+  token: string | null;
+  login: (user: User, token?: string) => void;
   logout: () => void;
   inventory: Med[];
   posCart: PosCartItem[];
@@ -60,8 +61,9 @@ export const useStore = create<StoreState>()(
       language: 'ar',
       setLanguage: (lang) => set({ language: lang }),
       user: null,
-      login: (user) => set({ user }),
-      logout: () => set({ user: null, posCart: [] }),
+      token: null,
+      login: (user, token) => set({ user, token }),
+      logout: () => set({ user: null, token: null, posCart: [] }),
 
       inventory: [],
       posCart: [],

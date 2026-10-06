@@ -210,7 +210,7 @@ export default function Login() {
           localStorage.removeItem("roshetta_remembered_email");
         }
 
-        loginFn(data.user);
+        loginFn(data.user, data.token);
         toast.success(language === "en" ? `Welcome, ${data.user.managerName || "Pharmacy Manager"}` : `أهلاً بك، ${data.user.managerName || "مدير الصيدلية"}`);
         if (data.user.role === "superadmin") {
           router.push("/super-admin");

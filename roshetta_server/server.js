@@ -1,4 +1,6 @@
 const express = require("express");
+const jwt = require("jsonwebtoken");
+const JWT_SECRET = process.env.JWT_SECRET || "ROSHETTA_SUPER_SECRET_KEY_2026";
 const helmet = require("helmet");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
@@ -152,6 +154,37 @@ app.use('/api/', globalLimiter);
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// JWT Auth Middleware
+app.use((req, res, next) => {
+  // Allow login and register
+  if (req.path === "/api/auth/login" || req.path === "/api/auth/register" || req.path.startsWith("/api/admin")) {
+    return next();
+  }
+
+  // Check if it's a pharmacy route
+  const match = req.path.match(/^\/api\/pharmacies\/([a-zA-Z0-9-]+)/);
+  if (match) {
+    const pharmacyId = match[1];
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ success: false, error: "Unauthorized: Missing Token" });
+    }
+    const token = authHeader.split(" ")[1];
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      if (decoded.pharmacy_id !== pharmacyId && decoded.role !== "superadmin") {
+        return res.status(403).json({ success: false, error: "Forbidden: Token mismatch" });
+      }
+      req.user = decoded;
+      return next();
+    } catch (err) {
+      return res.status(401).json({ success: false, error: "Unauthorized: Invalid Token" });
+    }
+  }
+  
+  next();
+});
 
 // Real-time Sync Middleware
 app.use((req, res, next) => {
@@ -856,8 +889,9 @@ app.post("/api/auth/register", (req, res) => {
                 [branchId, pharmacyId, bName, bAddr, bStatus],
                 (err) => {
                   const sendResponse = () => {
-                    res.json({
-                      success: true,
+                    const token = jwt.sign({ pharmacy_id: pharmacyId, role: "manager" }, JWT_SECRET, { expiresIn: '30d' });
+        res.json({
+                      success: true, token,
                       branches: [
                         {
                           id: branchId,
@@ -1382,8 +1416,9 @@ app.post("/api/auth/login", (req, res) => {
                         success: false,
                         error: "الصيدلية غير موجودة",
                       });
-                    res.json({
-                      success: true,
+                    const token = jwt.sign({ pharmacy_id: pharmacy.id, role: staff.role }, JWT_SECRET, { expiresIn: '30d' });
+        res.json({
+                      success: true, token,
                       user: {
                         id: staff.id,
                         email: staff.email,
@@ -1425,8 +1460,9 @@ app.post("/api/auth/login", (req, res) => {
                   success: false,
                   error: "الصيدلية غير موجودة",
                 });
-              res.json({
-                success: true,
+              const token = jwt.sign({ pharmacy_id: pharmacy.id, role: user.role }, JWT_SECRET, { expiresIn: '30d' });
+        res.json({
+                success: true, token,
                 user: {
                   id: user.id,
                   email: user.email,
@@ -4273,40 +4309,40 @@ const IP = process.env.ALWAYSDATA_HTTPD_IP || process.env.IP || "0.0.0.0";
 // ══════════════════════════════════════════════════
 // 📊 إحصائيات صيدلية محددة
 // ══════════════════════════════════════════════════
-app.get("/api/admin/pharmacies/:id/stats", (req, res) => {
+app.get("/api/admin/pharmacies/:id/stats", async (req, res) => {
   const { id } = req.params;
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  db.get(
-    "SELECT COUNT(*) as cnt FROM sales WHERE pharmacy_id = ? AND date >= ?",
-    [id, startOfMonth.toISOString()],
-    (err, inv) => {
-      db.get(
-        "SELECT COUNT(*) as cnt FROM staff WHERE pharmacy_id = ?",
-        [id],
-        (err2, staff) => {
-          db.get(
-            "SELECT COUNT(*) as cnt FROM branches WHERE pharmacy_id = ?",
-            [id],
-            (err3, branches) => {
-              res.json({
-                success: true,
-                invoicesThisMonth: inv?.cnt || 0,
-                staffCount: staff?.cnt || 0,
-                branchCount: branches?.cnt || 0,
-              });
-            },
-          );
-        },
-      );
-    },
-  );
+  const getP = (sql, params = []) => new Promise((resolve) => db.get(sql, params, (e, r) => resolve(r || {})));
+
+  try {
+    const monthSales = await getP("SELECT COUNT(*) as cnt, SUM(total) as sum FROM sales WHERE pharmacy_id = ? AND date >= ?", [id, startOfMonth.toISOString()]);
+    const totalSales = await getP("SELECT COUNT(*) as cnt, SUM(total) as sum FROM sales WHERE pharmacy_id = ?", [id]);
+    const lastSale = await getP("SELECT date, total FROM sales WHERE pharmacy_id = ? ORDER BY date DESC LIMIT 1", [id]);
+    const inventory = await getP("SELECT COUNT(*) as cnt, SUM(stock * purchase_price) as sum FROM inventory WHERE pharmacy_id = ?", [id]);
+    const staff = await getP("SELECT COUNT(*) as cnt FROM staff WHERE pharmacy_id = ?", [id]);
+    const branches = await getP("SELECT COUNT(*) as cnt FROM branches WHERE pharmacy_id = ?", [id]);
+
+    res.json({
+      success: true,
+      invoicesThisMonth: monthSales.cnt || 0,
+      salesThisMonth: monthSales.sum || 0,
+      totalInvoices: totalSales.cnt || 0,
+      totalSales: totalSales.sum || 0,
+      lastSaleDate: lastSale.date || null,
+      lastSaleAmount: lastSale.total || 0,
+      inventoryItems: inventory.cnt || 0,
+      inventoryValue: inventory.sum || 0,
+      staffCount: staff.cnt || 0,
+      branchCount: branches.cnt || 0,
+    });
+  } catch(e) {
+    res.json({ success: false, error: e.message });
+  }
 });
 
-// ══════════════════════════════════════════════════
-// 🔑 إعادة تعيين كلمة مرور مدير صيدلية
 // ══════════════════════════════════════════════════
 app.put("/api/admin/pharmacies/:id/reset-password", (req, res) => {
   const { id } = req.params;

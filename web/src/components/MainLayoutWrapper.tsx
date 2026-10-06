@@ -14,7 +14,33 @@ export default function MainLayoutWrapper({
   const user = useStore((state: any) => state.user);
   const language = useStore((state: any) => state.language);
 
+  
   useEffect(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (input, init) => {
+      const url = typeof input === 'string' ? input : (input instanceof URL ? input.toString() : input.url);
+      
+      if (url && url.includes('/api/') && !url.includes('/api/auth/') && !url.includes('/api/admin/')) {
+        init = init || {};
+        init.headers = {
+          ...init.headers,
+          'Authorization': `Bearer ${useStore.getState().token}`
+        };
+        
+        if (init.method && ['POST', 'PUT', 'PATCH'].includes(init.method.toUpperCase()) && !(init.body instanceof FormData)) {
+          init.headers['Content-Type'] = init.headers['Content-Type'] || 'application/json';
+        }
+      }
+      return originalFetch(input, init);
+    };
+
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, []);
+
+  useEffect(() => {
+
     document.documentElement.dir = language === "en" ? "ltr" : "rtl";
     document.documentElement.lang = language || "ar";
   }, [language]);

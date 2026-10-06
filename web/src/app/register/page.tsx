@@ -265,7 +265,7 @@ function RegisterPageContent() {
       );
       const data = await res.json();
       if (data.success) {
-        loginFn(data.user);
+        loginFn(data.user, data.token);
         if (plan === "free" || selectedPlan?.price === 0) {
           toast.success(language === "en" ? "Free account activated successfully! Welcome to Roshetta 🎉" : "تم تفعيل حسابك المجاني بنجاح! أهلاً بك في روشتة 🎉");
         } else {
