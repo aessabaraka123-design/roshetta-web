@@ -215,7 +215,7 @@ export default function PurchasesPage() {
   const pullLowStock = () => {
     const low = uniqueInv.filter((d: any) => (d.qty || 0) <= (d.minQty || 0));
     if (low.length === 0) {
-      toast("لا يوجد نواقص في هذا الفرع");
+      toast(language === "en" ? "No shortages in this branch" : "لا يوجد نواقص في هذا الفرع");
       return;
     }
     const newCart = [...cartItems];
@@ -1282,7 +1282,7 @@ export default function PurchasesPage() {
                                     </div>
                                     <div className="flex-1 min-w-[110px]">
                                       <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                        {language === "en" ? `How many ${p1Name}s in a box?` : `كم ${p1Name} في العلبة؟`}
+                                        {language === "en" ? `How many ${tName(p1Name)}s in a box?` : `كم ${p1Name} في العلبة؟`}
                                       </label>
                                       <input
                                         type="number"
@@ -1299,7 +1299,7 @@ export default function PurchasesPage() {
                                     </div>
                                     <div className="flex-1 min-w-[100px]">
                                       <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                        {language === "en" ? `Price per ${p1Name}` : `سعر الـ ${p1Name}`}
+                                        {language === "en" ? `Price per ${tName(p1Name)}` : `سعر الـ ${p1Name}`}
                                       </label>
                                       <div className="relative">
                                         <input
@@ -1342,7 +1342,7 @@ export default function PurchasesPage() {
                                       )}
                                     </div>
                                     <span className="text-[12px] font-bold text-ink">
-                                      {language === "en" ? `Is ${p1Name} sold in smaller parts? (e.g. pill)` : `هل يباع الـ ${p1Name} مجزأ؟ (مثال: حبة)`}
+                                      {language === "en" ? `Is ${tName(p1Name)} sold in smaller parts?` : `هل يباع الـ ${p1Name} مجزأ؟ (مثال: حبة)`}
                                     </span>
                                     <input
                                       type="checkbox"
@@ -1357,9 +1357,7 @@ export default function PurchasesPage() {
                                   {hasSubparts && (
                                     <div className="mt-4 pt-4 border-t border-ink-soft/30 flex flex-wrap gap-4">
                                       <div className="flex-1 min-w-[100px]">
-                                        <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                          اسم الجزء
-                                        </label>
+                                        <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">{language === "en" ? "Part name" : "اسم الجزء"}</label>
                                         <select
                                           value={p2Name}
                                           onChange={(e) =>
@@ -1374,7 +1372,7 @@ export default function PurchasesPage() {
                                       </div>
                                       <div className="flex-1 min-w-[110px]">
                                         <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                          {language === "en" ? `How many ${p2Name}s in a ${p1Name}?` : `كم ${p2Name} في الـ ${p1Name}؟`}
+                                          {language === "en" ? `How many ${tName(p2Name)}s in a ${tName(p1Name)}?` : `كم ${p2Name} في الـ ${p1Name}؟`}
                                         </label>
                                         <input
                                           type="number"
@@ -1391,7 +1389,7 @@ export default function PurchasesPage() {
                                       </div>
                                       <div className="flex-1 min-w-[100px]">
                                         <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                          {language === "en" ? `Price per ${p2Name}` : `سعر الـ ${p2Name}`}
+                                          {language === "en" ? `Price per ${tName(p2Name)}` : `سعر الـ ${p2Name}`}
                                         </label>
                                         <div className="relative">
                                           <input
@@ -1420,7 +1418,7 @@ export default function PurchasesPage() {
                             {/* Effective Qty badge */}
                             <div className="flex justify-start" dir="rtl">
                               <div className="bg-[#F8FAFC] text-ink px-4 py-2.5 rounded-full border border-ink-soft/30 text-[12px] font-bold inline-flex items-center gap-2">
-                                📦 سيتم إضافة للمخزون:{" "}
+                                📦 {language === "en" ? "Will be added to stock:" : "سيتم إضافة للمخزون:"} {" "}
                                 <span className="font-mono text-[14px] font-black">
                                   {effectiveQty}
                                 </span>{" "}
