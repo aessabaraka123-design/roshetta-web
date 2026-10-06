@@ -49,7 +49,7 @@ export default function Dashboard() {
   const alertsData = data?.alerts || [];
 
   const branches = [
-    { id: "all", name: "كل الفروع" },
+    { id: "all", name: language === "en" ? "All Branches" : "كل الفروع" },
     ...fetchedBranches.map((b: any) => ({ id: b.id, name: b.name })),
   ];
 
@@ -64,7 +64,7 @@ export default function Dashboard() {
       <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 px-6">
         <div>
           <h1 className="text-[26px] font-black text-primary mb-1 flex items-center gap-2">
-            مرحباً، {user.managerName || "مدير الصيدلية"} 👋
+            {language === "en" ? `Hello, ${user.managerName || "Pharmacy Manager"} 👋` : `مرحباً، ${user.managerName || "مدير الصيدلية"} 👋`}
           </h1>
           <p
             suppressHydrationWarning
@@ -142,8 +142,8 @@ export default function Dashboard() {
                 className={`text-[24px] font-mono font-black ${stats.openShifts > 0 ? "text-teal" : "text-ink-soft"}`}
               >
                 {stats.openShifts > 0
-                  ? `${stats.openShifts} مفتوحة`
-                  : "لا توجد وردية"}
+                  ? language === "en" ? `${stats.openShifts} Open` : `${stats.openShifts} مفتوحة`
+                  : language === "en" ? "No Shift" : "لا توجد وردية"}
               </div>
               <div className="text-[14px] font-bold mt-2 flex items-center gap-1 text-teal bg-teal/10 w-fit px-2 py-0.5 rounded-full cursor-pointer">
                 عرض الصندوق
@@ -175,7 +175,7 @@ export default function Dashboard() {
               <h3 className="font-bold text-[16px] text-ink mb-4 flex items-center justify-between">
                 نواقص الأدوية
                 <span className="bg-red-100 text-red-600 text-[12px] px-2 py-1 rounded-lg">
-                  {stats.outOfStock + stats.lowStock} دواء
+                  {stats.outOfStock + stats.lowStock} {language === "en" ? "Meds" : "دواء"}
                 </span>
               </h3>
               <div className="flex gap-4">
@@ -184,7 +184,7 @@ export default function Dashboard() {
                     {stats.outOfStock}
                   </div>
                   <div className="text-red-800 text-[13px] font-bold mt-1">
-                    نفدت تماماً
+                    {language === "en" ? "Out of stock" : "نفدت تماماً"}
                   </div>
                 </div>
                 <div className="flex-1 bg-amber-50 rounded-xl p-4 text-center border border-amber-100">
@@ -192,7 +192,7 @@ export default function Dashboard() {
                     {stats.lowStock}
                   </div>
                   <div className="text-amber-800 text-[13px] font-bold mt-1">
-                    قاربت على النفاد
+                    {language === "en" ? "Low stock" : "قاربت على النفاد"}
                   </div>
                 </div>
               </div>
@@ -204,7 +204,7 @@ export default function Dashboard() {
               <h3 className="font-bold text-[16px] text-ink mb-4 flex items-center justify-between">
                 تنبيهات الصلاحية
                 <span className="bg-amber-100 text-[#B9791C] text-[12px] px-2 py-1 rounded-lg">
-                  {stats.expiringCount} دفعة
+                  {stats.expiringCount} {language === "en" ? "Batch" : "دفعة"}
                 </span>
               </h3>
               <div className="bg-amber-50 rounded-xl p-6 text-center border border-amber-100 h-[104px] flex flex-col justify-center">
@@ -212,7 +212,7 @@ export default function Dashboard() {
                   {stats.expiringCount}
                 </div>
                 <div className="text-amber-800 text-[13px] font-bold mt-1">
-                  دفعة تنتهي خلال 60 يوم
+                  {language === "en" ? "Batch expires in 60 days" : "دفعة تنتهي خلال 60 يوم"}
                 </div>
               </div>
             </div>
@@ -247,7 +247,7 @@ export default function Dashboard() {
                     {alert.title}
                   </h3>
                   <p className="text-[13px] font-semibold text-ink-soft">
-                    فرع {alert.branchName}
+                    {language === "en" ? "Branch" : "فرع"} {alert.branchName}
                   </p>
                   <div className="mt-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 w-full justify-start">
                     {alert.type === "outOfStock" ||
