@@ -699,10 +699,10 @@ export default function PharmacyManager() {
       <div className="bg-card rounded-2xl shadow-sm border border-mint-line overflow-hidden mb-8">
         <div className="p-5 border-b border-mint-line bg-bg flex justify-between items-center">
           <h2 className="text-[18px] font-bold text-primary">
-            بيانات الدخول للموظفين
+            {language === "en" ? "Staff Login Credentials" : "بيانات الدخول للموظفين"}
           </h2>
           <span className="text-[13px] text-ink-soft bg-primary-pale px-3 py-1 rounded-lg">
-            بيانات سرية 🔒
+            {language === "en" ? "Confidential 🔒" : "بيانات سرية 🔒"}
           </span>
         </div>
         <table className="w-full text-start">
