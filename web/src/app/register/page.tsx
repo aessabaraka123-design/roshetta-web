@@ -13,6 +13,7 @@ import { AlertCircle } from "lucide-react";
 
 function RegisterPageContent() {
   const language = useStore((state: any) => state.language);
+  const setLanguage = useStore((state: any) => state.setLanguage);
   const searchParams = useSearchParams();
   const router = useRouter();
   const plan = searchParams.get("plan") || "monthly";
@@ -450,7 +451,24 @@ function RegisterPageContent() {
               textClassName="font-bold text-[14px] text-ink"
             />
           </div>
-          <Link href="/pricing" className="back-link">
+          <button
+                type="button"
+                onClick={() => setLanguage(language === "en" ? "ar" : "en")}
+                style={{
+                  background: "var(--paper)",
+                  border: "1px solid var(--line)",
+                  padding: "6px 12px",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  color: "var(--deep)",
+                  fontSize: "13px",
+                  marginInlineEnd: "16px"
+                }}
+              >
+                {language === "en" ? "عربي" : "English"}
+              </button>
+              <Link href="/pricing" className="back-link">
             العودة للباقات
             <svg
               viewBox="0 0 24 24"
