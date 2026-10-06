@@ -55,7 +55,7 @@ export default function SocketProvider({
         });
       }
       toast.success(
-        "🎉 تم تفعيل اشتراكك بنجاح! يمكنك الآن استخدام النظام بالكامل.",
+        language === "en" ? "🎉 Subscription activated successfully! You can now use the full system." : "🎉 تم تفعيل اشتراكك بنجاح! يمكنك الآن استخدام النظام بالكامل.",
         { duration: 6000 },
       );
     });
