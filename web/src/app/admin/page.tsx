@@ -828,7 +828,7 @@ export default function PharmacyManager() {
                 onClick={() => setShowExpenseModal(false)}
                 className="px-6 py-2 rounded-xl font-bold text-ink-soft hover:bg-white hover:text-coral transition-colors"
               >
-                إلغاء
+                {language === "en" ? "Cancel" : "إلغاء"}
               </button>
               <button
                 onClick={async () => {
@@ -1240,11 +1240,11 @@ export default function PharmacyManager() {
                       d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                     />
                   </svg>
-                  تغيير كلمة المرور
+                  {language === "en" ? "Change Password" : "تغيير كلمة المرور"}
                 </h4>
                 <div className="relative mb-4">
                   <label className="block text-[14px] font-bold text-ink mb-2">
-                    كلمة المرور الحالية
+                    {language === "en" ? "Current Password" : "كلمة المرور الحالية"}
                   </label>
                   <div className="relative">
                     <input
@@ -1298,7 +1298,7 @@ export default function PharmacyManager() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="relative">
                     <label className="block text-[14px] font-bold text-ink mb-2">
-                      كلمة المرور الجديدة
+                      {language === "en" ? "New Password" : "كلمة المرور الجديدة"}
                     </label>
                     <div className="relative">
                       <input
@@ -1353,7 +1353,7 @@ export default function PharmacyManager() {
                   </div>
                   <div className="relative">
                     <label className="block text-[14px] font-bold text-ink mb-2">
-                      تأكيد الكلمة الجديدة
+                      {language === "en" ? "Confirm New Password" : "تأكيد الكلمة الجديدة"}
                     </label>
                     <div className="relative">
                       <input
@@ -1436,13 +1436,13 @@ export default function PharmacyManager() {
         <div className="fixed inset-0 bg-ink/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-card w-full max-w-md rounded-3xl p-6 shadow-2xl relative overflow-hidden">
             <h3 className="text-[20px] font-bold text-ink mb-6">
-              إضافة فرع جديد
+              {language === "en" ? "Add New Branch" : "إضافة فرع جديد"}
             </h3>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-[14px] font-bold text-ink mb-2">
-                  اسم الفرع / المنطقة
+                  {language === "en" ? "Branch Name / Area" : "اسم الفرع / المنطقة"}
                 </label>
                 <input
                   type="text"
@@ -1456,7 +1456,7 @@ export default function PharmacyManager() {
               </div>
               <div>
                 <label className="block text-[14px] font-bold text-ink mb-2">
-                  المدير المسؤول عن الفرع
+                  {language === "en" ? "Manager in Charge" : "المدير المسؤول عن الفرع"}
                 </label>
                 <input
                   type="text"
@@ -1470,7 +1470,7 @@ export default function PharmacyManager() {
               </div>
               <div>
                 <label className="block text-[14px] font-bold text-ink mb-2">
-                  حالة الفرع المبدئية
+                  {language === "en" ? "Initial Branch Status" : "حالة الفرع المبدئية"}
                 </label>
                 <select
                   value={newBranch.status}
@@ -1522,7 +1522,7 @@ export default function PharmacyManager() {
                 }}
                 className="flex-1 py-3 bg-primary text-white font-bold rounded-xl hover:bg-teal transition-all shadow-md shadow-primary/20"
               >
-                حفظ وإضافة
+                {language === "en" ? "Save & Add" : "حفظ وإضافة"}
               </button>
               <button
                 onClick={() => setShowAddBranchModal(false)}
