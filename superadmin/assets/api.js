@@ -145,6 +145,11 @@ async function apiGetPharmacyDetails(id) {
     staff: staff.staff || [],
   };
 }
+
+async function apiGetPharmacyStats(id) {
+  const res = await apiFetch(`/api/admin/pharmacies/${id}/stats`);
+  return res.json();
+}
 async function apiToggleReadOnly(id, isReadOnly) {
   return apiFetch(`/api/admin/pharmacies/${id}/readonly`, {
     method: "PUT",

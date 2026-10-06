@@ -1071,6 +1071,83 @@ function switchDetTab(t) {
   const b = document.getElementById("btn-det-" + t);
   b.classList.remove("bg-white", "text-slate-600");
   b.classList.add("bg-slate-900", "text-white");
+
+  if (t === 'stats') {
+    loadPharmacyStats();
+  }
+}
+
+async function loadPharmacyStats() {
+  const container = document.getElementById("detStatsContainer");
+  const containerSec = document.getElementById("detSecondaryStatsContainer");
+  
+  container.innerHTML = `
+    <div class="bg-slate-50 border border-slate-100 rounded-2xl p-5 flex flex-col justify-center text-center animate-pulse h-28">
+      <div class="h-4 bg-slate-200 rounded w-1/2 mx-auto mb-2"></div>
+      <div class="h-6 bg-slate-200 rounded w-3/4 mx-auto"></div>
+    </div>
+  `;
+  containerSec.innerHTML = '';
+  
+  try {
+    const data = await apiGetPharmacyStats(currentDetId);
+    if (!data.success) throw new Error();
+    
+    // Format helpers
+    const fMoney = (val) => new Intl.NumberFormat('en-US').format(val || 0) + ' ₪';
+    const fNum = (val) => new Intl.NumberFormat('en-US').format(val || 0);
+    const fDate = (d) => d ? new Date(d).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'لا يوجد';
+
+    container.innerHTML = `
+      <div class="bg-blue-50 border border-blue-100 rounded-2xl p-5 relative overflow-hidden group hover:shadow-md transition">
+        <div class="absolute top-0 right-0 p-4 opacity-10 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition">
+          <svg class="w-16 h-16 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        </div>
+        <h5 class="text-blue-600 font-bold text-sm mb-1 z-10 relative">إجمالي المبيعات</h5>
+        <div class="text-3xl font-black text-slate-800 z-10 relative" dir="ltr">${fMoney(data.totalSales)}</div>
+        <p class="text-xs text-slate-500 mt-2 z-10 relative">من ${fNum(data.totalInvoices)} فاتورة</p>
+      </div>
+      
+      <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 relative overflow-hidden group hover:shadow-md transition">
+        <h5 class="text-emerald-600 font-bold text-sm mb-1 z-10 relative">مبيعات الشهر الحالي</h5>
+        <div class="text-3xl font-black text-slate-800 z-10 relative" dir="ltr">${fMoney(data.salesThisMonth)}</div>
+        <p class="text-xs text-slate-500 mt-2 z-10 relative">من ${fNum(data.invoicesThisMonth)} فاتورة</p>
+      </div>
+
+      <div class="bg-amber-50 border border-amber-100 rounded-2xl p-5 relative overflow-hidden group hover:shadow-md transition">
+        <h5 class="text-amber-600 font-bold text-sm mb-1 z-10 relative">قيمة المخزون</h5>
+        <div class="text-3xl font-black text-slate-800 z-10 relative" dir="ltr">${fMoney(data.inventoryValue)}</div>
+        <p class="text-xs text-slate-500 mt-2 z-10 relative">لـ ${fNum(data.inventoryItems)} صنف</p>
+      </div>
+    `;
+
+    containerSec.innerHTML = `
+      <div class="bg-white border border-slate-100 rounded-2xl p-5 hover:shadow-sm transition flex items-center justify-between">
+        <div>
+          <h5 class="text-slate-500 font-bold text-xs mb-1">آخر عملية بيع</h5>
+          <div class="text-lg font-black text-slate-800">${fDate(data.lastSaleDate)}</div>
+        </div>
+        <div class="text-left" dir="ltr">
+          <div class="text-xs text-slate-400 font-semibold mb-1">قيمة الفاتورة</div>
+          <div class="text-lg font-bold text-emerald-600">${fMoney(data.lastSaleAmount)}</div>
+        </div>
+      </div>
+      
+      <div class="bg-white border border-slate-100 rounded-2xl p-5 hover:shadow-sm transition flex gap-4">
+        <div class="flex-1 bg-slate-50 rounded-xl p-3 text-center">
+          <div class="text-xl font-black text-slate-700">${fNum(data.staffCount)}</div>
+          <div class="text-xs font-semibold text-slate-500 mt-1">الموظفين</div>
+        </div>
+        <div class="flex-1 bg-slate-50 rounded-xl p-3 text-center">
+          <div class="text-xl font-black text-slate-700">${fNum(data.branchCount)}</div>
+          <div class="text-xs font-semibold text-slate-500 mt-1">الفروع</div>
+        </div>
+      </div>
+    `;
+    
+  } catch(e) {
+    container.innerHTML = '<div class="col-span-3 text-center py-5 text-red-500">حدث خطأ أثناء تحميل الإحصائيات</div>';
+  }
 }
 
 async function saveDetBasics() {

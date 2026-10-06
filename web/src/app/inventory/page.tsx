@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Filter } from "lucide-react";
 import Link from "next/link";
 import AppBar from "@/components/AppBar";
 import SearchBar from "@/components/SearchBar";

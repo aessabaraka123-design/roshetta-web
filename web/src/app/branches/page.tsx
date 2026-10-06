@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import AppBar from "@/components/AppBar";
-import ConfirmModal from "@/components/ConfirmModal";
 import toast from "react-hot-toast";
 
 import useSWR from "swr";

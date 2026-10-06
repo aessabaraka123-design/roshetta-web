@@ -7,7 +7,6 @@ import AppBar from "@/components/AppBar";
 import SearchBar from "@/components/SearchBar";
 import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { exportInvoicePDF } from "@/utils/export";
 import { useStore } from "@/store";
 import toast from "react-hot-toast";
 import { formatQty } from "@/utils/formatQty";

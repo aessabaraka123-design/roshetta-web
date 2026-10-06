@@ -3,7 +3,6 @@
 import { useState } from "react";
 import AppBar from "@/components/AppBar";
 import SearchBar from "@/components/SearchBar";
-import Link from "next/link";
 import useSWR from "swr";
 import { useStore } from "@/store";
 import { useRouter } from "next/navigation";

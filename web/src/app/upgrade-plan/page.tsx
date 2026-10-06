@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import AppBar from "@/components/AppBar";
-import toast from "react-hot-toast";
 import { useStore } from "@/store";
 
 export default function UpgradePlan() {

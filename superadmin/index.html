@@ -314,6 +314,7 @@
               <!-- Sidebar for details -->
               <div class="w-full md:w-64 flex-shrink-0 flex flex-row md:flex-col gap-2 md:gap-4 overflow-x-auto">
                 <button onclick="switchDetTab('basics')" id="btn-det-basics" class="det-nav whitespace-nowrap flex-shrink-0 active text-right px-4 py-3 rounded-xl font-bold text-sm bg-slate-900 text-white transition">المعلومات الأساسية</button>
+                <button onclick="switchDetTab('stats')" id="btn-det-stats" class="det-nav whitespace-nowrap flex-shrink-0 text-right px-4 py-3 rounded-xl font-bold text-sm bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition">📊 إحصائيات الأداء</button>
                 <button onclick="switchDetTab('staff')" id="btn-det-staff" class="det-nav whitespace-nowrap flex-shrink-0 text-right px-4 py-3 rounded-xl font-bold text-sm bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition">الموظفين (Staff)</button>
                 <button onclick="switchDetTab('branches')" id="btn-det-branches" class="det-nav whitespace-nowrap flex-shrink-0 text-right px-4 py-3 rounded-xl font-bold text-sm bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition">الفروع (Branches)</button>
               </div>
@@ -363,6 +364,29 @@
                     </div>
                   </div>
                   <button onclick="saveDetBasics()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition">حفظ التعديلات الأساسية</button>
+                </div>
+
+                <!-- Stats Tab -->
+                <div id="det-stats" class="det-content hidden">
+                  <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-3">
+                    <h4 class="text-lg font-black text-slate-800">📊 إحصائيات الأداء والمبيعات</h4>
+                    <button onclick="loadPharmacyStats()" class="text-blue-600 hover:text-blue-800 text-sm font-semibold flex items-center gap-2">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                      تحديث
+                    </button>
+                  </div>
+                  
+                  <!-- Main Stats Cards -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6" id="detStatsContainer">
+                    <div class="bg-slate-50 border border-slate-100 rounded-2xl p-5 flex flex-col justify-center text-center animate-pulse h-28">
+                      <div class="h-4 bg-slate-200 rounded w-1/2 mx-auto mb-2"></div>
+                      <div class="h-6 bg-slate-200 rounded w-3/4 mx-auto"></div>
+                    </div>
+                  </div>
+                  
+                  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5" id="detSecondaryStatsContainer">
+                     <!-- More stats here -->
+                  </div>
                 </div>
 
                 <!-- Staff Tab -->

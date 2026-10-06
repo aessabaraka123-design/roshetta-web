@@ -1,9 +1,7 @@
 "use client";
 
 import AppBar from "@/components/AppBar";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
 import { useStore } from "@/store";
 
 export default function MySubscription() {

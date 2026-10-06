@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import AppBar from "@/components/AppBar";
-import SearchBar from "@/components/SearchBar";
 import toast from "react-hot-toast";
 import useSWR from "swr";
 import { useStore } from "@/store";

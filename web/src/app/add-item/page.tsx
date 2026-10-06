@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AppBar from "@/components/AppBar";
-import { fetchApi } from "@/lib/api";
 import toast from "react-hot-toast";
 import { useStore } from "@/store";
 

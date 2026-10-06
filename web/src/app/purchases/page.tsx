@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import AppBar from "@/components/AppBar";
-import ConfirmModal from "@/components/ConfirmModal";
 import useSWR from "swr";
 import { useStore } from "@/store";
 import { useRouter } from "next/navigation";
