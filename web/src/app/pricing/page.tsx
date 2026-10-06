@@ -6,53 +6,6 @@ import useSWR from "swr";
 import RoshettaLogo from "@/components/RoshettaLogo";
 import { useStore } from "@/store";
 
-export default function Pricing() {
-  const language = useStore((state: any) => state.language);
-  const router = useRouter();
-  const fetcher = (url: string) => fetch(url).then((r) => r.json());
-  const { data: plansData, isLoading } = useSWR(
-    (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
-      "/api/subscription-plans",
-    fetcher,
-  );
-
-  const rawPlans =
-    plansData?.plans || (Array.isArray(plansData) ? plansData : []);
-  const plans = rawPlans.map((p: any) => ({
-    ...p,
-    id: p.id || p.type,
-    name: translatePlanName(p.name, language),
-    description: p.description || p.desc || (language === 'en' ? "Plan Details" : "تفاصيل الباقة"),
-    price: p.price ?? 0,
-    oldPrice: p.oldPrice || p.old_price,
-    isFree: p.price === 0 || p.id === "free",
-    cycle:
-      p.cycle ||
-      (p.id === "free"
-        ? (language === 'en' ? "14 Days Free" : "14 يوم مجانًا")
-        : p.durationMonths === 1
-          ? (language === 'en' ? "Monthly" : "شهرياً")
-          : p.durationMonths === 12
-            ? (language === 'en' ? "Annually" : "سنوياً")
-            : p.durationMonths > 100
-              ? (language === 'en' ? "Once" : "مرة واحدة")
-              : (language === 'en' ? `${p.durationMonths} Months` : `${p.durationMonths} أشهر`)),
-    isFeatured:
-      p.id === "annual" ||
-      p.id === "lifetime" ||
-      p.durationMonths === 12 ||
-      p.durationMonths > 100 ||
-      p.isFeatured ||
-      p.is_featured,
-    type: p.type,
-    features:
-      typeof p.features === "string"
-        ? JSON.parse(p.features)
-        : p.features || [],
-  }));
-
-  const formatPrice = (p: number) => (p ? p.toLocaleString("en-US") : "0");
-
 const translatePlanName = (name: string, lang: string) => {
   if (lang !== 'en') return name;
   if (!name) return name;
@@ -103,6 +56,55 @@ const translateFeature = (feature: string, lang: string) => {
   
   return feature;
 };
+
+export default function Pricing() {
+  const language = useStore((state: any) => state.language);
+  const router = useRouter();
+  const fetcher = (url: string) => fetch(url).then((r) => r.json());
+  const { data: plansData, isLoading } = useSWR(
+    (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
+      "/api/subscription-plans",
+    fetcher,
+  );
+
+  const rawPlans =
+    plansData?.plans || (Array.isArray(plansData) ? plansData : []);
+  const plans = rawPlans.map((p: any) => ({
+    ...p,
+    id: p.id || p.type,
+    name: translatePlanName(p.name, language),
+    description: p.description || p.desc || (language === 'en' ? "Plan Details" : "تفاصيل الباقة"),
+    price: p.price ?? 0,
+    oldPrice: p.oldPrice || p.old_price,
+    isFree: p.price === 0 || p.id === "free",
+    cycle:
+      p.cycle ||
+      (p.id === "free"
+        ? (language === 'en' ? "14 Days Free" : "14 يوم مجانًا")
+        : p.durationMonths === 1
+          ? (language === 'en' ? "Monthly" : "شهرياً")
+          : p.durationMonths === 12
+            ? (language === 'en' ? "Annually" : "سنوياً")
+            : p.durationMonths > 100
+              ? (language === 'en' ? "Once" : "مرة واحدة")
+              : (language === 'en' ? `${p.durationMonths} Months` : `${p.durationMonths} أشهر`)),
+    isFeatured:
+      p.id === "annual" ||
+      p.id === "lifetime" ||
+      p.durationMonths === 12 ||
+      p.durationMonths > 100 ||
+      p.isFeatured ||
+      p.is_featured,
+    type: p.type,
+    features:
+      typeof p.features === "string"
+        ? JSON.parse(p.features)
+        : p.features || [],
+  }));
+
+  const formatPrice = (p: number) => (p ? p.toLocaleString("en-US") : "0");
+
+
 
 
   const customStyles = `
