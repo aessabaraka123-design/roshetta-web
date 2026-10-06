@@ -106,7 +106,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 relative z-10">
           <div className="bg-gradient-to-br from-primary to-teal rounded-[22px] p-5 shadow-lg shadow-teal/20 text-white transform hover:-translate-y-1 transition-all duration-300">
             <div className="text-[14px] text-white/80 font-bold mb-2">
-              مبيعات اليوم
+              {t.dashboard.todays_sales}
             </div>
             <div className="font-mono text-[28px] font-black flex items-baseline gap-1">
               {stats.salesToday.toLocaleString()}
@@ -119,7 +119,7 @@ export default function Dashboard() {
 
           <div className="bg-white rounded-[22px] p-5 shadow-sm border border-mint-line hover:shadow-lg hover:border-coral/30 transform hover:-translate-y-1 transition-all duration-300">
             <div className="text-[14px] text-ink-soft font-bold mb-2">
-              مصروفات اليوم
+              {t.dashboard.todays_expenses}
             </div>
             <div className="font-mono text-[28px] font-black text-coral flex items-baseline gap-1">
               {(stats.expensesToday || 0).toLocaleString()}
@@ -129,14 +129,14 @@ export default function Dashboard() {
               href="/expenses"
               className="text-[14px] font-bold mt-2 flex items-center gap-1 text-coral bg-coral/10 w-fit px-2 py-0.5 rounded-full cursor-pointer"
             >
-              إدارة المصروفات
+              {t.dashboard.manage_expenses}
             </Link>
           </div>
 
           <Link href="/shifts">
             <div className="bg-white rounded-[22px] p-5 shadow-sm border border-mint-line hover:shadow-lg hover:border-teal/30 transform hover:-translate-y-1 transition-all duration-300 h-full flex flex-col justify-center">
               <div className="text-[14px] text-ink-soft font-bold mb-2">
-                حالة الورديات
+                {t.dashboard.shifts_status}
               </div>
               <div
                 className={`text-[24px] font-mono font-black ${stats.openShifts > 0 ? "text-teal" : "text-ink-soft"}`}
@@ -146,7 +146,7 @@ export default function Dashboard() {
                   : language === "en" ? "No Shift" : "لا توجد وردية"}
               </div>
               <div className="text-[14px] font-bold mt-2 flex items-center gap-1 text-teal bg-teal/10 w-fit px-2 py-0.5 rounded-full cursor-pointer">
-                عرض الصندوق
+                {t.dashboard.view_cash}
               </div>
             </div>
           </Link>
@@ -154,7 +154,7 @@ export default function Dashboard() {
           <Link href="/purchases">
             <div className="bg-white rounded-[22px] p-5 shadow-sm border border-mint-line hover:shadow-lg hover:border-[#B9791C]/30 transform hover:-translate-y-1 transition-all duration-300 h-full flex flex-col justify-center">
               <div className="text-[14px] text-ink-soft font-bold mb-2">
-                متبقي للموردين
+                {t.dashboard.due_to_suppliers}
               </div>
               <div
                 className={`font-mono text-[28px] font-black ${(stats.suppliersDebt || 0) > 0 ? "text-coral" : "text-[#B9791C]"} flex items-baseline gap-1`}
@@ -163,7 +163,7 @@ export default function Dashboard() {
                 <small className="text-[14px] font-bold text-ink-soft">₪</small>
               </div>
               <div className="text-[14px] font-bold mt-2 flex items-center gap-1 text-[#B9791C] bg-amber/10 w-fit px-2 py-0.5 rounded-full cursor-pointer">
-                تسديد الديون
+                {t.dashboard.pay_debts}
               </div>
             </div>
           </Link>
@@ -173,7 +173,7 @@ export default function Dashboard() {
           <Link href="/inventory" className="block group">
             <div className="bg-white rounded-2xl p-6 border border-mint-line shadow-sm group-hover:shadow-md group-hover:border-primary/50 transition-all">
               <h3 className="font-bold text-[16px] text-ink mb-4 flex items-center justify-between">
-                نواقص الأدوية
+                {t.dashboard.medicines_shortages}
                 <span className="bg-red-100 text-red-600 text-[12px] px-2 py-1 rounded-lg">
                   {stats.outOfStock + stats.lowStock} {language === "en" ? "Meds" : "دواء"}
                 </span>
@@ -202,7 +202,7 @@ export default function Dashboard() {
           <Link href="/batches" className="block group">
             <div className="bg-white rounded-2xl p-6 border border-mint-line shadow-sm group-hover:shadow-md group-hover:border-[#B9791C]/50 transition-all h-full">
               <h3 className="font-bold text-[16px] text-ink mb-4 flex items-center justify-between">
-                تنبيهات الصلاحية
+                {t.dashboard.expiry_alerts}
                 <span className="bg-amber-100 text-[#B9791C] text-[12px] px-2 py-1 rounded-lg">
                   {stats.expiringCount} {language === "en" ? "Batch" : "دفعة"}
                 </span>
@@ -225,7 +225,7 @@ export default function Dashboard() {
             href="/notifs"
             className="text-[14px] text-teal font-bold hover:underline"
           >
-            عرض الكل
+            {t.dashboard.view_all}
           </Link>
         </div>
 
@@ -269,7 +269,7 @@ export default function Dashboard() {
                             d="M12 4v16m8-8H4"
                           />
                         </svg>{" "}
-                        إنشاء طلب شراء
+                        {t.dashboard.create_po || "إنشاء طلب شراء"}
                       </Link>
                     ) : (
                       <Link
@@ -294,7 +294,7 @@ export default function Dashboard() {
                             d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                           />
                         </svg>{" "}
-                        مراجعة الصلاحية
+                        {t.dashboard.review_inventory || "مراجعة الصلاحية"}
                       </Link>
                     )}
                   </div>
@@ -332,10 +332,10 @@ export default function Dashboard() {
                 </svg>
               </div>
               <h3 className="text-[18px] font-bold text-teal mb-1">
-                لا توجد تنبيهات عاجلة!
+                {language === "en" ? "No urgent alerts!" : "لا توجد {t.dashboard.urgent_alerts}!"}
               </h3>
               <p className="text-[14px] text-teal/80">
-                المخزون والصلاحيات في حالة ممتازة.
+                {language === "en" ? "Inventory and expiry are in excellent condition." : "المخزون والصلاحيات في حالة ممتازة."}
               </p>
             </div>
           )}
@@ -345,10 +345,10 @@ export default function Dashboard() {
           <>
             <div className="flex items-center justify-between mt-5 mb-4">
               <h2 className="text-[20px] font-black text-primary">
-                تنبيهات عاجلة
+                {t.dashboard.urgent_alerts}
               </h2>
               <span className="text-[14px] text-teal font-bold bg-teal-pale px-3 py-1 rounded-full">
-                هذا الأسبوع
+                {language === "en" ? "This Week" : "هذا الأسبوع"}
               </span>
             </div>
 
@@ -381,7 +381,7 @@ export default function Dashboard() {
                 })
               ) : (
                 <div className="text-center text-ink-soft text-[14px] py-4">
-                  لا توجد فروع مسجلة لهذه الصيدلية.
+                  {t.dashboard.no_branches || "لا توجد فروع مسجلة لهذه الصيدلية."}
                 </div>
               )}
             </div>
