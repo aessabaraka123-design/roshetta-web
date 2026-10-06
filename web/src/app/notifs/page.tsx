@@ -35,7 +35,6 @@ export default function Notifications() {
       );
       mutate();
     } catch (e) {
-      console.error(e);
     }
   };
 

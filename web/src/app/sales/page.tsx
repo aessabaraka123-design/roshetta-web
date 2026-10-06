@@ -399,7 +399,6 @@ export default function SalesLog() {
                       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
                     }).from(element).save();
                   } catch(e) {
-                    console.error("PDF generation error:", e);
                   } finally {
                     if (actions) actions.style.display = "flex";
                     if (closeBtn) closeBtn.style.display = "block";

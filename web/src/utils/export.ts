@@ -190,7 +190,6 @@ export const exportComprehensivePDF = async (
     pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
     pdf.save(filename + ".pdf");
   } catch (err) {
-    console.error("Error generating PDF", err);
   } finally {
     document.body.removeChild(container);
   }
@@ -329,7 +328,6 @@ export const exportInvoicePDF = async (
     pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
     pdf.save("Invoice_" + invoiceNumber + ".pdf");
   } catch (err) {
-    console.error("Error generating PDF", err);
   } finally {
     document.body.removeChild(container);
   }

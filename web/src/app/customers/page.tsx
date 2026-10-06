@@ -88,7 +88,6 @@ export default function Customers() {
       if (dataSales.success) setCustomerSales(dataSales.sales);
       if (dataPayments.success) setCustomerPayments(dataPayments.payments);
     } catch (e) {
-      console.error(e);
     }
   };
 

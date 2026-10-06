@@ -78,7 +78,6 @@ export default function AddItem() {
           setFormData((prev) => ({ ...prev, branch_id: defaultBranch }));
         }
       } catch (err) {
-        console.error("Failed to fetch branches");
       }
     }
     fetchBranches();

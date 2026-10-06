@@ -135,7 +135,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: "roshetta-web-storage",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       storage: createJSONStorage(() =>
         typeof window !== "undefined" ? window.localStorage : ({} as any),
       ),

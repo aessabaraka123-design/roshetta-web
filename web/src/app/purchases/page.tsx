@@ -47,7 +47,6 @@ export default function PurchasesPage() {
           await html2pdf().from(el).set(opt).save();
         }
       } catch (e) {
-        console.error("PDF error", e);
       }
       setDownloadingPdf(null);
       setPdfInvoice(null);
@@ -1852,7 +1851,6 @@ export default function PurchasesPage() {
                       html2pdf().from(el).set(opt).save();
                     }
                   } catch (e) {
-                    console.error("PDF error", e);
                   }
                 }}
                 className="flex-1 bg-teal text-white font-black py-4 rounded-2xl hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-md shadow-teal/20"

@@ -866,7 +866,6 @@ function POSContent() {
                     pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm);
                     pdf.save(`receipt_${lastInvoice?.id || Date.now()}.pdf`);
                   } catch (err) {
-                    console.error("PDF error", err);
                   }
                 }}
                 className="flex-1 min-w-[100px] py-3 bg-amber text-white font-bold rounded-xl hover:bg-amber/90 transition-all text-sm"

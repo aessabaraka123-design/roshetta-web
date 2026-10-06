@@ -30,12 +30,10 @@ export default function SocketProvider({
     setSocket(newSocket);
 
     newSocket.on("connect", () => {
-      console.log("Connected to socket server");
       newSocket.emit("join_pharmacy", user.pharmacy_id);
     });
 
     newSocket.on("sync_update", (data) => {
-      console.log("Realtime sync update received:", data);
 
       mutate(
         (key) => typeof key === "string" && key.includes("/api/pharmacies"),
@@ -46,7 +44,6 @@ export default function SocketProvider({
 
     // 🔔 Listen for subscription approval
     newSocket.on("subscription_approved", (data) => {
-      console.log("Subscription approved!", data);
       // Update the user in store to remove read-only mode instantly
       if (user) {
         loginFn({
@@ -62,7 +59,6 @@ export default function SocketProvider({
     });
 
     newSocket.on("new_notification", (data) => {
-      console.log("New realtime notification:", data);
       
       // Force SWR to re-fetch notifications immediately
       mutate(
@@ -110,7 +106,6 @@ export default function SocketProvider({
     });
 
     newSocket.on("disconnect", () => {
-      console.log("Disconnected from socket server");
     });
 
     return () => {
