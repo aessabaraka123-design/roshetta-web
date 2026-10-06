@@ -106,7 +106,7 @@ export default function AppBar({
                 onClick={() => setShowNotifsMenu(false)}
                 className="block text-center text-teal text-sm font-bold mt-3 hover:underline"
               >
-                عرض كل الإشعارات
+                {language === "en" ? "View all notifications" : "عرض كل الإشعارات"}
               </Link>
             </div>
           )}

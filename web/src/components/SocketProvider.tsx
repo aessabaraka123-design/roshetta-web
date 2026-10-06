@@ -12,6 +12,7 @@ export default function SocketProvider({
   children: React.ReactNode;
 }) {
   const user = useStore((state) => state.user);
+  const language = useStore((state: any) => state.language);
   const loginFn = useStore((state) => state.login);
   const [socket, setSocket] = useState<Socket | null>(null);
 

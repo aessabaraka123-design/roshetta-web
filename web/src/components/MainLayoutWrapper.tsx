@@ -42,10 +42,7 @@ export default function MainLayoutWrapper({
           className="text-white text-center py-2 px-4 font-bold text-sm shadow-md sticky top-0 z-[9999] flex items-center justify-center gap-3 flex-wrap"
           style={{ backgroundColor: "#EF4444" }}
         >
-          <span>
-            ⚠️ التطبيق في وضع القراءة فقط، في انتظار موافقة المسؤول على تأكيد
-            الاشتراك.
-          </span>
+          <span>{language === "en" ? "App in Read-Only mode. Awaiting admin approval. Please check your receipt." : "التطبيق في وضع القراءة فقط، انتظار موافقة المسؤول على تأكيد الاشتراك راجع إيصالك."}</span>
           <Link
             href="/receipt-upload"
             className="bg-white text-red-600 rounded-lg px-3 py-1 text-xs font-bold hover:bg-red-50 transition-colors shrink-0"
