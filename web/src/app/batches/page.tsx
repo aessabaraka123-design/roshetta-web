@@ -9,7 +9,8 @@ import toast from "react-hot-toast";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-const getDaysUntilExpiry = (expiryDate: string) => {
+const getDaysUntilExpiry = (expiryDate: string | null | undefined) => {
+  if (!expiryDate) return null;
   const today = new Date();
   const expiry = new Date(expiryDate);
   return Math.floor(
@@ -17,8 +18,9 @@ const getDaysUntilExpiry = (expiryDate: string) => {
   );
 };
 
-const getExpiryStyle = (days: number) => {
-  if (days < 0)
+const getExpiryStyle = (days: number | null) => {
+  if (days === null || isNaN(days)) return { row: "bg-white", badge: "bg-gray-100 text-gray-500", labelAr: "غير محدد", labelEn: "Not Set" };
+  if (days !== null && days !== null && days < 0)
     return {
       row: "bg-red-50",
       badge: "bg-red-200 text-red-800",
@@ -98,8 +100,8 @@ export default function BatchesPage() {
       filterExpiring === "all"
         ? true
         : filterExpiring === "expired"
-          ? days < 0
-          : days >= 0 && days <= 60;
+          ? days !== null && days < 0
+          : days !== null && days !== null && days >= 0 && days <= 60;
     return matchSearch && matchFilter;
   });
 
@@ -285,7 +287,7 @@ export default function BatchesPage() {
                         {batch.qty}
                       </td>
                       <td className="px-4 py-3 font-mono text-[13px] text-ink">
-                        {batch.expiry_date}
+                        {batch.expiry_date || "—"}
                       </td>
                       <td className="px-4 py-3">
                         <span
