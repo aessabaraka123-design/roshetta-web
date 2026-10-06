@@ -92,13 +92,7 @@ export default function MySubscription() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
-            onClick={() => {
-              toast.success(
-                language === "en" 
-                  ? "Your subscription has been successfully renewed for the next year!" 
-                  : "تم تجديد اشتراكك بنجاح للعام القادم!"
-              );
-            }}
+            onClick={() => router.push("/receipt-upload")}
             className="bg-primary text-white font-bold py-4 rounded-xl shadow-md shadow-primary/20 hover:bg-teal transition-colors flex items-center justify-center gap-2 text-[16px]"
           >
             <svg
