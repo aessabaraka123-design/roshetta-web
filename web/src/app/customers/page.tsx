@@ -341,7 +341,7 @@ export default function Customers() {
                   onChange={(e) =>
                     setNewCustomer({ ...newCustomer, phone: e.target.value })
                   }
-                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 outline-none focus:border-teal text-end font-mono transition-colors"
+                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 outline-none focus:border-teal text-start font-mono transition-colors"
                   placeholder="059XXXXXXX"
                   dir="ltr"
                 />
@@ -443,7 +443,7 @@ export default function Customers() {
                   step="0.01"
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
-                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 outline-none focus:border-teal text-end font-mono transition-colors text-[18px]"
+                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 outline-none focus:border-teal text-start font-mono transition-colors text-[18px]"
                   placeholder="0.00"
                   dir="ltr"
                 />
@@ -605,7 +605,7 @@ export default function Customers() {
                               {new Date(payment.date).toLocaleString(language === 'en' ? 'en-US' : 'ar-EG')}
                             </div>
                           </div>
-                          <div className="text-end">
+                          <div className="text-start">
                             <div className="text-[13px] font-bold text-ink-soft mb-1">
                               {language === 'en' ? 'Paid Amount' : 'المبلغ المدفوع'}
                             </div>
@@ -685,7 +685,7 @@ export default function Customers() {
                                   </span>
                                 </div>
                               </div>
-                              <div className="text-end">
+                              <div className="text-start">
                                 <div className="text-[13px] font-bold text-ink-soft mb-1">
                                   {language === 'en' ? 'Total' : 'الإجمالي'}
                                 </div>

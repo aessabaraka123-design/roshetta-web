@@ -163,7 +163,7 @@ export default function ShiftsPage() {
                   {new Date(currentShift.open_time).toLocaleString(language === 'en' ? 'en-US' : 'ar-EG')}
                 </p>
               </div>
-              <div className="text-end">
+              <div className="text-start">
                 <p className="text-white/70 text-[12px] mb-1">{language === 'en' ? 'Duration' : 'المدة'}</p>
                 <p className="font-mono font-black text-[24px]">
                   {getDuration(currentShift.open_time)}
@@ -177,7 +177,7 @@ export default function ShiftsPage() {
                   ₪{parseFloat(currentShift.opening_amount || 0).toFixed(2)}
                 </p>
               </div>
-              <div className="text-end">
+              <div className="text-start">
                 <button
                   onClick={() => setShowCloseModal(true)}
                   className="bg-white text-teal font-black px-6 py-3 rounded-xl hover:opacity-90 transition-all shadow-md text-[15px]"

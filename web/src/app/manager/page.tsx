@@ -128,7 +128,7 @@ export default function BranchManager() {
             {language === 'en' ? 'Control shifts, permissions, and control logs' : 'التحكم في الورديات، الصلاحيات، وسجلات الرقابة'}
           </p>
         </div>
-        <div className="relative z-10 text-end bg-white/10 rounded-xl p-3 backdrop-blur-sm">
+        <div className="relative z-10 text-start bg-white/10 rounded-xl p-3 backdrop-blur-sm">
           <div className="text-[11px] font-bold opacity-80">{language === 'en' ? 'Current Cashier' : 'الكاشير الحالي'}</div>
           <div className="text-[16px] font-black">
             {user?.managerName || user?.cashierName || (language === 'en' ? 'Cashier' : "الكاشير")}

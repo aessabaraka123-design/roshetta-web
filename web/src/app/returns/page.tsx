@@ -221,7 +221,7 @@ export default function Returns() {
                         <span className="font-bold text-teal">{sale.branchName || (language === "en" ? "Main" : "الرئيسي")}</span>
                       </div>
                     </div>
-                    <div className="text-end">
+                    <div className="text-start">
                       <div className="font-mono font-bold text-ink text-[16px]">
                         {sale.total.toLocaleString()} ₪
                       </div>
@@ -293,7 +293,7 @@ export default function Returns() {
                         <th className="pb-2 font-bold text-center">
                           {language === "en" ? "Returned Qty" : "الكمية المسترجعة"}
                         </th>
-                        <th className="pb-2 font-bold text-end">
+                        <th className="pb-2 font-bold text-start">
                           {language === "en" ? "Refund Value" : "قيمة الاسترجاع"}
                         </th>
                       </tr>
@@ -338,7 +338,7 @@ export default function Returns() {
                                 </button>
                               </div>
                             </td>
-                            <td className="py-4 text-[14px] font-mono font-bold text-red-500 text-end">
+                            <td className="py-4 text-[14px] font-mono font-bold text-red-500 text-start">
                               {returned > 0
                                 ? `-${(item.price * returned).toLocaleString()} ₪`
                                 : "-"}

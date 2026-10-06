@@ -608,18 +608,18 @@ export default function PurchasesPage() {
                         </div>
                       </div>
                       {/* Price Block */}
-                      <div className="shrink-0 text-end">
+                      <div className="shrink-0 text-start">
                         <p className="text-[22px] font-mono font-black text-ink leading-tight">
                           ₪{(inv.total_cost || 0).toFixed(2)}
                         </p>
                         {(inv.remaining || 0) > 0 && (
-                          <p className="text-[12px] font-bold text-coral text-end">
+                          <p className="text-[12px] font-bold text-coral text-start">
                             {language === 'en' ? "Remaining" : "متبقي"} ₪{(inv.remaining || 0).toFixed(2)}
                           </p>
                         )}
                         {(inv.remaining || 0) <= 0 &&
                           inv.status !== "draft" && (
-                            <p className="text-[12px] font-bold text-teal text-end">
+                            <p className="text-[12px] font-bold text-teal text-start">
                               {language === 'en' ? "Fully Paid ✓" : "مدفوعة بالكامل ✓"}
                             </p>
                           )}
@@ -1738,7 +1738,7 @@ export default function PurchasesPage() {
                     <th className="pb-2 text-[13px] font-black text-ink-soft text-center">
                       الكمية
                     </th>
-                    <th className="pb-2 text-[13px] font-black text-ink-soft text-end">
+                    <th className="pb-2 text-[13px] font-black text-ink-soft text-start">
                       السعر
                     </th>
                   </tr>
@@ -1753,7 +1753,7 @@ export default function PurchasesPage() {
                         <td className="py-3 text-[14px] font-mono text-center text-ink">
                           {item.qty}
                         </td>
-                        <td className="py-3 text-[14px] font-mono font-bold text-ink text-end">
+                        <td className="py-3 text-[14px] font-mono font-bold text-ink text-start">
                           ₪{(item.purchase_price || 0).toFixed(2)}
                         </td>
                       </tr>

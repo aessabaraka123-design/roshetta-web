@@ -974,7 +974,7 @@ export default function PharmacyManager() {
                         username: e.target.value,
                       })
                     }
-                    className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-end"
+                    className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-start"
                     placeholder="user123"
                     dir="ltr"
                   />
@@ -993,7 +993,7 @@ export default function PharmacyManager() {
                           password: e.target.value,
                         })
                       }
-                      className="w-full border border-mint-line rounded-xl p-3 pl-10 focus:outline-none focus:border-primary text-end"
+                      className="w-full border border-mint-line rounded-xl p-3 pl-10 focus:outline-none focus:border-primary text-start"
                       placeholder="••••••••"
                       dir="ltr"
                     />
@@ -1207,7 +1207,7 @@ export default function PharmacyManager() {
                   <input
                     type="text"
                     defaultValue="0591234567"
-                    className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-end"
+                    className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-start"
                     dir="ltr"
                   />
                 </div>
@@ -1220,7 +1220,7 @@ export default function PharmacyManager() {
                 <input
                   type="email"
                   defaultValue="admin@roshetta.com"
-                  className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-end"
+                  className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-start"
                   dir="ltr"
                 />
               </div>
@@ -1249,7 +1249,7 @@ export default function PharmacyManager() {
                   <div className="relative">
                     <input
                       type={showAdminPasswords ? "text" : "password"}
-                      className="w-full border border-mint-line rounded-xl p-3 pl-10 focus:outline-none focus:border-primary text-end"
+                      className="w-full border border-mint-line rounded-xl p-3 pl-10 focus:outline-none focus:border-primary text-start"
                       placeholder="••••••••"
                       dir="ltr"
                     />
@@ -1303,7 +1303,7 @@ export default function PharmacyManager() {
                     <div className="relative">
                       <input
                         type={showAdminPasswords ? "text" : "password"}
-                        className="w-full border border-mint-line rounded-xl p-3 pl-10 focus:outline-none focus:border-primary text-end"
+                        className="w-full border border-mint-line rounded-xl p-3 pl-10 focus:outline-none focus:border-primary text-start"
                         placeholder="••••••••"
                         dir="ltr"
                       />
@@ -1358,7 +1358,7 @@ export default function PharmacyManager() {
                     <div className="relative">
                       <input
                         type={showAdminPasswords ? "text" : "password"}
-                        className="w-full border border-mint-line rounded-xl p-3 pl-10 focus:outline-none focus:border-primary text-end"
+                        className="w-full border border-mint-line rounded-xl p-3 pl-10 focus:outline-none focus:border-primary text-start"
                         placeholder="••••••••"
                         dir="ltr"
                       />

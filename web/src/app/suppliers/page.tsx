@@ -159,7 +159,7 @@ export default function SuppliersPage() {
 
         {/* Table */}
         <div className="overflow-x-auto bg-white rounded-xl border border-mint-line shadow-sm">
-          <table className={`w-full ${language === 'en' ? 'text-end' : 'text-start'}`}>
+          <table className={`w-full text-start`}>
             <thead className="bg-bg border-b border-mint-line">
               <tr>
                 <th className="p-4 text-ink-soft font-medium">{language === 'en' ? 'Name' : "الاسم"}</th>
@@ -261,7 +261,7 @@ export default function SuppliersPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className={`p-4 space-y-4 ${language === 'en' ? 'text-end' : 'text-start'}`}>
+            <form onSubmit={handleSubmit} className={`p-4 space-y-4 text-start`}>
               <div>
                 <label className="block text-sm text-ink-soft mb-1">
                   {language === 'en' ? 'Name *' : "الاسم *"}
@@ -273,7 +273,7 @@ export default function SuppliersPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  className={`w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal ${language === 'en' ? 'text-end' : 'text-start'}`}
+                  className={`w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal text-start`}
                 />
               </div>
 
@@ -287,7 +287,7 @@ export default function SuppliersPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, company: e.target.value })
                   }
-                  className={`w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal ${language === 'en' ? 'text-end' : 'text-start'}`}
+                  className={`w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal text-start`}
                 />
               </div>
 
@@ -301,7 +301,7 @@ export default function SuppliersPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, phone: e.target.value })
                   }
-                  className="w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal text-end"
+                  className="w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal text-start"
                   dir="ltr"
                 />
               </div>
@@ -316,7 +316,7 @@ export default function SuppliersPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
-                  className="w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal text-end"
+                  className="w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal text-start"
                   dir="ltr"
                 />
               </div>
@@ -330,7 +330,7 @@ export default function SuppliersPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, notes: e.target.value })
                   }
-                  className={`w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal h-24 resize-none ${language === 'en' ? 'text-end' : 'text-start'}`}
+                  className={`w-full p-2 border border-mint-line rounded-lg focus:outline-none focus:border-teal h-24 resize-none text-start`}
                 />
               </div>
 
@@ -409,7 +409,7 @@ export default function SuppliersPage() {
                 </div>
               ) : (
                 <div className="border border-[#CBD5E1] rounded-2xl overflow-hidden">
-                  <table className={`w-full ${language === 'en' ? 'text-end' : 'text-start'}`}>
+                  <table className={`w-full text-start`}>
                     <thead>
                       <tr className="bg-[#F8FAFC] border-b border-[#CBD5E1]">
                         <th className="p-4 text-[13px] text-ink-soft font-bold">
@@ -561,7 +561,7 @@ export default function SuppliersPage() {
               </h4>
 
               <div className="border border-[#CBD5E1] rounded-xl overflow-hidden">
-                <table className={`w-full ${language === 'en' ? 'text-end' : 'text-start'}`}>
+                <table className={`w-full text-start`}>
                   <thead>
                     <tr className="bg-[#F8FAFC] border-b border-[#CBD5E1]">
                       <th className="p-3 text-[12px] text-ink-soft font-bold">

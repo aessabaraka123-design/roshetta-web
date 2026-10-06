@@ -57,7 +57,7 @@ export default function SecurityPage() {
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-end"
+                className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-start"
                 dir="ltr"
               />
             </div>
@@ -69,7 +69,7 @@ export default function SecurityPage() {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-end"
+                className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-start"
                 dir="ltr"
               />
             </div>
@@ -81,7 +81,7 @@ export default function SecurityPage() {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-end"
+                className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-start"
                 dir="ltr"
               />
             </div>

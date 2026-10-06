@@ -343,7 +343,7 @@ export default function SalesLog() {
                           <th className="py-2 px-3 font-semibold text-center">
                             {language === 'en' ? 'Quantity' : 'الكمية'}
                           </th>
-                          <th className="py-2 px-3 font-semibold text-end">
+                          <th className="py-2 px-3 font-semibold text-start">
                             {language === 'en' ? 'Price' : 'السعر'}
                           </th>
                         </tr>
@@ -358,7 +358,7 @@ export default function SalesLog() {
                             <td className="py-2 px-3 text-center">
                               {item.cartQty || item.qty}
                             </td>
-                            <td className="py-2 px-3 font-mono font-bold text-end">
+                            <td className="py-2 px-3 font-mono font-bold text-start">
                               {item.price || 0} ₪
                             </td>
                           </tr>

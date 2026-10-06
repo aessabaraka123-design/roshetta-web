@@ -470,7 +470,7 @@ export default function Reports() {
                               }}
                             />
                           </div>
-                          <div className="w-12 text-end font-bold text-[13px] text-ink-soft shrink-0">
+                          <div className="w-12 text-start font-bold text-[13px] text-ink-soft shrink-0">
                             {percentage}%
                           </div>
                         </div>

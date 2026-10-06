@@ -723,7 +723,7 @@ function POSContent() {
               <div className="flex text-[12px] font-bold text-ink-soft mb-3 px-1">
                 <div className="flex-[2] text-start">{language === 'en' ? "Item" : "الصنف"}</div>
                 <div className="w-[40px] text-center">{language === 'en' ? "Qty" : "الكمية"}</div>
-                <div className="flex-1 text-end">{language === 'en' ? "Total" : "المجموع"}</div>
+                <div className="flex-1 text-start">{language === 'en' ? "Total" : "المجموع"}</div>
               </div>
 
               <div className="space-y-3 mb-1 px-1">
@@ -738,7 +738,7 @@ function POSContent() {
                     <div className="w-[40px] text-center font-mono">
                       {item.cartQty || item.qty || 1}
                     </div>
-                    <div className="flex-1 text-end font-mono font-bold">
+                    <div className="flex-1 text-start font-mono font-bold">
                       {(
                         Number(item.unitPrice || item.price || 0) *
                         Number(item.cartQty || item.qty || 1)
