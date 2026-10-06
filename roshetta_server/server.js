@@ -4348,6 +4348,7 @@ app.post("/api/admin/pharmacies/:id/notify", (req, res) => {
     function (err) {
       if (err)
         return res.status(500).json({ success: false, error: err.message });
+      io.to(id).emit("new_notification", { title, body: message, type: "system_alert" });
       res.json({ success: true });
     },
   );
