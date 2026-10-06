@@ -66,15 +66,13 @@ export default function Dashboard() {
           <h1 className="text-[26px] font-black text-primary mb-1 flex items-center gap-2">
             {language === "en" ? `Hello, ${user.managerName || "Pharmacy Manager"} 👋` : `مرحباً، ${user.managerName || "مدير الصيدلية"} 👋`}
           </h1>
-          <p
-            suppressHydrationWarning
-            className="text-[15px] text-ink-soft font-medium"
-          >
-            {new Date().toLocaleDateString(language === "en" ? "en-US" : language === "en" ? "en-US" : "ar-EG", {
+          <p className="text-[15px] text-ink-soft font-medium">
+            {mounted ? new Date().toLocaleDateString(language === "en" ? "en-US" : "ar-EG", {
               weekday: "long",
               day: "numeric",
               month: "long",
-            })}{" "}
+            }) : ""}
+            {" "}
             —{" "}
             {isManager
               ? t.dashboard.summary_today
