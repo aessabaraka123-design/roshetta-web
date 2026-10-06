@@ -78,7 +78,7 @@ export const exportComprehensivePDF = async (
             </div>
             <div>
               <h1 style="margin: 0; color: #0f3d2e; font-size: 28px; font-weight: 900;">${language === "en" ? "Comprehensive Financial Report" : "التقرير المالي الشامل"}</h1>
-              <h2 style="margin: 5px 0 0 0; color: #64748b; font-size: 16px; font-weight: normal;">صيدلية: <strong style="color: #334155;">${pharmacyName}</strong></h2>
+              <h2 style="margin: 5px 0 0 0; color: #64748b; font-size: 16px; font-weight: normal;">${language === "en" ? "Pharmacy:" : "صيدلية:"} <strong style="color: #334155;">${pharmacyName}</strong></h2>
             </div>
           </div>
           <div style="text-align: left; background: #f8fafc; padding: 12px 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
@@ -94,7 +94,7 @@ export const exportComprehensivePDF = async (
         <!-- Executive Summary -->
         <h3 style="color: #0f3d2e; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center; gap: 8px;">
           <span style="width: 4px; height: 18px; background: #0f3d2e; border-radius: 4px; display: inline-block;"></span>
-          الملخص المالي
+          ${language === "en" ? "Financial Summary" : "الملخص المالي"}
         </h3>
         <div style="display: flex; gap: 15px; margin-bottom: 30px;">
           <div style="flex: 1; background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #10b981; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
@@ -118,7 +118,7 @@ export const exportComprehensivePDF = async (
         <!-- Payment Breakdown -->
         <h3 style="color: #0f3d2e; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center; gap: 8px;">
           <span style="width: 4px; height: 18px; background: #0f3d2e; border-radius: 4px; display: inline-block;"></span>
-          تحليل طرق الدفع
+          ${language === "en" ? "Payment Methods Analysis" : "تحليل طرق الدفع"}
         </h3>
         <div style="display: flex; gap: 15px; margin-bottom: 40px;">
           <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center;">
@@ -130,7 +130,7 @@ export const exportComprehensivePDF = async (
             <div style="font-size: 18px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.card || 0).toLocaleString()}</div>
           </div>
           <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 13px; color: #64748b; margin-bottom: 5px;">آجل (ذمم)</div>
+            <div style="font-size: 13px; color: #64748b; margin-bottom: 5px;">${language === "en" ? "Credit (Receivables)" : "آجل (ذمم)"}</div>
             <div style="font-size: 18px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.credit || 0).toLocaleString()}</div>
           </div>
           <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center;">
@@ -142,10 +142,10 @@ export const exportComprehensivePDF = async (
         <!-- Daily Trend Table -->
         <h3 style="color: #0f3d2e; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center; gap: 8px;">
           <span style="width: 4px; height: 18px; background: #0f3d2e; border-radius: 4px; display: inline-block;"></span>
-          المبيعات اليومية
+          ${language === "en" ? "Daily Sales" : "المبيعات اليومية"}
         </h3>
         ${generateTable(
-          ["التاريخ", language === "en" ? "Total Sales" : "إجمالي المبيعات", language === "en" ? "Gross Profit" : "إجمالي الربح"],
+          [language === "en" ? "Date" : "التاريخ", language === "en" ? "Total Sales" : "إجمالي المبيعات", language === "en" ? "Gross Profit" : "إجمالي الربح"],
           (report.dailyTrend || []).map((t: any) => [
             `<span dir="ltr">${t.date}</span>`,
             `<strong style="color: #0f3d2e;">₪${(t.revenue || 0).toLocaleString()}</strong>`,
@@ -169,8 +169,8 @@ export const exportComprehensivePDF = async (
 
         <!-- Footer -->
         <div style="margin-top: 50px; text-align: center; border-top: 2px dashed #e2e8f0; padding-top: 20px;">
-          <p style="margin: 0; font-size: 14px; font-weight: bold; color: #0f3d2e;">نظام روشتة لإدارة الصيدليات المتقدمة</p>
-          <p style="margin: 5px 0 0 0; font-size: 12px; color: #94a3b8;">وثيقة مالية رسمية مُصدرة آلياً • لا تحتاج إلى ختم</p>
+          <p style="margin: 0; font-size: 14px; font-weight: bold; color: #0f3d2e;">${language === "en" ? "Roshetta Pharmacy Management System" : "نظام روشتة لإدارة الصيدليات المتقدمة"}</p>
+          <p style="margin: 5px 0 0 0; font-size: 12px; color: #94a3b8;">${language === "en" ? "Official automated financial document • No stamp required" : "وثيقة مالية رسمية مُصدرة آلياً • لا تحتاج إلى ختم"}</p>
         </div>
       </div>
     </div>
@@ -225,7 +225,7 @@ export const exportInvoicePDF = async (
           <th style="padding: 12px 15px; text-align: right; font-weight: bold; border-bottom: 2px solid #0a291f; width: 40%;">${language === "en" ? "Item" : "الصنف"}</th>
           <th style="padding: 12px 15px; text-align: center; font-weight: bold; border-bottom: 2px solid #0a291f;">${language === "en" ? "Qty" : "الكمية"}</th>
           <th style="padding: 12px 15px; text-align: center; font-weight: bold; border-bottom: 2px solid #0a291f;">${language === "en" ? "Unit Price" : "السعر الإفرادي"}</th>
-          <th style="padding: 12px 15px; text-align: center; font-weight: bold; border-bottom: 2px solid #0a291f;">الإجمالي</th>
+          <th style="padding: 12px 15px; text-align: center; font-weight: bold; border-bottom: 2px solid #0a291f;">${language === "en" ? "Total" : "الإجمالي"}</th>
         </tr>
       </thead>
       <tbody>
@@ -273,7 +273,7 @@ export const exportInvoicePDF = async (
             </div>
             <div>
               <h1 style="margin: 0; color: #0f3d2e; font-size: 28px; font-weight: 900;">${language === "en" ? "Sales Invoice" : "فاتورة مبيعات"}</h1>
-              <h2 style="margin: 5px 0 0 0; color: #64748b; font-size: 16px;">صيدلية: <strong style="color: #334155;">${pharmacyName}</strong></h2>
+              <h2 style="margin: 5px 0 0 0; color: #64748b; font-size: 16px;">${language === "en" ? "Pharmacy:" : "صيدلية:"} <strong style="color: #334155;">${pharmacyName}</strong></h2>
             </div>
           </div>
           <div style="text-align: left; background: #f8fafc; padding: 12px 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
@@ -281,7 +281,7 @@ export const exportInvoicePDF = async (
               <span style="font-weight: bold; color: #334155;">${language === "en" ? "Invoice No:" : "رقم الفاتورة:"}</span> <span dir="ltr">#${invoiceNumber}</span>
             </div>
             <div style="margin-bottom: 8px; font-size: 13px; color: #64748b;">
-              <span style="font-weight: bold; color: #334155;">التاريخ:</span> <span dir="ltr">${new Date().toLocaleString("en-GB")}</span>
+              <span style="font-weight: bold; color: #334155;">${language === "en" ? "Date:" : "التاريخ:"}</span> <span dir="ltr">${new Date().toLocaleString("en-GB")}</span>
             </div>
             ${invoiceData.customerName ? `<div style="font-size: 13px; color: #64748b;"><span style="font-weight: bold; color: #334155;">${language === "en" ? "Customer:" : "العميل:"}</span> ${invoiceData.customerName}</div>` : ""}
           </div>
@@ -293,15 +293,15 @@ export const exportInvoicePDF = async (
         <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
           <div style="width: 300px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; color: #64748b;">
-              <span>المجموع الفرعي:</span>
+              <span>${language === "en" ? "Subtotal:" : "المجموع الفرعي:"}</span>
               <span style="font-weight: bold; color: #334155;">₪${invoiceData.subTotal.toLocaleString()}</span>
             </div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 14px; color: #ef4444;">
-              <span>الخصم:</span>
+              <span>${language === "en" ? "Discount:" : "الخصم:"}</span>
               <span style="font-weight: bold;">₪${invoiceData.discount.toLocaleString()}</span>
             </div>
             <div style="display: flex; justify-content: space-between; padding-top: 15px; border-top: 2px dashed #cbd5e1; font-size: 18px; color: #0f3d2e; font-weight: 900;">
-              <span>الإجمالي المطلوب:</span>
+              <span>${language === "en" ? "Total Due:" : "الإجمالي المطلوب:"}</span>
               <span>₪${invoiceData.finalTotal.toLocaleString()}</span>
             </div>
           </div>
