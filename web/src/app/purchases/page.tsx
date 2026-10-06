@@ -384,7 +384,7 @@ export default function PurchasesPage() {
     if (inv.status === "draft")
       return (
         <span className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-[#F5F5F0] text-[#888]">
-          طلبية مبدئية
+          {language === "en" ? "Draft Order" : "طلبية مبدئية"}
         </span>
       );
     if ((inv.remaining || 0) <= 0)
@@ -440,7 +440,7 @@ export default function PurchasesPage() {
           </div>
           <div className="bg-white rounded-2xl p-4 border border-mint-line shadow-sm">
             <p className="text-[12px] font-bold text-ink-soft mb-1">
-              {language === 'en' ? "Total Remaining" : "إجمالي المتبقي"}
+              {language === "en" ? "Total Remaining" : "إجمالي المتبقي"}
             </p>
             <p className="text-[22px] font-mono font-black text-coral">
               ₪{totalRemaining.toFixed(2)}
@@ -481,7 +481,7 @@ export default function PurchasesPage() {
               <span>{language === 'en' ? 'You can edit "Selling Price" directly from within the invoice 🏷️' : 'يمكنك تعديل "سعر البيع" مباشرة من داخل الفاتورة 🏷️'}</span>
               <span className="text-mint-line">|</span>
               <span>
-                {language === 'en' ? 'Remember: "Draft" invoices do not change stock, "Completed" ones apply quantities and prices instantly ✅' : 'تذكر: الفاتورة "المبدئية" لا تُغيّر أرقام مخزونك، الفاتورة "المكتملة" تعتمد الكميات والأسعار فوراً ✅'}
+                {language === 'en' ? 'Remember: "Draft" invoices do not change stock, "Completed" ones apply quantities and prices instantly ✅' : 'تذكر: الفاتورة "المبدئية" لا تُغيّر أرقام مخزونك، الفاتورة "ال{language === "en" ? "Completed" : "مكتملة"}" تعتمد الكميات والأسعار فوراً ✅'}
               </span>
               <span className="text-mint-line">|</span>
               <span>
@@ -901,7 +901,7 @@ export default function PurchasesPage() {
                   {form.paid_amount && parseFloat(form.paid_amount) > 0 && (
                     <div className="flex justify-between items-center mt-2 pt-2 border-t border-dashed border-mint-line">
                       <span className="text-[13px] font-bold text-ink-soft">
-                        المتبقي (دين)
+                        {language === "en" ? "Remaining" : "المتبقي"} (دين)
                       </span>
                       <span className="text-[16px] font-mono font-black text-coral">
                         ₪
@@ -1450,8 +1450,8 @@ export default function PurchasesPage() {
                 {loading
                   ? "جاري الحفظ..."
                   : form.status === "draft"
-                    ? language === "en" ? "💾 Save as Draft" : "💾 حفظ كطلبية مبدئية"
-                    : language === "en" ? "✅ Save and Enter to Stock" : "✅ حفظ وإدخال للمخزون"}
+                    ? (language === "en" ? "💾 Save as Draft" : "💾 حفظ كطلبية مبدئية")
+                    : (language === "en" ? "✅ Save and Enter to Stock" : "✅ حفظ وإدخال للمخزون")}
               </button>
               <button
                 type="button"
@@ -1671,7 +1671,7 @@ export default function PurchasesPage() {
           <div className="relative bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-mint-line z-10 overflow-hidden max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-5 border-b border-mint-line">
               <h3 className="text-[18px] font-black text-ink">
-                معاينة الفاتورة
+                {language === "en" ? "Invoice Preview" : "معاينة الفاتورة"}
               </h3>
               <button
                 onClick={() => setShowPreview(null)}
@@ -1783,7 +1783,7 @@ export default function PurchasesPage() {
                 {(showPreview.remaining || 0) > 0 && (
                   <div className="flex justify-between">
                     <span className="text-[14px] font-bold text-ink-soft">
-                      المتبقي
+                      {language === "en" ? "Remaining" : "المتبقي"}
                     </span>
                     <span className="text-[14px] font-mono font-bold text-coral">
                       ₪{(showPreview.remaining || 0).toFixed(2)}
@@ -1823,7 +1823,7 @@ export default function PurchasesPage() {
                     d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
                   />
                 </svg>
-                طباعة الفاتورة
+                {language === "en" ? "Print Invoice" : "طباعة الفاتورة"}
               </button>
 
               <button
