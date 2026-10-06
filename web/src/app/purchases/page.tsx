@@ -58,6 +58,11 @@ export default function PurchasesPage() {
   const [loading, setLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [itemSearch, setItemSearch] = useState("");
+  const tName = (name: string) => {
+    if (language !== "en") return name;
+    const dict: any = { "شريط": "Strip", "أمبولة": "Ampoule", "مغلف": "Sachet", "قطرة": "Drop", "حبة": "Pill", "مل": "ml", "غرام": "Gram", "علبة": "Box" };
+    return dict[name] || name;
+  };
   const [showDrop, setShowDrop] = useState(false);
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [form, setForm] = useState({
