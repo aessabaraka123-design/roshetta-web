@@ -112,11 +112,11 @@ export default function CustomerProfile() {
             <table className="w-full text-start">
               <thead>
                 <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-                  <th className="py-3 px-5 font-semibold">رقم الفاتورة</th>
-                  <th className="py-3 px-5 font-semibold">التاريخ</th>
-                  <th className="py-3 px-5 font-semibold">الأصناف</th>
-                  <th className="py-3 px-5 font-semibold">الإجمالي</th>
-                  <th className="py-3 px-5 font-semibold">الحالة</th>
+                  <th className="py-3 px-5 font-semibold text-start">رقم الفاتورة</th>
+                  <th className="py-3 px-5 font-semibold text-start">التاريخ</th>
+                  <th className="py-3 px-5 font-semibold text-start">الأصناف</th>
+                  <th className="py-3 px-5 font-semibold text-start">الإجمالي</th>
+                  <th className="py-3 px-5 font-semibold text-start">الحالة</th>
                 </tr>
               </thead>
               <tbody>

@@ -245,11 +245,11 @@ export default function BranchManager() {
           <table className="w-full text-start">
             <thead>
               <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Record ID' : 'رقم السجل'}</th>
-                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Drug Name' : 'اسم الدواء'}</th>
-                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Reason' : 'السبب'}</th>
-                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Quantity' : 'الكمية'}</th>
-                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Date' : 'تاريخ التسجيل'}</th>
+                <th className="py-4 px-6 font-semibold text-start">{language === 'en' ? 'Record ID' : 'رقم السجل'}</th>
+                <th className="py-4 px-6 font-semibold text-start">{language === 'en' ? 'Drug Name' : 'اسم الدواء'}</th>
+                <th className="py-4 px-6 font-semibold text-start">{language === 'en' ? 'Reason' : 'السبب'}</th>
+                <th className="py-4 px-6 font-semibold text-start">{language === 'en' ? 'Quantity' : 'الكمية'}</th>
+                <th className="py-4 px-6 font-semibold text-start">{language === 'en' ? 'Date' : 'تاريخ التسجيل'}</th>
               </tr>
             </thead>
             <tbody>
@@ -290,11 +290,11 @@ export default function BranchManager() {
           <table className="w-full text-start">
             <thead>
               <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Process ID' : 'رقم العملية'}</th>
-                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Action Type' : 'نوع الإجراء'}</th>
-                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Details' : 'التفاصيل'}</th>
-                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Pharmacist' : 'الصيدلي'}</th>
-                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Date' : 'التاريخ'}</th>
+                <th className="py-4 px-6 font-semibold text-start">{language === 'en' ? 'Process ID' : 'رقم العملية'}</th>
+                <th className="py-4 px-6 font-semibold text-start">{language === 'en' ? 'Action Type' : 'نوع الإجراء'}</th>
+                <th className="py-4 px-6 font-semibold text-start">{language === 'en' ? 'Details' : 'التفاصيل'}</th>
+                <th className="py-4 px-6 font-semibold text-start">{language === 'en' ? 'Pharmacist' : 'الصيدلي'}</th>
+                <th className="py-4 px-6 font-semibold text-start">{language === 'en' ? 'Date' : 'التاريخ'}</th>
               </tr>
             </thead>
             <tbody>
@@ -351,11 +351,11 @@ export default function BranchManager() {
           <table className="w-full text-start">
             <thead>
               <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Patient' : 'المريض'}</th>
-                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Prescribing Doctor' : 'الطبيب الواصف'}</th>
-                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Drug' : 'الدواء'}</th>
-                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Quantity' : 'الكمية'}</th>
-                <th className="py-4 px-6 font-semibold">{language === 'en' ? 'Date' : 'التاريخ'}</th>
+                <th className="py-4 px-6 font-semibold text-start">{language === 'en' ? 'Patient' : 'المريض'}</th>
+                <th className="py-4 px-6 font-semibold text-start">{language === 'en' ? 'Prescribing Doctor' : 'الطبيب الواصف'}</th>
+                <th className="py-4 px-6 font-semibold text-start">{language === 'en' ? 'Drug' : 'الدواء'}</th>
+                <th className="py-4 px-6 font-semibold text-start">{language === 'en' ? 'Quantity' : 'الكمية'}</th>
+                <th className="py-4 px-6 font-semibold text-start">{language === 'en' ? 'Date' : 'التاريخ'}</th>
                 <th className="py-4 px-6 font-semibold text-center">{language === 'en' ? 'Status' : 'الحالة'}</th>
               </tr>
             </thead>

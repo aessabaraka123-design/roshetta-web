@@ -100,7 +100,7 @@ export default function StockTake() {
         <table className="w-full text-start border-collapse">
           <thead>
             <tr className="bg-bg text-ink-soft text-[14px]">
-              <th className="p-4 font-semibold border-b border-mint-line">
+              <th className="p-4 font-semibold border-b border-mint-line text-start">
                 {language === 'en' ? 'Item' : "الصنف"}
               </th>
               <th className="p-4 font-semibold border-b border-mint-line text-center">

@@ -106,9 +106,9 @@ export default function AdminSettings() {
           <table className="w-full text-start">
             <thead>
               <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-                <th className="py-3 px-5 font-semibold">اسم الصيدلية</th>
-                <th className="py-3 px-5 font-semibold">تاريخ الانتهاء</th>
-                <th className="py-3 px-5 font-semibold">الحالة</th>
+                <th className="py-3 px-5 font-semibold text-start">اسم الصيدلية</th>
+                <th className="py-3 px-5 font-semibold text-start">تاريخ الانتهاء</th>
+                <th className="py-3 px-5 font-semibold text-start">الحالة</th>
                 <th className="py-3 px-5 font-semibold text-center">إجراءات</th>
               </tr>
             </thead>

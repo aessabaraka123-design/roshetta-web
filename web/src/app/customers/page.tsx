@@ -211,10 +211,10 @@ export default function Customers() {
         <table className="w-full text-start">
           <thead>
             <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Customer Name' : 'اسم العميل'}</th>
-              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Contact Number' : 'رقم التواصل'}</th>
-              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Last Visit' : 'آخر زيارة'}</th>
-              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Balance / Debt' : 'الرصيد / الديون'}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Customer Name' : 'اسم العميل'}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Contact Number' : 'رقم التواصل'}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Last Visit' : 'آخر زيارة'}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Balance / Debt' : 'الرصيد / الديون'}</th>
               <th className="py-3 px-5 font-semibold text-center">{language === 'en' ? 'Actions' : 'إجراءات'}</th>
             </tr>
           </thead>

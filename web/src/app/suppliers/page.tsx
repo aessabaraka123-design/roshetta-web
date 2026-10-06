@@ -163,13 +163,13 @@ export default function SuppliersPage() {
           <table className={`w-full text-start`}>
             <thead className="bg-bg border-b border-mint-line">
               <tr>
-                <th className="p-4 text-ink-soft font-medium">{language === 'en' ? 'Name' : "الاسم"}</th>
-                <th className="p-4 text-ink-soft font-medium">{language === 'en' ? 'Company' : "الشركة"}</th>
-                <th className="p-4 text-ink-soft font-medium">{language === 'en' ? 'Phone' : "الجوال"}</th>
-                <th className="p-4 text-ink-soft font-medium">
+                <th className="p-4 text-ink-soft font-medium text-start">{language === 'en' ? 'Name' : "الاسم"}</th>
+                <th className="p-4 text-ink-soft font-medium text-start">{language === 'en' ? 'Company' : "الشركة"}</th>
+                <th className="p-4 text-ink-soft font-medium text-start">{language === 'en' ? 'Phone' : "الجوال"}</th>
+                <th className="p-4 text-ink-soft font-medium text-start">
                   {language === 'en' ? 'Remaining Balance' : "الرصيد المتبقي"}
                 </th>
-                <th className="p-4 text-ink-soft font-medium">{language === 'en' ? 'Date Added' : "تاريخ الإضافة"}</th>
+                <th className="p-4 text-ink-soft font-medium text-start">{language === 'en' ? 'Date Added' : "تاريخ الإضافة"}</th>
                 <th className="p-4 text-ink-soft font-medium text-center">
                   {language === 'en' ? 'Actions' : "الإجراءات"}
                 </th>
@@ -413,19 +413,19 @@ export default function SuppliersPage() {
                   <table className={`w-full text-start`}>
                     <thead>
                       <tr className="bg-[#F8FAFC] border-b border-[#CBD5E1]">
-                        <th className="p-4 text-[13px] text-ink-soft font-bold">
+                        <th className="p-4 text-[13px] text-ink-soft font-bold text-start">
                           {language === 'en' ? 'Invoice Number' : "رقم الفاتورة"}
                         </th>
-                        <th className="p-4 text-[13px] text-ink-soft font-bold">
+                        <th className="p-4 text-[13px] text-ink-soft font-bold text-start">
                           {language === 'en' ? 'Date' : "التاريخ"}
                         </th>
                         <th className="p-4 text-[13px] text-ink-soft font-bold text-center">
                           {language === 'en' ? 'Status' : "الحالة"}
                         </th>
-                        <th className="p-4 text-[13px] text-ink-soft font-bold">
+                        <th className="p-4 text-[13px] text-ink-soft font-bold text-start">
                           {language === 'en' ? 'Total' : "الإجمالي"}
                         </th>
-                        <th className="p-4 text-[13px] text-ink-soft font-bold">
+                        <th className="p-4 text-[13px] text-ink-soft font-bold text-start">
                           {language === 'en' ? 'Remaining (Debt)' : "المتبقي (دين)"}
                         </th>
                       </tr>
@@ -565,19 +565,19 @@ export default function SuppliersPage() {
                 <table className={`w-full text-start`}>
                   <thead>
                     <tr className="bg-[#F8FAFC] border-b border-[#CBD5E1]">
-                      <th className="p-3 text-[12px] text-ink-soft font-bold">
+                      <th className="p-3 text-[12px] text-ink-soft font-bold text-start">
                         {language === 'en' ? 'Item' : "الصنف"}
                       </th>
-                      <th className="p-3 text-[12px] text-ink-soft font-bold">
+                      <th className="p-3 text-[12px] text-ink-soft font-bold text-start">
                         {language === 'en' ? 'Quantity (Box)' : "الكمية (علبة)"}
                       </th>
-                      <th className="p-3 text-[12px] text-ink-soft font-bold">
+                      <th className="p-3 text-[12px] text-ink-soft font-bold text-start">
                         {language === 'en' ? 'Purchase Price' : "سعر الشراء"}
                       </th>
-                      <th className="p-3 text-[12px] text-ink-soft font-bold">
+                      <th className="p-3 text-[12px] text-ink-soft font-bold text-start">
                         {language === 'en' ? 'Sell Price' : "سعر البيع"}
                       </th>
-                      <th className="p-3 text-[12px] text-ink-soft font-bold">
+                      <th className="p-3 text-[12px] text-ink-soft font-bold text-start">
                         {language === 'en' ? 'Total' : "الإجمالي"}
                       </th>
                     </tr>

@@ -1736,7 +1736,7 @@ export default function PurchasesPage() {
               <table className="w-full text-start">
                 <thead>
                   <tr className="border-b border-mint-line">
-                    <th className="pb-2 text-[13px] font-black text-ink-soft">
+                    <th className="pb-2 text-[13px] font-black text-ink-soft text-start">
                       الصنف
                     </th>
                     <th className="pb-2 text-[13px] font-black text-ink-soft text-center">

@@ -288,8 +288,8 @@ export default function Returns() {
                   <table className="w-full text-start mb-4 border-collapse">
                     <thead>
                       <tr className="text-[12px] text-ink-soft border-b border-mint-line">
-                        <th className="pb-2 font-bold w-1/3">{language === "en" ? "Item" : "الصنف"}</th>
-                        <th className="pb-2 font-bold">{language === "en" ? "Sold" : "المباع"}</th>
+                        <th className="pb-2 font-bold w-1/3 text-start">{language === "en" ? "Item" : "الصنف"}</th>
+                        <th className="pb-2 font-bold text-start">{language === "en" ? "Sold" : "المباع"}</th>
                         <th className="pb-2 font-bold text-center">
                           {language === "en" ? "Returned Qty" : "الكمية المسترجعة"}
                         </th>
@@ -426,17 +426,17 @@ export default function Returns() {
                 <table className="w-full text-start">
                   <thead>
                     <tr className="bg-bg text-ink-soft text-[14px]">
-                      <th className="p-4 font-bold rounded-tr-xl rounded-br-xl">
+                      <th className="p-4 font-bold rounded-tr-xl rounded-br-xl text-start">
                         {language === "en" ? "Invoice No" : "رقم الفاتورة"}
                       </th>
-                      <th className="p-4 font-bold">{language === "en" ? "Date" : "التاريخ"}</th>
-                      <th className="p-4 font-bold">
+                      <th className="p-4 font-bold text-start">{language === "en" ? "Date" : "التاريخ"}</th>
+                      <th className="p-4 font-bold text-start">
                         {language === "en" ? "Invoice Value (Pre-refund)" : "قيمة الفاتورة (قبل الاسترجاع)"}
                       </th>
-                      <th className="p-4 font-bold">
+                      <th className="p-4 font-bold text-start">
                         {language === "en" ? "Branch" : "الفرع"}
                       </th>
-                      <th className="p-4 font-bold rounded-tl-xl rounded-bl-xl">
+                      <th className="p-4 font-bold rounded-tl-xl rounded-bl-xl text-start">
                         {language === "en" ? "Cashier" : "الكاشير"}
                       </th>
                     </tr>

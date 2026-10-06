@@ -335,11 +335,11 @@ export default function PharmacyManager() {
             <table className="w-full text-start">
               <thead>
                 <tr className="border-b border-mint-line text-ink-soft text-[14px] bg-card">
-                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Branch Number" : "رقم الفرع"}</th>
-                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Branch Name" : "اسم الفرع"}</th>
-                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Manager in Charge" : "المدير المسؤول"}</th>
-                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Number of Staff" : "عدد الموظفين"}</th>
-                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Status" : "الحالة"}</th>
+                  <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Branch Number" : "رقم الفرع"}</th>
+                  <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Branch Name" : "اسم الفرع"}</th>
+                  <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Manager in Charge" : "المدير المسؤول"}</th>
+                  <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Number of Staff" : "عدد الموظفين"}</th>
+                  <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Status" : "الحالة"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -381,13 +381,13 @@ export default function PharmacyManager() {
             <table className="w-full text-start">
               <thead>
                 <tr className="border-b border-mint-line text-ink-soft text-[14px] bg-card">
-                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Employee ID" : "الرقم الوظيفي"}</th>
-                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Employee Name" : "اسم الموظف"}</th>
-                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Job Title" : "المسمى الوظيفي"}</th>
-                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Branch" : "الفرع التابع له"}</th>
-                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Basic Salary" : "الراتب الأساسي"}</th>
-                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Status" : "الحالة"}</th>
-                  <th className="py-3 px-5 font-semibold">{language === "en" ? "Actions" : "إجراءات"}</th>
+                  <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Employee ID" : "الرقم الوظيفي"}</th>
+                  <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Employee Name" : "اسم الموظف"}</th>
+                  <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Job Title" : "المسمى الوظيفي"}</th>
+                  <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Branch" : "الفرع التابع له"}</th>
+                  <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Basic Salary" : "الراتب الأساسي"}</th>
+                  <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Status" : "الحالة"}</th>
+                  <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Actions" : "إجراءات"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -708,9 +708,9 @@ export default function PharmacyManager() {
         <table className="w-full text-start">
           <thead>
             <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-              <th className="py-3 px-5 font-semibold">{language === "en" ? "Employee Name" : "اسم الموظف"}</th>
-              <th className="py-3 px-5 font-semibold">{language === "en" ? "Password" : "كلمة المرور"}</th>
-              <th className="py-3 px-5 font-semibold">{language === "en" ? "Actions" : "إجراءات"}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Employee Name" : "اسم الموظف"}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Password" : "كلمة المرور"}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Actions" : "إجراءات"}</th>
             </tr>
           </thead>
           <tbody>

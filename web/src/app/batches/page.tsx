@@ -261,7 +261,7 @@ export default function BatchesPage() {
                   ].map((h, i) => (
                     <th
                       key={i}
-                      className="px-4 py-3 text-[13px] font-bold text-ink-soft"
+                      className="px-4 py-3 text-[13px] font-bold text-ink-soft text-start"
                     >
                       {h}
                     </th>

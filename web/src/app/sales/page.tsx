@@ -155,11 +155,11 @@ export default function SalesLog() {
         <table className="w-full text-start">
           <thead>
             <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Invoice Number' : 'رقم الفاتورة'}</th>
-              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Date & Time' : 'التاريخ والوقت'}</th>
-              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Count' : 'العدد'}</th>
-              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Payment Method' : 'طريقة الدفع'}</th>
-              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Total' : 'الإجمالي'}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Invoice Number' : 'رقم الفاتورة'}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Date & Time' : 'التاريخ والوقت'}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Count' : 'العدد'}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Payment Method' : 'طريقة الدفع'}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Total' : 'الإجمالي'}</th>
               <th className="py-3 px-5 font-semibold text-center">{language === 'en' ? 'Actions' : 'إجراءات'}</th>
             </tr>
           </thead>
@@ -339,7 +339,7 @@ export default function SalesLog() {
                     <table className="w-full text-[13px] text-start">
                       <thead className="bg-bg text-ink-soft border-b border-mint-line">
                         <tr>
-                          <th className="py-2 px-3 font-semibold">{language === 'en' ? 'Item' : 'الصنف'}</th>
+                          <th className="py-2 px-3 font-semibold text-start">{language === 'en' ? 'Item' : 'الصنف'}</th>
                           <th className="py-2 px-3 font-semibold text-center">
                             {language === 'en' ? 'Quantity' : 'الكمية'}
                           </th>

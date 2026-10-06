@@ -159,11 +159,11 @@ export default function Prescriptions() {
         <table className="w-full text-start">
           <thead>
             <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Prescription No.' : 'رقم الروشتة'}</th>
-              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Patient' : 'المريض'}</th>
-              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Treating Doctor' : 'الطبيب المعالج'}</th>
-              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Date' : 'التاريخ'}</th>
-              <th className="py-3 px-5 font-semibold">{language === 'en' ? 'Status' : 'الحالة'}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Prescription No.' : 'رقم الروشتة'}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Patient' : 'المريض'}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Treating Doctor' : 'الطبيب المعالج'}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Date' : 'التاريخ'}</th>
+              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Status' : 'الحالة'}</th>
               <th className="py-3 px-5 font-semibold text-center">{language === 'en' ? 'Actions' : 'إجراءات'}</th>
             </tr>
           </thead>
@@ -552,8 +552,8 @@ export default function Prescriptions() {
                   <table className="w-full text-start text-[13px]">
                     <thead className="bg-mint-bg/50 border-b border-mint-line text-ink-soft">
                       <tr>
-                        <th className="py-2 px-3 font-semibold">{language === 'en' ? 'Medication' : 'الدواء'}</th>
-                        <th className="py-2 px-3 font-semibold">{language === 'en' ? 'Dosage' : 'الجرعة'}</th>
+                        <th className="py-2 px-3 font-semibold text-start">{language === 'en' ? 'Medication' : 'الدواء'}</th>
+                        <th className="py-2 px-3 font-semibold text-start">{language === 'en' ? 'Dosage' : 'الجرعة'}</th>
                         <th className="py-2 px-3 font-semibold text-center">
                           {language === 'en' ? 'Quantity' : 'الكمية'}
                         </th>

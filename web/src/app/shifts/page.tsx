@@ -238,7 +238,7 @@ export default function ShiftsPage() {
                     ]).map((h, i) => (
                       <th
                         key={i}
-                        className="px-3 py-3 text-[12px] font-bold text-ink-soft"
+                        className="px-3 py-3 text-[12px] font-bold text-ink-soft text-start"
                       >
                         {h}
                       </th>
