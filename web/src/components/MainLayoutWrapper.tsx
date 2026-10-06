@@ -56,7 +56,7 @@ export default function MainLayoutWrapper({
               textDecoration: "none",
             }}
           >
-            📄 راجع إيصالك
+            📄 {language === "en" ? "Review Receipt" : "راجع إيصالك"}
           </Link>
         </div>
       )}
