@@ -107,7 +107,9 @@ export default function Login() {
     border: 1.5px solid var(--line);
     background: var(--pale-bg);
     border-radius: 13px;
-    padding: 13px 44px 13px 16px;
+    padding: 13px 16px;
+    padding-inline-start: 44px;
+    padding-inline-end: 44px;
     font-family: inherit; font-size: 14px; color: var(--ink);
     outline:none;
     transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
@@ -119,12 +121,12 @@ export default function Login() {
     box-shadow: 0 0 0 4px rgba(111,163,201,0.16);
   }
   .input-wrap svg{
-    position:absolute; right:15px; top:50%; transform:translateY(-50%);
+    position:absolute; inset-inline-start:15px; top:50%; transform:translateY(-50%);
     width:16px; height:16px; pointer-events:none;
   }
   .input-wrap svg path, .input-wrap svg circle{ stroke: var(--ink-soft); }
   .toggle-eye{
-    position:absolute; left:15px; top:50%; transform:translateY(-50%);
+    position:absolute; inset-inline-end:15px; top:50%; transform:translateY(-50%);
     cursor:pointer; width:16px; height:16px; pointer-events:auto !important;
   }
   .toggle-eye path{ stroke: var(--ink-soft); }
@@ -227,12 +229,7 @@ export default function Login() {
 
   return (
     <div className="login-page-container" dir={language === "en" ? "ltr" : "rtl"}>
-      <button 
-        style={{ position: 'absolute', top: 20, right: language === 'en' ? 20 : 'auto', left: language === 'en' ? 'auto' : 20, zIndex: 10, background: 'var(--paper)', border: '1px solid var(--line)', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, color: 'var(--deep)' }}
-        onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
-      >
-        {language === 'en' ? 'عربي' : 'English'}
-      </button>
+      
       <style>{customStyles}</style>
 
       <div className="bg-decor">
@@ -271,9 +268,18 @@ export default function Login() {
         </div>
 
         <div className="card">
-          <div className="card-title">
+          <div className="card-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
             <h2>{language === "en" ? "Login" : "تسجيل الدخول"}</h2>
-            <p>{language === "en" ? "Enter your details to continue" : "أدخل بياناتك للمتابعة"}</p>
+              <p>{language === "en" ? "Enter your details to continue" : "أدخل بياناتك للمتابعة"}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setLanguage(language === "en" ? "ar" : "en")}
+              style={{ background: "var(--pale-bg)", border: "1px solid var(--line)", padding: "6px 12px", borderRadius: "8px", cursor: "pointer", fontWeight: 600, color: "var(--deep)", fontSize: "13px" }}
+            >
+              {language === "en" ? "عربي" : "English"}
+            </button>
           </div>
 
           <form onSubmit={handleLogin}>
