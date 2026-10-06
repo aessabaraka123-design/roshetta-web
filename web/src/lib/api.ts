@@ -23,7 +23,7 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
     }
 
     if (!response.ok) {
-      throw new Error(data?.message || "حدث خطأ في الاتصال بالسيرفر");
+      throw new Error(data?.message || "Connection Error");
     }
 
     return data;

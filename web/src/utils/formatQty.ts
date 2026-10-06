@@ -1,5 +1,8 @@
-export function formatQty(qty: number, unitsJson?: string | null): string {
+export function formatQty(qty: number, unitsJson?: string | null, language: string = "ar"): string {
   const q = qty || 0;
+  const tBox = language === "en" ? "Box" : "علبة";
+  const tPart = language === "en" ? "Part" : "جزء";
+  const tAnd = language === "en" ? " and " : " و ";
 
   if (unitsJson) {
     try {
@@ -11,12 +14,12 @@ export function formatQty(qty: number, unitsJson?: string | null): string {
           const unit = parsedUnits[i];
           const count = unit.count || 1;
           const val = parseFloat((q / count).toFixed(2));
-          parts.push(`${val} ${unit.name || (i === 0 ? "علبة" : "جزء")}`);
+          parts.push(`${val} ${unit.name || (i === 0 ? tBox : tPart)}`);
         }
 
-        return parts.join(" و ");
+        return parts.join(tAnd);
       }
     } catch (e) {}
   }
-  return `${q} علبة`;
+  return `${q} ${tBox}`;
 }

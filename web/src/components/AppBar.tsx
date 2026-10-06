@@ -97,7 +97,7 @@ export default function AppBar({
                   ))
                 ) : (
                   <p className="text-ink-soft text-sm text-center py-4">
-                    لا توجد إشعارات حالياً
+                    {language === "en" ? "No notifications" : "لا توجد إشعارات حالياً"}
                   </p>
                 )}
               </div>
