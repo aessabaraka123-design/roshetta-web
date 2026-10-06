@@ -207,17 +207,17 @@ export default function Login() {
         }
 
         loginFn(data.user);
-        toast.success(`أهلاً بك، ${data.user.managerName || "مدير الصيدلية"}`);
+        toast.success(language === "en" ? `Welcome, ${data.user.managerName || "Pharmacy Manager"}` : `أهلاً بك، ${data.user.managerName || "مدير الصيدلية"}`);
         if (data.user.role === "superadmin") {
           router.push("/super-admin");
         } else {
           router.push("/");
         }
       } else {
-        toast.error(data.error || "خطأ في تسجيل الدخول");
+        toast.error(data.error || (language === "en" ? "Login error" : "خطأ في تسجيل الدخول"));
       }
     } catch (error) {
-      toast.error("لا يمكن الاتصال بالخادم");
+      toast.error(language === "en" ? "Cannot connect to server" : "لا يمكن الاتصال بالخادم");
     } finally {
       setLoading(false);
     }

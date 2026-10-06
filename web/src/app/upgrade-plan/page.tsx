@@ -8,7 +8,7 @@ export default function UpgradePlan() {
   const router = useRouter();
 
   const handleUpgrade = (planName: string) => {
-    toast.success(`تم إرسال طلب الترقية إلى باقة ${planName} بنجاح!`);
+    toast.success(language === "en" ? `Upgrade request to ${planName} sent successfully!` : `تم إرسال طلب الترقية إلى باقة ${planName} بنجاح!`);
     setTimeout(() => {
       router.push("/my-subscription");
     }, 1500);

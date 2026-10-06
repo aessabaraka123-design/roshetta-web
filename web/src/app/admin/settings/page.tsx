@@ -21,7 +21,7 @@ export default function AdminSettings() {
       const data = await fetchApi("/admin/pharmacies");
       setPharmacies(data.pharmacies || []);
     } catch (error) {
-      toast.error("فشل في جلب البيانات");
+      toast.error(language === "en" ? "Failed to fetch data" : "فشل في جلب البيانات");
     } finally {
       setLoading(false);
     }
@@ -45,7 +45,7 @@ export default function AdminSettings() {
       );
       loadData();
     } catch (error) {
-      toast.error("فشل تغيير حالة الصيدلية");
+      toast.error(language === "en" ? "Failed to change pharmacy status" : "فشل تغيير حالة الصيدلية");
     }
   };
 
@@ -59,11 +59,11 @@ export default function AdminSettings() {
       await fetchApi(`/admin/pharmacies/${deleteModal.id}`, {
         method: "DELETE",
       });
-      toast.success("تم حذف الصيدلية نهائياً");
+      toast.success(language === "en" ? "Pharmacy deleted permanently" : "تم حذف الصيدلية نهائياً");
       setDeleteModal({ isOpen: false, id: null });
       loadData();
     } catch (error) {
-      toast.error("فشل في حذف الصيدلية");
+      toast.error(language === "en" ? "Failed to delete pharmacy" : "فشل في حذف الصيدلية");
     }
   };
 
