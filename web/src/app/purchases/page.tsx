@@ -1127,7 +1127,7 @@ export default function PurchasesPage() {
                               {/* الكمية */}
                               <div>
                                 <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                  الكمية (علبة)
+                                  {language === "en" ? "Quantity (Box)" : "الكمية (علبة)"}
                                 </label>
                                 <div className="flex items-center bg-white rounded-xl border border-[#CBD5E1] overflow-hidden w-full h-[42px]">
                                   <button
@@ -1162,7 +1162,7 @@ export default function PurchasesPage() {
                               {/* سعر الشراء */}
                               <div>
                                 <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                  سعر شراء العلبة
+                                  {language === "en" ? "Purchase price (box)" : "سعر شراء العلبة"}
                                 </label>
                                 <div className="relative">
                                   <input
@@ -1185,7 +1185,7 @@ export default function PurchasesPage() {
                               {/* سعر البيع */}
                               <div>
                                 <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                  سعر بيع العلبة
+                                  {language === "en" ? "Sale price (box)" : "سعر بيع العلبة"}
                                 </label>
                                 <div className="relative">
                                   <input
@@ -1208,7 +1208,7 @@ export default function PurchasesPage() {
                               {/* الإجمالي */}
                               <div>
                                 <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                  الإجمالي للعلب
+                                  {language === "en" ? "Total for boxes" : "الإجمالي للعلب"}
                                 </label>
                                 <div className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl px-3 text-[15px] font-mono font-black text-primary text-center h-[42px] flex items-center justify-center">
                                   ₪
@@ -1245,7 +1245,7 @@ export default function PurchasesPage() {
                                   )}
                                 </div>
                                 <span className="text-[13px] font-bold text-ink">
-                                  يُباع بالأجزاء (أشرطة / حبات)؟
+                                  {language === "en" ? "Sold in parts (strips/pills)?" : "يُباع بالأجزاء (أشرطة / حبات)؟"}
                                 </span>
                                 <input
                                   type="checkbox"
@@ -1260,12 +1260,12 @@ export default function PurchasesPage() {
                               {hasParts && (
                                 <div className="mt-4 pt-4 border-t border-ink-soft/30">
                                   <h4 className="text-[12px] font-bold text-ink-soft mb-4 text-start">
-                                    الجزء الأول (مثال: شريط)
+                                    {language === "en" ? "First part (e.g. strip)" : "الجزء الأول (مثال: شريط)"}
                                   </h4>
                                   <div className="flex flex-wrap gap-4 mb-5">
                                     <div className="flex-1 min-w-[100px]">
                                       <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                        اسم الجزء
+                                        {language === "en" ? "Part name" : "اسم الجزء"}
                                       </label>
                                       <select
                                         value={p1Name}
@@ -1274,15 +1274,15 @@ export default function PurchasesPage() {
                                         }
                                         className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[13px] font-bold text-ink outline-none focus:border-primary text-start h-[40px]"
                                       >
-                                        <option value="شريط">شريط</option>
-                                        <option value="أمبولة">أمبولة</option>
-                                        <option value="مغلف">مغلف</option>
-                                        <option value="قطرة">قطرة</option>
+                                        <option value="شريط">{language === "en" ? "Strip" : "شريط"}</option>
+                                        <option value="أمبولة">{language === "en" ? "Ampoule" : "أمبولة"}</option>
+                                        <option value="مغلف">{language === "en" ? "Sachet" : "مغلف"}</option>
+                                        <option value="قطرة">{language === "en" ? "Drop" : "قطرة"}</option>
                                       </select>
                                     </div>
                                     <div className="flex-1 min-w-[110px]">
                                       <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                        كم {p1Name} في العلبة؟
+                                        {language === "en" ? `How many ${p1Name}s in a box?` : `كم ${p1Name} في العلبة؟`}
                                       </label>
                                       <input
                                         type="number"
@@ -1299,7 +1299,7 @@ export default function PurchasesPage() {
                                     </div>
                                     <div className="flex-1 min-w-[100px]">
                                       <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                        سعر الـ {p1Name}
+                                        {language === "en" ? `Price per ${p1Name}` : `سعر الـ ${p1Name}`}
                                       </label>
                                       <div className="relative">
                                         <input
@@ -1342,7 +1342,7 @@ export default function PurchasesPage() {
                                       )}
                                     </div>
                                     <span className="text-[12px] font-bold text-ink">
-                                      هل يباع الـ {p1Name} مجزأ؟ (مثال: حبة)
+                                      {language === "en" ? `Is ${p1Name} sold in smaller parts? (e.g. pill)` : `هل يباع الـ ${p1Name} مجزأ؟ (مثال: حبة)`}
                                     </span>
                                     <input
                                       type="checkbox"
@@ -1367,14 +1367,14 @@ export default function PurchasesPage() {
                                           }
                                           className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[13px] font-bold text-ink outline-none focus:border-primary text-start h-[40px]"
                                         >
-                                          <option value="حبة">حبة</option>
-                                          <option value="مل">مل</option>
-                                          <option value="غرام">غرام</option>
+                                          <option value="حبة">{language === "en" ? "Pill" : "حبة"}</option>
+                                          <option value="مل">{language === "en" ? "ml" : "مل"}</option>
+                                          <option value="غرام">{language === "en" ? "Gram" : "غرام"}</option>
                                         </select>
                                       </div>
                                       <div className="flex-1 min-w-[110px]">
                                         <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                          كم {p2Name} في الـ {p1Name}؟
+                                          {language === "en" ? `How many ${p2Name}s in a ${p1Name}?` : `كم ${p2Name} في الـ ${p1Name}؟`}
                                         </label>
                                         <input
                                           type="number"
@@ -1391,7 +1391,7 @@ export default function PurchasesPage() {
                                       </div>
                                       <div className="flex-1 min-w-[100px]">
                                         <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                          سعر الـ {p2Name}
+                                          {language === "en" ? `Price per ${p2Name}` : `سعر الـ ${p2Name}`}
                                         </label>
                                         <div className="relative">
                                           <input
