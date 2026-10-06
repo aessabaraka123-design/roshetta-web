@@ -10,6 +10,7 @@ import { useStore } from "@/store";
 export default function Login() {
   const router = useRouter();
   const loginFn = useStore((state) => state.login);
+  const language = useStore((state: any) => state.language);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
