@@ -243,7 +243,7 @@ function RegisterPageContent() {
           );
           router.push("/");
         } else {
-          toast.error(data.error || language === "en" ? "Something went wrong" : "حدث خطأ ما");
+          toast.error(data.error || (language === "en" ? "Something went wrong" : "حدث خطأ ما"));
         }
         return;
       }
@@ -277,7 +277,7 @@ function RegisterPageContent() {
         }
         router.push("/");
       } else {
-        toast.error(data.error || language === "en" ? "Something went wrong" : "حدث خطأ ما");
+        toast.error(data.error || (language === "en" ? "Something went wrong" : "حدث خطأ ما"));
       }
     } catch (e) {
       toast.error(language === "en" ? "Failed to connect to server" : "فشل الاتصال بالخادم");
