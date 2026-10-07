@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/store";
 import { useEffect } from "react";
+import useSWR from "swr";
 
 export default function MainLayoutWrapper({
   children,
