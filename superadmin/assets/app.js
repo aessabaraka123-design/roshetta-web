@@ -1074,6 +1074,8 @@ function switchDetTab(t) {
 
   if (t === 'stats') {
     loadPharmacyStats();
+  } else if (t === 'invoices') {
+    loadAdminSales();
   }
 }
 
@@ -1147,6 +1149,123 @@ async function loadPharmacyStats() {
     
   } catch(e) {
     container.innerHTML = '<div class="col-span-3 text-center py-5 text-red-500">حدث خطأ أثناء تحميل الإحصائيات</div>';
+  }
+}
+
+let currentAdminSales = [];
+
+async function loadAdminSales() {
+  const tbl = document.getElementById("detInvoicesTbl");
+  tbl.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>جاري التحميل...</td></tr>`;
+  
+  try {
+    const res = await apiGetAdminSales(currentDetId);
+    if (!res.success) throw new Error();
+    currentAdminSales = res.sales || [];
+    
+    if (currentAdminSales.length === 0) {
+      tbl.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">لا توجد فواتير مبيعات لهذه الصيدلية.</td></tr>`;
+      return;
+    }
+    
+    const fMoney = (val) => new Intl.NumberFormat("en-US").format(val || 0) + " ₪";
+    const fDate = (d) => d ? new Date(d).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+    
+    tbl.innerHTML = currentAdminSales.map(s => `
+      <tr class="hover:bg-slate-50 transition group">
+        <td class="px-4 py-3 font-mono text-xs text-slate-500 rounded-r-xl">#${s.id.slice(0, 8)}</td>
+        <td class="px-4 py-3 text-slate-600" dir="ltr">${fDate(s.date)}</td>
+        <td class="px-4 py-3 font-bold text-emerald-600" dir="ltr">${fMoney(s.total)}</td>
+        <td class="px-4 py-3 text-slate-500">${s.paymentMethod === "card" ? "💳 بطاقة" : s.paymentMethod === "debt" ? "📒 ذمم" : "💵 كاش"}</td>
+        <td class="px-4 py-3 text-slate-600">${s.cashierName || "غير محدد"}</td>
+        <td class="px-4 py-3 rounded-l-xl">
+          <div class="flex gap-2">
+            <button onclick="viewAdminSale('${s.id}')" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 p-1.5 rounded-lg transition" title="عرض التفاصيل">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            </button>
+            <button onclick="deleteAdminSale('${s.id}')" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition" title="حذف إجباري">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+    
+  } catch(e) {
+    tbl.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-red-500">حدث خطأ أثناء تحميل الفواتير.</td></tr>`;
+  }
+}
+
+function viewAdminSale(saleId) {
+  const s = currentAdminSales.find(x => x.id === saleId);
+  if (!s) return;
+  
+  let customerName = "غير محدد";
+  if (s.customer) {
+    if (typeof s.customer === 'string' && s.customer.startsWith('{')) {
+      try {
+        const cObj = JSON.parse(s.customer);
+        customerName = cObj.name || s.customer;
+      } catch(e) {
+        customerName = s.customer;
+      }
+    } else {
+      customerName = s.customer;
+    }
+  }
+
+  document.getElementById("invDetId").textContent = "#" + s.id.slice(0, 8);
+  document.getElementById("invDetCustomer").textContent = customerName;
+  document.getElementById("invDetDate").textContent = s.date ? new Date(s.date).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+  document.getElementById("invDetCashier").textContent = s.cashierName || "غير محدد";
+  document.getElementById("invDetTotal").textContent = new Intl.NumberFormat("en-US").format(s.total || 0) + " ₪";
+  
+  let items = [];
+  try {
+    if (typeof s.items === 'string') {
+      items = JSON.parse(s.items);
+      if (typeof items === 'string') {
+        items = JSON.parse(items); // Double parsed in case it was stringified twice
+      }
+    } else if (Array.isArray(s.items)) {
+      items = s.items;
+    }
+  } catch(e){}
+  
+  if (!Array.isArray(items)) {
+    items = [];
+  }
+  
+  const tbody = document.getElementById("invDetItems");
+  if (items.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-slate-400">لا توجد أصناف</td></tr>`;
+  } else {
+    tbody.innerHTML = items.map(item => `
+      <tr class="hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
+        <td class="px-4 py-2 font-semibold text-slate-700">${item.name || item.drug_name || "صنف غير معروف"}</td>
+        <td class="px-4 py-2">${item.cartQty || item.quantity || item.qty || 1}</td>
+        <td class="px-4 py-2" dir="ltr">${new Intl.NumberFormat("en-US").format(item.price || item.unit_price || 0)} ₪</td>
+        <td class="px-4 py-2 font-bold text-slate-800" dir="ltr">${new Intl.NumberFormat("en-US").format((item.qty || 1) * (item.price || item.unit_price || 0))} ₪</td>
+      </tr>
+    `).join("");
+  }
+  
+  toggleModal("invoiceModal", true);
+}
+
+function deleteAdminSale(saleId) {
+  if (!confirm("هل أنت متأكد من الحذف الإجباري لهذه الفاتورة؟ (إجراء خاص بالسوبر أدمن فقط)")) return;
+  
+  try {
+    const res = await apiDeleteAdminSale(currentDetId, saleId);
+    if (res.success) {
+      toast("تم حذف الفاتورة بنجاح");
+      loadAdminSales();
+    } else {
+      toast("فشل حذف الفاتورة");
+    }
+  } catch(e) {
+    toast("حدث خطأ أثناء الحذف");
   }
 }
 
@@ -1297,20 +1416,7 @@ async function saveBranch() {
     toast("خطأ", "error");
   }
 }
-async function toggleBranchStatus(branchId, isAct) {
-  const newStatus = isAct ? "متوقف" : "نشط";
-  try {
-    const d = await apiUpdateBranch(currentDetId, branchId, {
-      status: newStatus,
-    });
-    if (d.success) {
-      toast("تم تغيير حالة الفرع");
-      openPharmacyDetail(currentDetId);
-    } else toast(d.error, "error");
-  } catch (e) {
-    toast("خطأ", "error");
-  }
-}
+
 async function deleteBranch(id) {
   showConfirm("حذف فرع", "تأكيد الحذف؟", "red", async () => {
     try {
