@@ -1091,7 +1091,7 @@ function RegisterPageContent() {
                       style={{ marginBottom: "24px" }}
                     >
                       <div className="field" style={{ marginBottom: 0 }}>
-                        <label>{language === "en" ? "Transferer Name (Optional)" : "اسم المحول (اختياري)"}</label>
+                        <label>{language === "en" ? "Transferer Name" : "اسم المحول (مطلوب أحدهما)"}</label>
                         <input
                           type="text"
                           placeholder={language === "en" ? "Name as it appears in the transfer" : "الاسم كما يظهر في الحوالة"}
@@ -1100,7 +1100,7 @@ function RegisterPageContent() {
                         />
                       </div>
                       <div className="field" style={{ marginBottom: 0 }}>
-                        <label>{language === "en" ? "Reference Number (Optional)" : "رقم المرجع (اختياري)"}</label>
+                        <label>{language === "en" ? "Reference Number" : "رقم المرجع (مطلوب أحدهما)"}</label>
                         <input
                           type="text"
                           placeholder={language === "en" ? "Example: 123456789" : "مثال: 123456789"}
@@ -1235,11 +1235,11 @@ function RegisterPageContent() {
                     <button
                       type="button"
                       onClick={handleRegister}
-                      disabled={isLoading || !receiptImage}
+                      disabled={isLoading || !receiptImage || (!transferName.trim() && !transferRef.trim())}
                       className={`submit-btn mt-0`}
                       style={{
                         flex: 1,
-                        opacity: !receiptImage || isLoading ? 0.5 : 1,
+                        opacity: (!receiptImage || isLoading || (!transferName.trim() && !transferRef.trim())) ? 0.5 : 1,
                         cursor:
                           !receiptImage || isLoading
                             ? "not-allowed"
