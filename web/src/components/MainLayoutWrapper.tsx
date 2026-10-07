@@ -13,7 +13,18 @@ export default function MainLayoutWrapper({
 }) {
   const pathname = usePathname();
   const user = useStore((state: any) => state.user);
-  const language = useStore((state: any) => state.language);
+    const language = useStore((state: any) => state.language);
+
+  const fetcher = (url: string) => fetch(url).then((res) => res.json());
+  const { data: subStatusData } = useSWR(
+    user?.isReadOnly && user?.pharmacy_id
+      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/subscription-status`
+      : null,
+    fetcher,
+    { refreshInterval: 10000 }
+  );
+
+  const isRejected = subStatusData?.status === "rejected";
 
   
   useEffect(() => {
