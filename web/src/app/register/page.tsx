@@ -177,7 +177,7 @@ function RegisterPageContent() {
   const selectedPlan =
     plans.find((p) => p.id === plan || p.type === plan) || fallbackPlan;
 
-  const handleNext = () => {
+  const handleNext = async () => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.pharmacyName) newErrors.pharmacyName = language === "en" ? "Please enter pharmacy name" : "يرجى إدخال اسم الصيدلية";
@@ -209,13 +209,34 @@ function RegisterPageContent() {
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length > 0) return;
-    // الباقة المجانية: لا حاجة لرفع إيصال، نسجل مباشرة
-    if (plan === "free" || selectedPlan?.price === 0) {
-      handleRegister();
-    } else {
-      setStep(2);
-    }
-  };
+      setIsLoading(true);
+      try {
+        const res = await fetch(
+          (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
+            "/api/auth/check-email",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: formData.email }),
+          }
+        );
+        const data = await res.json();
+        if (data.exists) {
+          setErrors({ ...newErrors, email: language === "en" ? "Email is already in use" : "البريد الإلكتروني مستخدم بالفعل" });
+          setIsLoading(false);
+          return;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      setIsLoading(false);
+
+      if (plan === "free" || selectedPlan?.price === 0) {
+        handleRegister();
+      } else {
+        setStep(2);
+      }
+    };
 
   const handleRegister = async () => {
     setIsLoading(true);
