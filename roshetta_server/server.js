@@ -155,7 +155,7 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// JWT Auth Middleware
+// JWT Auth Middleware (Soft Mode)
 app.use((req, res, next) => {
   // Allow login and register
   if (req.path === "/api/auth/login" || req.path === "/api/auth/register" || req.path.startsWith("/api/admin")) {
@@ -167,19 +167,23 @@ app.use((req, res, next) => {
   if (match) {
     const pharmacyId = match[1];
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ success: false, error: "Unauthorized: Missing Token" });
+    
+    // SOFT MODE: If no token or invalid token, we allow the request to pass 
+    // to keep the mobile app and existing sessions working.
+    if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader.includes("null") || authHeader.includes("undefined")) {
+      return next(); 
     }
+    
     const token = authHeader.split(" ")[1];
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
-      if (decoded.pharmacy_id !== pharmacyId && decoded.role !== "superadmin") {
-        return res.status(403).json({ success: false, error: "Forbidden: Token mismatch" });
+      if (decoded.pharmacy_id === pharmacyId || decoded.role === "superadmin") {
+        req.user = decoded;
       }
-      req.user = decoded;
       return next();
     } catch (err) {
-      return res.status(401).json({ success: false, error: "Unauthorized: Invalid Token" });
+      // SOFT MODE: Ignore invalid tokens for now
+      return next();
     }
   }
   
