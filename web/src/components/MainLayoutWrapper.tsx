@@ -73,7 +73,7 @@ export default function MainLayoutWrapper({
             <>
               <span>{language === "en" ? "Receipt rejected. Please review with technical support." : "تم رفض إيصال الدفع، يرجى مراجعة الدعم الفني."}</span>
               <a
-                href="https://wa.me/972590000000" 
+                href={`https://wa.me/${subStatusData?.whatsapp || "972590000000"}`} 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-green-500 text-white rounded-lg px-3 py-1 text-xs font-bold hover:bg-green-600 transition-colors shrink-0 flex items-center gap-1 shadow-sm"
