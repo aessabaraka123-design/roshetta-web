@@ -339,6 +339,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
               "printerSize TEXT DEFAULT '80mm'",
               "showLogo INTEGER DEFAULT 1",
               "isReadOnly INTEGER DEFAULT 0",
+              "enableVat INTEGER DEFAULT 0",
+              "vatPercentage REAL DEFAULT 0"
             ];
             cols.forEach((c) =>
               db.run(`ALTER TABLE pharmacies ADD COLUMN ${c}`, () => {}),
@@ -495,6 +497,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
         () => {
           db.run("ALTER TABLE sales ADD COLUMN branch_id TEXT", () => {});
           db.run("ALTER TABLE sales ADD COLUMN notes TEXT", () => {});
+          db.run("ALTER TABLE sales ADD COLUMN discount REAL DEFAULT 0", () => {});
+          db.run("ALTER TABLE sales ADD COLUMN vatAmount REAL DEFAULT 0", () => {});
+          db.run("ALTER TABLE sales ADD COLUMN subtotal REAL DEFAULT 0", () => {});
         },
       );
 
@@ -2542,15 +2547,17 @@ app.get("/api/pharmacies/:id/inventory", (req, res) => {
 
 app.put("/api/pharmacies/:id/settings", (req, res) => {
   const { id } = req.params;
-  const { name, phone, receiptFooter, printerSize, showLogo } = req.body;
+  const { name, phone, receiptFooter, printerSize, showLogo, enableVat, vatPercentage } = req.body;
   db.run(
-    "UPDATE pharmacies SET name = ?, phone = ?, receiptFooter = ?, printerSize = ?, showLogo = ? WHERE id = ?",
+    "UPDATE pharmacies SET name = ?, phone = ?, receiptFooter = ?, printerSize = ?, showLogo = ?, enableVat = ?, vatPercentage = ? WHERE id = ?",
     [
       name,
       phone || "",
       receiptFooter || "",
       printerSize || "80mm",
       showLogo ? 1 : 0,
+      enableVat ? 1 : 0,
+      vatPercentage || 0,
       id,
     ],
     function (err) {
@@ -3080,7 +3087,7 @@ app.post("/api/pharmacies/:id/sales", (req, res) => {
       db.serialize(() => {
         db.run("BEGIN TRANSACTION");
         db.run(
-          `INSERT INTO sales (id, pharmacy_id, items, total, paymentMethod, customer, date, cashierName, branchName, notes)
+          `INSERT INTO sales (id, pharmacy_id, items, total, paymentMethod, customer, date, cashierName, branchName, branch_id, discount, vatAmount, subtotal, notes)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             saleId,
