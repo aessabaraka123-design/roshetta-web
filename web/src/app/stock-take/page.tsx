@@ -21,10 +21,17 @@ export default function StockTake() {
 
   const { data, mutate } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/inventory`
+      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/inventory?branch_id=${branchFilter}`
       : null,
     fetcher,
   );
+  const [branchFilter, setBranchFilter] = useState("all");
+  const { data: dashboardData } = useSWR(
+    user ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/dashboard` : null,
+    fetcher
+  );
+  const branches = dashboardData?.branches || [];
+
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -84,6 +91,20 @@ export default function StockTake() {
       <AppBar title={language === 'en' ? 'Stock Take' : "جرد المخزون (Stock Take)"} showLogo={false} />
 
       <div className="flex gap-4 mt-5">
+        {(user?.role === "owner" || user?.role === "superadmin" || user?.role === "manager") && branches.length > 0 && (
+          <select
+            value={branchFilter}
+            onChange={(e) => setBranchFilter(e.target.value)}
+            className="bg-white border border-mint-line rounded-[14px] px-4 py-2 font-bold text-ink outline-none focus:border-primary shadow-sm"
+          >
+            <option value="all">{language === 'en' ? 'All Branches' : 'كل الفروع'}</option>
+            {branches.map((b: any) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        )}
         <div className="flex-1">
           <SearchBar placeholder={language === 'en' ? 'Scan barcode to search or register stock take...' : "امسح الباركود للبحث أو تسجيل الجرد..."} />
         </div>
@@ -102,6 +123,9 @@ export default function StockTake() {
             <tr className="bg-bg text-ink-soft text-[14px]">
               <th className="p-4 font-semibold border-b border-mint-line text-start">
                 {language === 'en' ? 'Item' : "الصنف"}
+              </th>
+              <th className="p-4 font-semibold border-b border-mint-line text-start">
+                {language === 'en' ? 'Branch' : "الفرع"}
               </th>
               <th className="p-4 font-semibold border-b border-mint-line text-center">
                 {language === 'en' ? 'Registered Quantity' : "الكمية المسجلة"}
@@ -129,6 +153,14 @@ export default function StockTake() {
                     <div className="text-[12px] font-mono text-ink-soft">
                       {item.barcode}
                     </div>
+                  </td>
+                  <td className="p-4 text-start font-bold text-[14px] text-ink-soft">
+                    {(() => {
+                      const bId = String(item.branch_id);
+                      if (!bId || bId === "all" || bId === "null" || bId === "undefined") return language === 'en' ? 'Main' : 'الرئيسي';
+                      const b = branches.find((x: any) => String(x.id) === bId);
+                      return b ? b.name : (language === 'en' ? 'Main' : 'الرئيسي');
+                    })()}
                   </td>
                   <td className="p-4 text-center font-mono text-[16px] text-ink-soft">
                     {item.expected}
