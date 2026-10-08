@@ -28,6 +28,8 @@ export default function PrintSettings() {
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
+    enableTax: false,
+    taxRate: 16,
     name: "",
     phone: "",
     receiptFooter: "",
