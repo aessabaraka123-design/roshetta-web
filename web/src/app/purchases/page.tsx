@@ -85,7 +85,7 @@ export default function PurchasesPage() {
 
   // --- Data ---
   const { data: branchesData } = useSWR(
-    user && (user.role === "owner" || user.role === "superadmin")
+    user && (user.role === "owner" || user?.role === "manager" || user.role === "superadmin")
       ? `${API}/api/admin/pharmacies/${user.pharmacy_id}/branches`
       : null,
     fetcher,
@@ -516,7 +516,7 @@ export default function PurchasesPage() {
             </svg>
             {language === 'en' ? "New Invoice" : "فاتورة جديدة"}
           </button>
-          {(user?.role === "owner" || user?.role === "superadmin") &&
+          {(user?.role === "owner" || user?.role === "manager" || user?.role === "superadmin") &&
             branches.length > 0 && (
               <select
                 value={branchFilter}
@@ -846,7 +846,7 @@ export default function PurchasesPage() {
                   </div>
 
                   {/* Branch */}
-                  {(user?.role === "owner" || user?.role === "superadmin") &&
+                  {(user?.role === "owner" || user?.role === "manager" || user?.role === "superadmin") &&
                     branches.length > 0 && (
                       <div>
                         <label className="block text-[13px] font-black text-ink-soft uppercase tracking-wide mb-1.5">

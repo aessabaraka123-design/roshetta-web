@@ -193,7 +193,7 @@ export default function ExpensesPage() {
             />
           </div>
           <div className="flex-1" />
-          {(user?.role === "owner" ||
+          {(user?.role === "owner" || user?.role === "manager" ||
             user?.role === "superadmin" ||
             user?.role === "manager") &&
             branches.length > 0 && (
@@ -312,7 +312,7 @@ export default function ExpensesPage() {
               </button>
             </div>
             <div className="space-y-4">
-              {(user?.role === "owner" ||
+              {(user?.role === "owner" || user?.role === "manager" ||
                 user?.role === "superadmin" ||
                 user?.role === "manager") &&
                 branches.length > 0 && (

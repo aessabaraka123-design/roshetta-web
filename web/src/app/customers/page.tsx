@@ -31,6 +31,7 @@ export default function Customers() {
     branch_id: "",
   });
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [debtPaymentMethod, setDebtPaymentMethod] = useState("كاش");
   const [isLoading, setIsLoading] = useState(false);
   const [customerSales, setCustomerSales] = useState<any[]>([]);
   const [customerPayments, setCustomerPayments] = useState<any[]>([]);
@@ -141,7 +142,7 @@ export default function Customers() {
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ payment: Number(paymentAmount) }),
+          body: JSON.stringify({ payment: Number(paymentAmount), paymentMethod: debtPaymentMethod }),
         },
       );
       const result = await res.json();
@@ -149,6 +150,7 @@ export default function Customers() {
         toast.success(language === 'en' ? 'Payment recorded successfully!' : 'تم تسجيل الدفعة بنجاح!');
         setShowPayModal(false);
         setPaymentAmount("");
+        setDebtPaymentMethod("كاش");
         setSelectedCustomer(null);
         mutate();
       } else {
@@ -445,6 +447,24 @@ export default function Customers() {
                   placeholder="0.00"
                   dir="ltr"
                 />
+                            </div>
+
+              <div>
+                <label className="block text-[14px] font-bold text-ink-soft mb-2">
+                  {language === 'en' ? 'Payment Method' : 'طريقة التحويل / الدفع'}
+                </label>
+                <select
+                  value={debtPaymentMethod}
+                  onChange={(e) => setDebtPaymentMethod(e.target.value)}
+                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 outline-none focus:border-teal transition-colors text-[16px] font-bold"
+                >
+                  <option value="كاش">{language === 'en' ? 'Cash' : 'كاش (صندوق الكاش)'}</option>
+                  <option value="بنكي">{language === 'en' ? 'Bank Transfer' : 'حوالة بنكية'}</option>
+                  <option value="جوال باي">{language === 'en' ? 'Jawwal Pay' : 'جوال باي (تطبيق)'}</option>
+                  <option value="بال باي">{language === 'en' ? 'PalPay' : 'بال باي (تطبيق)'}</option>
+                  <option value="شيك">{language === 'en' ? 'Cheque' : 'شيك'}</option>
+                  <option value="أخرى">{language === 'en' ? 'Other' : 'أخرى'}</option>
+                </select>
               </div>
             </div>
 
