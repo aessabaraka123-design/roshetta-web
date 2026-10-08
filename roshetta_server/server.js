@@ -180,7 +180,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // JWT Auth Middleware (Soft Mode)
 app.use((req, res, next) => {
   // Allow login and register
-  if (req.path === "/api/auth/login" || req.path === "/api/auth/register" || req.path.startsWith("/api/admin")) {
+  if (req.path === "/api/auth/login" || req.path === "/api/auth/register" || req.path === "/api/auth/check-email" || req.path.startsWith("/api/admin")) {
     return next();
   }
 
@@ -848,6 +848,19 @@ genericRoutes.forEach((route) => {
         res.json({ success: true, [route.resKey]: rows || [] });
       },
     );
+  });
+});
+
+
+app.post("/api/auth/check-email", (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "Missing email" });
+  db.get("SELECT email FROM users WHERE email = ?", [email], (err, row) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    if (row) {
+      return res.json({ exists: true });
+    }
+    return res.json({ exists: false });
   });
 });
 
@@ -2379,7 +2392,7 @@ app.get("/api/pharmacies/:id/dashboard", (req, res) => {
 
         // Build Queries based on resolved branch
         let salesQuery =
-          "SELECT SUM(total) as sum, COUNT(*) as count FROM sales WHERE pharmacy_id = ? AND date LIKE ? AND status != 'refunded' AND paymentMethod != 'debt_payment' AND paymentMethod != '???? ???'";
+          "SELECT SUM(total) as sum, COUNT(*) as count FROM sales WHERE pharmacy_id = ? AND date LIKE ? AND status != 'refunded' AND paymentMethod != 'debt_payment' AND paymentMethod != 'تسديد دين'";
         let salesParams = [id, `${todayStr}%`];
         if (targetBranchName) {
           salesQuery += " AND branchName = ?";
@@ -2574,7 +2587,7 @@ app.post("/api/pharmacies/:id/inventory", (req, res) => {
   const itemId = require("crypto").randomUUID();
 
   // UNIQUE NAME CHECK POST
-  db.get("SELECT id FROM inventory WHERE pharmacy_id = ? AND name = ?", [pharmacy_id, name], (err, row) => {
+  db.get("SELECT id FROM inventory WHERE pharmacy_id = ? AND name = ? AND IFNULL(branch_id, '') = ?", [pharmacy_id, name, branch_id || ""], (err, row) => {
     if (err) return handleError(res, err);
     if (row) {
       return res.status(400).json({ success: false, error: "عذراً، يوجد منتج بنفس هذا الاسم بالفعل" });
@@ -2633,7 +2646,7 @@ app.put("/api/pharmacies/:id/inventory/:itemId", (req, res) => {
   const finalExpiry = expiry || expiry_date || "";
 
   // UNIQUE NAME CHECK PUT
-  db.get("SELECT id FROM inventory WHERE pharmacy_id = ? AND name = ? AND id != ?", [pharmacy_id, name, itemId], (err, row) => {
+  db.get("SELECT id FROM inventory WHERE pharmacy_id = ? AND name = ? AND IFNULL(branch_id, '') = ? AND id != ?", [pharmacy_id, name, branch_id || "", itemId], (err, row) => {
     if (err) return handleError(res, err);
     if (row) {
       return res.status(400).json({ success: false, error: "عذراً، يوجد منتج آخر بنفس هذا الاسم" });
@@ -2682,32 +2695,95 @@ app.delete("/api/pharmacies/:id/inventory/:itemId", (req, res) => {
   );
 });
 
-app.post("/api/pharmacies/:id/stock-take", (req, res) => {
+app.post("/api/pharmacies/:id/stock-take", async (req, res) => {
   const { id: pharmacy_id } = req.params;
-  const { items } = req.body; // array of { id, actual }
+  const { items } = req.body;
 
   if (!items || !Array.isArray(items)) {
-    return res.status(400).json({
-      success: false,
-      error: "Invalid items array",
-    });
+    return res.status(400).json({ success: false, error: "Invalid items array" });
   }
-  db.serialize(() => {
-    db.run("BEGIN TRANSACTION");
-    items.forEach((item) => {
-      db.run(`UPDATE inventory SET qty = ? WHERE id = ? AND pharmacy_id = ?`, [
-        item.actual,
-        item.id,
-        pharmacy_id,
-      ]);
-    });
-    db.run("COMMIT", (err) => {
-      if (err) return handleError(res, err);
-      res.json({
-        success: true,
-      });
-    });
+
+  const dbGet = (sql, params) => new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => err ? reject(err) : resolve(row));
   });
+
+  const dbRun = (sql, params) => new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) { err ? reject(err) : resolve(this); });
+  });
+
+  try {
+    await dbRun("BEGIN TRANSACTION", []);
+
+    for (const item of items) {
+      const row = await dbGet("SELECT name, qty, batches, cost FROM inventory WHERE id = ? AND pharmacy_id = ?", [item.id, pharmacy_id]);
+      if (!row) continue;
+      
+      const oldQty = Number(row.qty) || 0;
+      const actualQty = Number(item.actual) || 0;
+      const difference = oldQty - actualQty;
+      
+      if (difference > 0) {
+        // Shortage / Damaged: Deduct from oldest batches and calculate loss
+        let batches = [];
+        try { batches = JSON.parse(row.batches || "[]"); } catch(e){}
+        
+        let remainingDiff = difference;
+        let totalLostCost = 0;
+        
+        for (let b of batches) {
+          if (remainingDiff <= 0) break;
+          let bRem = Number(b.remaining) || 0;
+          if (bRem > 0) {
+            let deduct = Math.min(bRem, remainingDiff);
+            b.remaining = bRem - deduct;
+            remainingDiff -= deduct;
+            totalLostCost += deduct * (Number(b.cost) || Number(row.cost) || 0);
+          }
+        }
+        
+        // If loss calculated, insert an expense
+        if (totalLostCost > 0) {
+           const expId = "EXP-SH-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+           const title = "??? ??? / ????? - " + (row.name || "???? ?????");
+           await dbRun(
+             "INSERT INTO expenses (id, pharmacy_id, amount, date, category, description, created_by, branch_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+             [expId, pharmacy_id, totalLostCost, new Date().toISOString(), "??? ?????", title, "System", "Main"]
+           );
+        }
+        
+        await dbRun("UPDATE inventory SET qty = ?, batches = ? WHERE id = ? AND pharmacy_id = ?", [
+          actualQty, JSON.stringify(batches), item.id, pharmacy_id
+        ]);
+        
+      } else if (difference < 0) {
+        // Surplus: Add to latest batch
+        let surplus = Math.abs(difference);
+        let batches = [];
+        try { batches = JSON.parse(row.batches || "[]"); } catch(e){}
+        
+        if (batches.length > 0) {
+           batches[batches.length - 1].remaining = (Number(batches[batches.length - 1].remaining) || 0) + surplus;
+        } else {
+           batches.push({ qty: surplus, remaining: surplus, cost: row.cost || 0, price: 0, date: new Date().toISOString() });
+        }
+        
+        await dbRun("UPDATE inventory SET qty = ?, batches = ? WHERE id = ? AND pharmacy_id = ?", [
+          actualQty, JSON.stringify(batches), item.id, pharmacy_id
+        ]);
+      } else {
+        // Just update qty safely in case of weird desync
+        await dbRun("UPDATE inventory SET qty = ? WHERE id = ? AND pharmacy_id = ?", [
+          actualQty, item.id, pharmacy_id
+        ]);
+      }
+    }
+
+    await dbRun("COMMIT", []);
+    res.json({ success: true });
+  } catch (err) {
+    await dbRun("ROLLBACK", []);
+    return handleError(res, err);
+  }
 });
 
 app.get("/api/pharmacies/:id/sales", (req, res) => {
@@ -2831,18 +2907,21 @@ app.get("/api/pharmacies/:id/reports", (req, res) => {
     (rows || []).forEach((sale) => {
       if (sale.status === "refunded") return;
       const saleTotal = sale.total || 0;
-      totalRevenue += saleTotal;
-      const day = sale.date
-        ? sale.date.split("T")[0]
-        : new Date().toISOString().split("T")[0];
-      if (!dailySales[day]) dailySales[day] = 0;
-      dailySales[day] += saleTotal;
+      const pm = (sale.paymentMethod || "").toLowerCase();
+      const isDebtPayment = sale.status === "debt_payment" || pm === "تسديد دين" || pm === "debt_payment" || (sale.items === "[]" && saleTotal > 0);
+
+      const day = sale.date ? sale.date.split("T")[0] : new Date().toISOString().split("T")[0];
       const bName = sale.branchName || "غير محدد";
-      if (!branchSales[bName]) branchSales[bName] = 0;
-      branchSales[bName] += saleTotal;
+
+      if (!isDebtPayment) {
+        totalRevenue += saleTotal;
+        if (!dailySales[day]) dailySales[day] = 0;
+        dailySales[day] += saleTotal;
+        if (!branchSales[bName]) branchSales[bName] = 0;
+        branchSales[bName] += saleTotal;
+      }
 
       // Payment method breakdown
-      const pm = (sale.paymentMethod || "").toLowerCase();
       if (pm === "cash" || pm === "نقدي" || pm === "كاش")
         paymentBreakdown.cash += saleTotal;
       else if (pm === "bank" || pm === "بنكي")
@@ -2860,11 +2939,26 @@ app.get("/api/pharmacies/:id/reports", (req, res) => {
       try {
         items = JSON.parse(sale.items || "[]");
       } catch (e) {}
-      items.forEach((item) => {
-        const qty = item.cartQty || 1;
-        const price = item.price || 0;
-        const cost = item.cost || price * 0.7;
-        totalProfit += (price - cost) * qty;
+            items.forEach((item) => {
+        let boxBaseCount = 1;
+        try {
+          if (item.units) {
+             const uArr = typeof item.units === 'string' ? JSON.parse(item.units) : item.units;
+             if (uArr && uArr.length > 0) boxBaseCount = uArr[0].count || 1;
+          }
+        } catch(e) {}
+        
+        const qty = item.cartQty || 1; 
+        const totalBaseUnitsSold = item.deductQty || (qty * (item.unitCount || 1));
+        
+        const fullBoxCost = item.cost != null ? Number(item.cost) : (Number(item.price || 0) * 0.7);
+        const singleBaseUnitCost = fullBoxCost / boxBaseCount;
+        const actualCostOfSold = singleBaseUnitCost * totalBaseUnitsSold;
+        
+        const actualRevenueOfSold = (item.unitPrice || item.price || 0) * qty;
+        
+        totalProfit += (actualRevenueOfSold - actualCostOfSold);
+
         if (!itemSales[item.id]) {
           itemSales[item.id] = {
             id: item.id,
@@ -2874,7 +2968,7 @@ app.get("/api/pharmacies/:id/reports", (req, res) => {
           };
         }
         itemSales[item.id].qty += qty;
-        itemSales[item.id].revenue += price * qty;
+        itemSales[item.id].revenue += actualRevenueOfSold;
       });
     });
     const dailyTrend = Object.keys(dailySales).map((date) => ({
@@ -2946,7 +3040,7 @@ app.post("/api/pharmacies/:id/sales", (req, res) => {
     branchName,
     prescriptionId,
   } = req.body;
-  const date = new Date().toISOString();
+  const date = req.body.date || new Date().toISOString();
 
   // Generate a unique 3-char hash for the branch name to ensure English alphanumeric and avoid Bidi printing issues
   let branchHash = 0;
@@ -3012,13 +3106,11 @@ app.post("/api/pharmacies/:id/sales", (req, res) => {
               }
               return;
             }
-            if (items && Array.isArray(items)) {
-              items.forEach((cartItem) => {
-                const deductAmount =
-                  cartItem.deductQty || cartItem.cartQty || cartItem.qty || 1;
+            const updatePromises = (items || []).map((cartItem) => {
+              return new Promise((resolve) => {
+                const deductAmount = cartItem.deductQty || cartItem.cartQty || cartItem.qty || 1;
                 const saleDate = date.split("T")[0];
 
-                // FIFO: Read batches, deduct from oldest first, update price to oldest remaining batch
                 db.get(
                   "SELECT batches FROM inventory WHERE id = ? AND pharmacy_id = ?",
                   [cartItem.id, pharmacy_id],
@@ -3033,13 +3125,8 @@ app.post("/api/pharmacies/:id/sales", (req, res) => {
                     let activeBatchCost = null;
 
                     if (batches.length > 0) {
-                      for (
-                        let i = 0;
-                        i < batches.length && toDeductLeft > 0;
-                        i++
-                      ) {
-                        const batchHas =
-                          batches[i].remaining || batches[i].qty || 0;
+                      for (let i = 0; i < batches.length && toDeductLeft > 0; i++) {
+                        const batchHas = batches[i].remaining || batches[i].qty || 0;
                         if (batchHas <= 0) continue;
                         const taken = Math.min(toDeductLeft, batchHas);
                         batches[i].remaining = batchHas - taken;
@@ -3056,57 +3143,44 @@ app.post("/api/pharmacies/:id/sales", (req, res) => {
                     if (activeBatchPrice !== null) {
                       db.run(
                         "UPDATE inventory SET qty = MAX(0, qty - ?), batches = ?, price = ?, cost = ?, lastSaleDate = ? WHERE id = ? AND pharmacy_id = ?",
-                        [
-                          deductAmount,
-                          batchesJson,
-                          activeBatchPrice,
-                          activeBatchCost,
-                          saleDate,
-                          cartItem.id,
-                          pharmacy_id,
-                        ],
+                        [deductAmount, batchesJson, activeBatchPrice, activeBatchCost, saleDate, cartItem.id, pharmacy_id],
+                        () => resolve()
                       );
                     } else {
                       db.run(
                         "UPDATE inventory SET qty = MAX(0, qty - ?), batches = ?, lastSaleDate = ? WHERE id = ? AND pharmacy_id = ?",
-                        [
-                          deductAmount,
-                          batchesJson,
-                          saleDate,
-                          cartItem.id,
-                          pharmacy_id,
-                        ],
+                        [deductAmount, batchesJson, saleDate, cartItem.id, pharmacy_id],
+                        () => resolve()
                       );
                     }
-                  },
+                  }
                 );
               });
-            }
-            if (customer && customer.id) {
-              const visitDate = date.split("T")[0];
-              if (
-                paymentMethod === "credit" ||
-                paymentMethod === "ط¢ط¬ظ„" ||
-                paymentMethod === "آجل"
-              ) {
+            });
+
+            Promise.all(updatePromises).then(() => {
+              if (customer && customer.id) {
+                const visitDate = date.split("T")[0];
+                if (paymentMethod === "credit" || paymentMethod === "??????" || paymentMethod === "???" || paymentMethod === "debt_payment" || paymentMethod === "???? ???") {
+                  db.run(
+                    `UPDATE customers SET debt = COALESCE(debt, 0) + ?, lastVisit = ? WHERE id = ? AND pharmacy_id = ?`,
+                    [total, visitDate, customer.id, pharmacy_id]
+                  );
+                } else {
+                  db.run(
+                    `UPDATE customers SET lastVisit = ? WHERE id = ? AND pharmacy_id = ?`,
+                    [visitDate, customer.id, pharmacy_id]
+                  );
+                }
+              }
+              if (prescriptionId) {
                 db.run(
-                  `UPDATE customers SET debt = debt + ?, lastVisit = ? WHERE id = ? AND pharmacy_id = ?`,
-                  [total, visitDate, customer.id, pharmacy_id],
-                );
-              } else {
-                db.run(
-                  `UPDATE customers SET lastVisit = ? WHERE id = ? AND pharmacy_id = ?`,
-                  [visitDate, customer.id, pharmacy_id],
+                  `UPDATE prescriptions SET status = 'dispensed' WHERE id = ? AND pharmacy_id = ?`,
+                  [prescriptionId, pharmacy_id]
                 );
               }
-            }
-            if (prescriptionId) {
-              db.run(
-                `UPDATE prescriptions SET status = 'dispensed' WHERE id = ? AND pharmacy_id = ?`,
-                [prescriptionId, pharmacy_id],
-              );
-            }
-            db.run("COMMIT", (err) => {
+              
+              db.run("COMMIT", (err) => {
               if (err) {
                 if (!res.headersSent)
                   return res.status(500).json({
@@ -3121,6 +3195,7 @@ app.post("/api/pharmacies/:id/sales", (req, res) => {
                   saleId,
                 });
             });
+            }); // Closes Promise.all
           },
         );
       });
@@ -3135,7 +3210,7 @@ app.put("/api/pharmacies/:id/sales/:saleId/refund", (req, res) => {
 
     // Get the sale to see the items
     db.get(
-      "SELECT items, status FROM sales WHERE id = ? AND pharmacy_id = ?",
+      "SELECT items, status, total, paymentMethod, customer FROM sales WHERE id = ? AND pharmacy_id = ?",
       [saleId, pharmacy_id],
       (err, row) => {
         if (err) {
@@ -3208,7 +3283,7 @@ app.put("/api/pharmacies/:id/sales/:saleId/refund_partial", (req, res) => {
   db.serialize(() => {
     db.run("BEGIN TRANSACTION");
     db.get(
-      "SELECT items, total, status FROM sales WHERE id = ? AND pharmacy_id = ?",
+      "SELECT items, total, status, paymentMethod, customer FROM sales WHERE id = ? AND pharmacy_id = ?",
       [saleId, pharmacy_id],
       (err, row) => {
         if (err) {
@@ -3259,12 +3334,36 @@ app.put("/api/pharmacies/:id/sales/:saleId/refund_partial", (req, res) => {
           // Update inventory for this item
           db.run(
             `UPDATE inventory SET qty = qty + ? WHERE id = ? AND pharmacy_id = ?`,
-            [qtyToReturn, item.id, pharmacy_id],
+            [qtyToReturn * (Number(item.unitCount) || 1), item.id, pharmacy_id],
             (err) => {
               if (err) hasError = true;
             },
           );
         });
+        // Fix Loophole 2: Debt Customer Refund
+        if (row.paymentMethod === 'credit' || row.paymentMethod === '???' || row.paymentMethod === '???') {
+          try {
+             let cObj = null;
+             if (typeof row.customer === 'string') cObj = JSON.parse(row.customer);
+             else cObj = row.customer;
+             
+             if (cObj && cObj.id) {
+               db.run(
+                 `UPDATE customers SET debt = MAX(0, debt - ?) WHERE id = ? AND pharmacy_id = ?`,
+                 [totalRefundAmount, cObj.id, pharmacy_id],
+                 (err) => { if (err) console.error("Error reducing debt:", err); }
+               );
+             }
+          } catch(e) { console.error(e); }
+        } else if (totalRefundAmount > 0) {
+          const proxyId = "REF-" + Date.now();
+          db.run(
+            "INSERT INTO sales (id, pharmacy_id, customer, items, total, discount, paymentMethod, status, date, branch_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [proxyId, pharmacy_id, "{}", "[]", -totalRefundAmount, 0, row.paymentMethod, "refund_proxy", new Date().toISOString(), "Main"],
+            (err) => { if (err) console.error("Error creating refund proxy:", err); }
+          );
+        }
+
         if (hasError) {
           db.run("ROLLBACK");
           return res.status(500).json({
@@ -3534,12 +3633,12 @@ app.put("/api/pharmacies/:id/customers/:custId/debt", (req, res) => {
               pharmacy_id,
               "[]",
               payment,
-              "تسديد دين",
+              req.body.paymentMethod || "cash",
               custJSON,
               date,
               "غير محدد",
               "الصيدلية الرئيسية",
-              "completed",
+              "debt_payment",
             ],
             function (err2) {
               if (err2)
@@ -3579,7 +3678,7 @@ app.post("/api/pharmacies/:id/purchases", (req, res) => {
   const { supplier_id, supplier_name, items, total_cost, branch } = req.body;
 
   const invId = req.body.id || "PINV-" + Date.now();
-  const date = new Date().toISOString();
+  const date = req.body.date || new Date().toISOString();
 
   db.run(
     "INSERT INTO purchase_invoices (id, pharmacy_id, supplier_id, supplier_name, items, total_cost, paid_amount, remaining, invoice_number, date, notes, branch_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -3834,7 +3933,7 @@ app.post("/api/pharmacies/:id/expenses", (req, res) => {
   const { id: pharmacy_id } = req.params;
   const { category, description, amount, created_by, branch_id } = req.body;
   const expId = "EXP-" + Date.now();
-  const date = new Date().toISOString();
+  const date = req.body.date || new Date().toISOString();
   db.run(
     "INSERT INTO expenses (id, pharmacy_id, category, description, amount, date, created_by, branch_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     [
@@ -3938,44 +4037,70 @@ app.post("/api/pharmacies/:id/shifts/:shiftId/close", (req, res) => {
         "SELECT * FROM sales WHERE pharmacy_id = ? AND date >= ? AND date <= ?",
         [pharmacy_id, shift.open_time, close_time],
         (err2, sales) => {
-          let cash_sales = 0,
-            card_sales = 0;
-          (sales || []).forEach((s) => {
-            if (s.paymentMethod === "cash" || s.paymentMethod === "ظ†ظ‚ط¯ظٹ")
-              cash_sales += s.total || 0;
-            if (s.paymentMethod === "card" || s.paymentMethod === "ط¨ط·ط§ظ‚ط©")
-              card_sales += s.total || 0;
-          });
-          const expected_amount = parseFloat(shift.opening_amount) + cash_sales;
-          db.run(
-            `UPDATE shifts SET closing_amount = ?, expected_amount = ?, cash_sales = ?, card_sales = ?, status = 'closed', close_time = ?, notes = ? WHERE id = ?`,
-            [
-              closing_amount,
-              expected_amount,
-              cash_sales,
-              card_sales,
-              close_time,
-              notes || "",
-              shiftId,
-            ],
-            function (err3) {
-              if (err3)
-                return res.status(500).json({
-                  success: false,
-                  error: err3.message,
-                });
-              res.json({
-                success: true,
-                cash_sales,
-                card_sales,
-                expected_amount,
-                closing_amount,
+          db.all(
+            "SELECT * FROM expenses WHERE pharmacy_id = ? AND date >= ? AND date <= ?",
+            [pharmacy_id, shift.open_time, close_time],
+            (err3, expenses) => {
+              let cash_sales = 0, card_sales = 0, digital_sales = 0, expenses_total = 0;
+              
+              (sales || []).forEach((s) => {
+                 let pm = (s.paymentMethod || "").toLowerCase();
+                 // Cash includes explicit cash and debt payments (which are collected in cash)
+                 if (pm === "cash" || pm === "????" || pm === "debt_payment" || pm === "???? ???" || pm === "???? ???") {
+                    cash_sales += s.total || 0;
+                 }
+                 // Card
+                 else if (pm === "card" || pm === "?????") {
+                    card_sales += s.total || 0;
+                 }
+                 // Digital Wallets (Jawwal Pay, Pal Pay, Bank)
+                 else if (pm === "jawwal_pay" || pm === "pal_pay" || pm === "bank" || pm === "????" || pm === "???? ???") {
+                    digital_sales += s.total || 0;
+                 }
+                 
+                 // If there's a refund proxy, it's cash out
+                 if (s.status === 'refund_proxy') {
+                    // refund_proxy has negative total, so adding it reduces cash_sales
+                    cash_sales += s.total || 0;
+                 }
               });
-            },
+
+              (expenses || []).forEach(e => {
+                 expenses_total += Number(e.amount) || 0;
+              });
+
+              // Expected = Opening + Cash IN - Expenses
+              const expected_amount = parseFloat(shift.opening_amount) + cash_sales - expenses_total;
+              
+              db.run(
+                `UPDATE shifts SET closing_amount = ?, expected_amount = ?, cash_sales = ?, card_sales = ?, status = 'closed', close_time = ?, notes = ? WHERE id = ?`,
+                [
+                  closing_amount,
+                  expected_amount,
+                  cash_sales,
+                  card_sales,
+                  close_time,
+                  notes || "",
+                  shiftId,
+                ],
+                function (err4) {
+                  if (err4) return res.status(500).json({ success: false, error: err4.message });
+                  res.json({
+                    success: true,
+                    cash_sales,
+                    card_sales,
+                    digital_sales,
+                    expenses_total,
+                    expected_amount,
+                    closing_amount,
+                  });
+                }
+              );
+            }
           );
-        },
+        }
       );
-    },
+    }
   );
 
   // ط§ظ„ظˆط±ط¯ظٹط© ط§ظ„ظ…ظپطھظˆط­ط© ط§ظ„ط­ط§ظ„ظٹط© ظ„ظ„ظƒط§ط´ظٹط±
@@ -4046,7 +4171,7 @@ app.post("/api/pharmacies/:id/purchase-invoices", (req, res) => {
     status,
   } = req.body;
   const invId = req.body.id || "PINV-" + Date.now();
-  const date = new Date().toISOString();
+  const date = req.body.date || new Date().toISOString();
   const remaining = (total_cost || 0) - (paid_amount || 0);
   const invStatus = status || "completed";
 
@@ -4084,35 +4209,40 @@ app.post("/api/pharmacies/:id/purchase-invoices", (req, res) => {
           });
           // FIFO: read existing batches, append new batch, update qty & cost & units
           db.get(
-            "SELECT batches FROM inventory WHERE id = ? AND pharmacy_id = ?",
-            [item.id, pharmacy_id],
-            (bErr, row) => {
-              let batches = [];
-              try {
-                batches = JSON.parse((row && row.batches) || "[]");
-              } catch (e) {}
-              // Add new batch
-              batches.push({
-                qty: _effQty1,
-                remaining: _effQty1,
-                cost: item.purchase_price || 0,
-                price: item.sell_price || 0,
-                date: new Date().toISOString(),
-              });
-              db.run(
-                "UPDATE inventory SET qty = qty + ?, cost = ?, price = ?, units = ?, batches = ? WHERE id = ? AND pharmacy_id = ?",
-                [
-                  _effQty1,
-                  item.purchase_price || 0,
-                  item.sell_price || 0,
-                  unitsData,
-                  JSON.stringify(batches),
-                  item.id,
-                  pharmacy_id,
-                ],
+                "SELECT qty, cost, price, batches FROM inventory WHERE id = ? AND pharmacy_id = ?",
+                [item.id, pharmacy_id],
+                (bErr, row) => {
+                  let batches = [];
+                  try { batches = JSON.parse((row && row.batches) || "[]"); } catch (e) {}
+                  
+                  // Add new batch
+                  batches.push({
+                    qty: _effQty1,
+                    remaining: _effQty1,
+                    cost: item.purchase_price || 0,
+                    price: item.sell_price || 0,
+                    date: new Date().toISOString(),
+                  });
+                  
+                  const oldQty = (row && row.qty) || 0;
+                  // SMART FIFO: Only overwrite main cost/price if we are completely out of old stock
+                  const finalCost = oldQty > 0 ? (row.cost || 0) : (item.purchase_price || 0);
+                  const finalPrice = oldQty > 0 ? (row.price || 0) : (item.sell_price || 0);
+
+                  db.run(
+                    "UPDATE inventory SET qty = qty + ?, cost = ?, price = ?, units = ?, batches = ? WHERE id = ? AND pharmacy_id = ?",
+                    [
+                      _effQty1,
+                      finalCost,
+                      finalPrice,
+                      unitsData,
+                      JSON.stringify(batches),
+                      item.id,
+                      pharmacy_id,
+                    ]
+                  );
+                }
               );
-            },
-          );
         });
         if (supplier_id && remaining > 0) {
           db.run(
@@ -4161,13 +4291,12 @@ app.put("/api/pharmacies/:id/purchase-invoices/:invId/complete", (req, res) => {
                 part2_price: item.part2_price,
               });
               db.get(
-                "SELECT batches FROM inventory WHERE id = ? AND pharmacy_id = ?",
+                "SELECT qty, cost, price, batches FROM inventory WHERE id = ? AND pharmacy_id = ?",
                 [item.id, pharmacy_id],
                 (bErr, row) => {
                   let batches = [];
-                  try {
-                    batches = JSON.parse((row && row.batches) || "[]");
-                  } catch (e) {}
+                  try { batches = JSON.parse((row && row.batches) || "[]"); } catch (e) {}
+                  
                   batches.push({
                     qty: _effQty2,
                     remaining: _effQty2,
@@ -4175,19 +4304,25 @@ app.put("/api/pharmacies/:id/purchase-invoices/:invId/complete", (req, res) => {
                     price: item.sell_price || 0,
                     date: new Date().toISOString(),
                   });
+                  
+                  const oldQty = (row && row.qty) || 0;
+                  // SMART FIFO: Only overwrite main cost/price if we are completely out of old stock
+                  const finalCost = oldQty > 0 ? (row.cost || 0) : (item.purchase_price || 0);
+                  const finalPrice = oldQty > 0 ? (row.price || 0) : (item.sell_price || 0);
+
                   db.run(
                     "UPDATE inventory SET qty = qty + ?, cost = ?, price = ?, units = ?, batches = ? WHERE id = ? AND pharmacy_id = ?",
                     [
                       _effQty2,
-                      item.purchase_price || 0,
-                      item.sell_price || 0,
+                      finalCost,
+                      finalPrice,
                       unitsData,
                       JSON.stringify(batches),
                       item.id,
                       pharmacy_id,
-                    ],
+                    ]
                   );
-                },
+                }
               );
             });
           } catch (e) {}
@@ -4334,16 +4469,46 @@ app.put("/api/pharmacies/:id/suppliers/:suppId", (req, res) => {
 app.post("/api/pharmacies/:id/suppliers/:suppId/payment", (req, res) => {
   const { id: pharmacy_id, suppId } = req.params;
   const amount = Number(req.body.amount) || 0;
-  db.run(
-    "UPDATE suppliers SET balance = COALESCE(balance, 0) - ? WHERE id = ? AND pharmacy_id = ?",
-    [amount, suppId, pharmacy_id],
-    function (err) {
-      if (err) return handleError(res, err);
-      res.json({
-        success: true,
-      });
-    },
-  );
+  const paymentMethod = req.body.paymentMethod || "كاش";
+  
+  db.serialize(() => {
+    db.run("BEGIN TRANSACTION");
+    
+    // 1. Deduct from supplier balance
+    db.run(
+      "UPDATE suppliers SET balance = COALESCE(balance, 0) - ? WHERE id = ? AND pharmacy_id = ?",
+      [amount, suppId, pharmacy_id]
+    );
+
+    // 2. Only deduct from cash/drawer if paid in cash
+    if (paymentMethod === "كاش" || paymentMethod === "cash" || paymentMethod === "نقدي") {
+       db.get("SELECT name FROM suppliers WHERE id = ? AND pharmacy_id = ?", [suppId, pharmacy_id], (err, row) => {
+          const supplierName = row ? row.name : suppId;
+          const expId = "EXP-SUPP-" + Date.now() + Math.floor(Math.random()*1000);
+          const desc = `تسديد دفعة لمورد (Supplier Payment) - ${supplierName}`;
+          db.run(
+            `INSERT INTO expenses (id, pharmacy_id, description, amount, date, created_by, branch_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [expId, pharmacy_id, desc, amount, new Date().toISOString(), "System/Supplier", "all"],
+            (eErr) => {
+              if (eErr) {
+                db.run("ROLLBACK");
+                return res.status(500).json({ success: false, error: eErr.message });
+              }
+              db.run("COMMIT", (err2) => {
+                if (err2) return handleError(res, err2);
+                res.json({ success: true });
+              });
+            }
+          );
+       });
+    } else {
+       // If paid by Bank, Cheque, etc., it doesn't leave the physical drawer, so no drawer expense is needed.
+       db.run("COMMIT", (err2) => {
+          if (err2) return handleError(res, err2);
+          res.json({ success: true });
+       });
+    }
+  });
 });
 
 app.delete("/api/pharmacies/:id/suppliers/:suppId", (req, res) => {
@@ -4364,29 +4529,6 @@ app.delete("/api/pharmacies/:id/suppliers/:suppId", (req, res) => {
   // ==========================================
 });
 
-const PORT = process.env.ALWAYSDATA_HTTPD_PORT || process.env.PORT || 3001;
-const IP = process.env.ALWAYSDATA_HTTPD_IP || process.env.IP || "0.0.0.0";
-
-// ══════════════════════════════════════════════════
-// 📊 إحصائيات صيدلية محددة
-// ══════════════════════════════════════════════════
-
-// ??????????????????????????????????????????????????
-// ?? ��� ������ �������� ������� (���� ����)
-// ??????????????????????????????????????????????????
-app.get("/api/admin/pharmacies/:id/sales", (req, res) => {
-  const { id } = req.params;
-  const { limit = 50, offset = 0 } = req.query;
-  db.all(
-    "SELECT * FROM sales WHERE pharmacy_id = ? ORDER BY date DESC LIMIT ? OFFSET ?",
-    [id, limit, offset],
-    (err, rows) => {
-      if (err) return res.status(500).json({success: false, error: err.message});
-      res.json({ success: true, sales: rows });
-    }
-  );
-});
-
 app.delete("/api/admin/pharmacies/:id/sales/:saleId", (req, res) => {
   const { id, saleId } = req.params;
   db.run("DELETE FROM sales WHERE id = ? AND pharmacy_id = ?", [saleId, id], function(err) {
@@ -4401,10 +4543,50 @@ app.delete("/api/admin/pharmacies/:id/sales/:saleId", (req, res) => {
 // ??????????????????????????????????????????????????
 app.get("/api/admin/pharmacies/:id/customers", (req, res) => {
   const { id } = req.params;
-  db.all("SELECT * FROM customers WHERE pharmacy_id = ? ORDER BY name ASC", [id], (err, rows) => {
-    if (err) return res.status(500).json({success: false, error: err.message});
-    res.json({ success: true, customers: rows });
-  });
+  db.all(
+    `SELECT c.*, b.name as branch_name 
+     FROM customers c 
+     LEFT JOIN branches b ON c.branch_id = b.id 
+     WHERE c.pharmacy_id = ? 
+     ORDER BY b.name ASC, c.name ASC`, 
+    [id], 
+    (err, rows) => {
+      if (err) return res.status(500).json({success: false, error: err.message});
+      res.json({ success: true, customers: rows });
+    }
+  );
+});
+
+app.get("/api/admin/pharmacies/:id/suppliers", (req, res) => {
+  const { id } = req.params;
+  db.all(
+    `SELECT s.*, b.name as branch_name 
+     FROM suppliers s 
+     LEFT JOIN branches b ON s.branch_id = b.id 
+     WHERE s.pharmacy_id = ? 
+     ORDER BY b.name ASC, s.name ASC`, 
+    [id], 
+    (err, rows) => {
+      if (err) return res.status(500).json({success: false, error: err.message});
+      res.json({ success: true, suppliers: rows });
+    }
+  );
+});
+
+app.get("/api/admin/pharmacies/:id/purchases", (req, res) => {
+  const { id } = req.params;
+  db.all(
+    `SELECT p.id, p.pharmacy_id, p.supplier_id, p.supplier_name, p.total_cost, p.paid_amount, p.remaining, p.invoice_number, p.date, p.status, b.name as branch_name 
+     FROM purchase_invoices p 
+     LEFT JOIN branches b ON p.branch_id = b.id 
+     WHERE p.pharmacy_id = ? 
+     ORDER BY p.date DESC LIMIT 200`, 
+    [id], 
+    (err, rows) => {
+      if (err) return res.status(500).json({success: false, error: err.message});
+      res.json({ success: true, purchases: rows });
+    }
+  );
 });
 
 app.get("/api/admin/pharmacies/:id/debt-payments", (req, res) => {

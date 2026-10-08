@@ -1,0 +1,1096 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>روشتة - Super Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/style.css" />
+
+  </head>
+  <body class="bg-slate-50 text-slate-800">
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4 bg-slate-100">
+      <div class="w-full max-w-md">
+        <div class="text-center mb-8">
+          <div class="inline-flex w-16 h-16 rounded-2xl bg-slate-900 items-center justify-center mb-4">
+            <svg class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+          </div>
+          <h1 class="text-2xl font-bold text-slate-900">منصة روشتة</h1>
+          <p class="text-slate-500 text-sm mt-1">لوحة تحكم المدير العام</p>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
+          <div class="mb-5">
+            <label class="block text-sm font-semibold text-slate-700 mb-2">البريد الإلكتروني</label>
+            <input id="lEmail" type="email" placeholder="أدخل بريدك الإلكتروني" class="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 transition" />
+          </div>
+          <div class="mb-6">
+            <label class="block text-sm font-semibold text-slate-700 mb-2">كلمة المرور</label>
+            <input id="lPass" type="password" placeholder="أدخل كلمة المرور" class="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 transition" onkeydown="if (event.key === 'Enter') login();" />
+          </div>
+          <button onclick="login()" id="loginBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl py-3 flex items-center justify-center transition">تسجيل الدخول</button>
+          <div id="loginErr" class="hidden mt-3 text-red-600 text-sm text-center bg-red-50 rounded-xl py-2 px-4 font-medium"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="app" class="hidden h-screen overflow-hidden flex flex-row relative w-full">
+      <div id="sidebarOverlay" class="fixed inset-0 bg-slate-900/50 z-40 hidden md:hidden" onclick="toggleSidebar()"></div>
+      <aside id="mobileSidebar" class="fixed inset-y-0 right-0 z-50 w-64 bg-slate-900 text-white flex-shrink-0 flex flex-col transition-transform transform translate-x-full md:translate-x-0 md:static md:w-64">
+        <div class="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+          </div>
+          <div>
+            <div class="font-bold text-sm">روشتة</div>
+            <div class="text-white/40 text-xs">Super Admin</div>
+            <div id="welcomeName" class="text-indigo-400 text-xs font-semibold mt-1"></div>
+          </div>
+        </div>
+        <nav class="flex-1 px-3 py-4 flex flex-col gap-0 space-y-0.5 overflow-y-auto">
+  <button onclick="tab('dashboard')" data-tab="dashboard" class="sidebar-link whitespace-nowrap flex-shrink-0 md:flex-shrink active w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white hover:bg-white/10 transition">
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+    </svg>
+    الرئيسية
+  </button>
+  <button onclick="tab('pharmacies')" data-tab="pharmacies" class="sidebar-link whitespace-nowrap flex-shrink-0 md:flex-shrink w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+    </svg>
+    الصيدليات
+    <span id="pharmBadge" class="mr-auto bg-white/20 text-xs px-2 py-0.5 rounded-full">0</span>
+  </button>
+  <button onclick="tab('users')" data-tab="users" class="hidden sidebar-link whitespace-nowrap flex-shrink-0 md:flex-shrink w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+    المستخدمون
+  </button>
+  <button onclick="tab('sales')" data-tab="sales" class="hidden sidebar-link whitespace-nowrap flex-shrink-0 md:flex-shrink w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+    المبيعات
+  </button>
+  <button onclick="tab('subrequests')" data-tab="subrequests" class="sidebar-link whitespace-nowrap flex-shrink-0 md:flex-shrink w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+    </svg>
+    الاشتراكات
+    <span id="reqBadge" class="mr-auto hidden bg-amber-500 text-xs px-2 py-0.5 rounded-full"></span>
+  </button>
+  <button onclick="tab('tickets')" data-tab="tickets" class="hidden sidebar-link whitespace-nowrap flex-shrink-0 md:flex-shrink w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+    تذاكر الدعم <span id="ticketBadge" class="hidden ml-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold"></span>
+  </button>
+  <button onclick="tab('broadcasts')" data-tab="broadcasts" class="sidebar-link whitespace-nowrap flex-shrink-0 md:flex-shrink w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+    </svg>
+    الإشعارات العامة
+  </button>
+  <button id="platformStaffTabBtn" onclick="tab('platform-staff')" data-tab="platform-staff" class="sidebar-link whitespace-nowrap flex-shrink-0 md:flex-shrink w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+    موظفي المنصة
+  </button>
+  <button onclick="tab('plans')" data-tab="plans" class="sidebar-link whitespace-nowrap flex-shrink-0 md:flex-shrink w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+    </svg>
+    الباقات والأسعار
+  </button>
+  <button onclick="tab('payment')" data-tab="payment" class="sidebar-link whitespace-nowrap flex-shrink-0 md:flex-shrink w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+    </svg>
+    بيانات الدفع والتواصل
+  </button>
+  <button onclick="tab('settings')" data-tab="settings" class="sidebar-link whitespace-nowrap flex-shrink-0 md:flex-shrink w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+    الإعدادات
+    <span id="maintBadgeSidebar" class="mr-auto hidden bg-red-500 text-xs px-2 py-0.5 rounded-full">صيانة</span>
+  </button>
+</nav>
+        <div class="px-3 py-4 border-t border-white/10">
+          <button onclick="logout()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/50 hover:text-white hover:bg-white/10 transition">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            تسجيل الخروج
+          </button>
+        </div>
+      </aside>
+      <main class="flex-1 overflow-auto flex flex-col">
+        <header class="bg-white border-b border-slate-100 px-4 md:px-8 py-4 flex items-center justify-between sticky top-0 z-10">
+          <div class="flex items-center gap-3">
+            <button class="md:hidden p-2 -mr-2 text-slate-500 rounded-lg hover:bg-slate-50" onclick="toggleSidebar()">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div>
+              <h2 id="pageTitle" class="text-lg font-bold">الرئيسية</h2>
+              <p id="pageSub" class="text-xs text-slate-400 mt-0.5">نظرة عامة على المنصة</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div id="maintBadge" class="hidden items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full"><span class="w-1.5 h-1.5 bg-amber-500 rounded-full"></span> وضع الصيانة</div>
+
+            <!-- Notifications -->
+            <div class="relative">
+              <button id="notifBtn" onclick="toggleNotifications()" class="relative w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <span id="notifBadge" class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white hidden"></span>
+              </button>
+
+              <div id="notifDropdown" class="absolute left-0 mt-2 w-80 bg-white border border-slate-100 rounded-2xl shadow-xl hidden z-50 flex-col overflow-hidden">
+                <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+                  <h4 class="font-bold text-slate-800 text-sm">الإشعارات</h4>
+                  <button onclick="loadNotifications()" class="text-xs text-blue-600 hover:underline">تحديث</button>
+                </div>
+                <div id="notifList" class="max-h-80 overflow-y-auto divide-y divide-slate-50 p-2">
+                  <div class="text-center py-6 text-slate-400 text-sm">جاري التحميل...</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white text-xs font-bold">S</div>
+          </div>
+        </header>
+        <div class="p-4 md:p-8 flex-1">
+          <div id="tab-dashboard" class="tab active">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+              <div class="kpi flex items-start gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center flex-shrink-0 text-indigo-600">
+                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-slate-500 mb-1">إجمالي الصيدليات</div>
+                  <div id="k1" class="text-2xl font-black text-slate-900">—</div>
+                  <div id="k1s" class="text-xs text-indigo-600 font-semibold mt-1">— نشطة</div>
+                </div>
+              </div>
+              <div class="kpi flex items-start gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-600">
+                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-slate-500 mb-1">المستخدمون</div>
+                  <div id="k2" class="text-2xl font-black text-slate-900">—</div>
+                  <div class="text-xs text-blue-600 font-semibold mt-1">عبر جميع الصيدليات</div>
+                </div>
+              </div>
+              <div class="kpi flex items-start gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center flex-shrink-0 text-emerald-600">
+                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-slate-500 mb-1">إجمالي المدفوعات</div>
+                  <div id="k3" class="text-2xl font-black text-slate-900">—</div>
+                  <div class="text-xs text-emerald-600 font-semibold mt-1">₪ شيكل</div>
+                </div>
+              </div>
+              <div class="kpi flex items-start gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center flex-shrink-0 text-amber-500">
+                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-slate-500 mb-1">طلبات الاشتراك</div>
+                  <div id="k4" class="text-2xl font-black text-slate-900">—</div>
+                  <div class="text-xs text-amber-500 font-semibold mt-1">قيد الانتظار</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
+              <div class="px-6 py-4 border-b border-slate-50 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800">أحدث الصيدليات المسجلة</h3>
+                <button onclick="tab('pharmacies')" class="text-blue-600 text-sm font-medium hover:underline">عرض الكل ←</button>
+              </div>
+              <table class="w-full text-sm min-w-[800px] md:whitespace-normal whitespace-nowrap">
+                <thead>
+                  <tr class="bg-slate-50 text-slate-500 text-xs font-semibold">
+                    <th class="text-right px-6 py-3">الصيدلية</th>
+                    <th class="text-right px-4 py-3">المالك</th>
+                    <th class="text-right px-4 py-3">الاشتراك</th>
+                    <th class="text-right px-4 py-3">التسجيل</th>
+                    <th class="text-right px-4 py-3">الحالة</th>
+                  </tr>
+                </thead>
+                <tbody id="dashTbl" class="divide-y divide-slate-50 text-slate-700">
+                  <tr>
+                    <td colspan="5" class="text-center py-8 text-slate-400">جاري التحميل...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="tab-pharmacies" class="tab">
+            <div class="flex items-center justify-between mb-6">
+              <input id="pharmSearch" oninput="filterP()" placeholder="بحث..." type="text" class="border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm w-full sm:w-72 outline-none" />
+              <div class="flex items-center gap-2">
+                <button onclick="exportPharmaciesCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 transition">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  تصدير البيانات
+                </button>
+                <button onclick="openAddP()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 transition">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  إضافة صيدلية
+                </button>
+              </div>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
+              <table class="w-full text-sm min-w-[800px] md:whitespace-normal whitespace-nowrap">
+                <thead>
+                  <tr class="bg-slate-50 text-slate-500 text-xs font-semibold">
+                    <th class="text-right px-6 py-3">الصيدلية</th>
+                    <th class="text-right px-4 py-3">المالك</th>
+                    <th class="text-right px-4 py-3">الجوال</th>
+                    <th class="text-right px-4 py-3">الاشتراك</th>
+                    <th class="text-right px-4 py-3">البداية</th>
+                    <th class="text-right px-4 py-3">الانتهاء</th>
+                    <th class="text-right px-4 py-3">المدفوع</th>
+                    <th class="text-right px-4 py-3">الحالة</th>
+                    <th class="text-right px-4 py-3">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody id="pharmTbl" class="divide-y divide-slate-50 text-slate-700">
+                  <tr>
+                    <td colspan="9" class="text-center py-8 text-slate-400">جاري التحميل...</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div id="pharmPagination" class="pagination-container"></div>
+            </div>
+          </div>
+
+          <div id="tab-pharmacy-detail" class="tab">
+            <div class="flex justify-between items-center mb-6">
+              <div class="flex items-center gap-3">
+                <button onclick="tab('pharmacies')" class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition">
+                  <svg class="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+                <div>
+                  <h3 id="detName" class="text-xl font-bold text-slate-900">اسم الصيدلية</h3>
+                  <p id="detId" class="text-sm text-slate-400">#id</p>
+                </div>
+              </div>
+              <div class="flex gap-2 flex-wrap">
+                <button id="detReadOnlyBtn" onclick="toggleReadOnly()" class="bg-amber-100 text-amber-700 hover:bg-amber-200 font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <span id="detReadOnlyTxt">تفعيل وضع القراءة</span>
+                </button>
+                <button onclick="openResetPasswordModal()" class="bg-blue-100 text-blue-700 hover:bg-blue-200 font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition">🔑 إعادة كلمة المرور</button>
+                <button onclick="openPrivateNotifyModal()" class="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition">📩 إشعار خاص</button>
+                <button onclick="openVipPriceModal()" class="bg-amber-100 text-amber-600 hover:bg-amber-200 font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition">🏷️ سعر VIP</button>
+              </div>
+            </div>
+
+            <div class="flex flex-col md:flex-row gap-6">
+              <!-- Sidebar for details -->
+              <div class="w-full md:w-64 flex-shrink-0 flex flex-row md:flex-col gap-2 md:gap-4 overflow-x-auto">
+                <button onclick="switchDetTab('basics')" id="btn-det-basics" class="det-nav whitespace-nowrap flex-shrink-0 active text-right px-4 py-3 rounded-xl font-bold text-sm bg-slate-900 text-white transition">المعلومات الأساسية</button>
+                <button onclick="switchDetTab('stats')" id="btn-det-stats" class="det-nav whitespace-nowrap flex-shrink-0 text-right px-4 py-3 rounded-xl font-bold text-sm bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition">📊 إحصائيات الأداء</button>
+                <button onclick="switchDetTab('invoices')" id="btn-det-invoices" class="det-nav whitespace-nowrap flex-shrink-0 text-right px-4 py-3 rounded-xl font-bold text-sm bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition">🧾 فواتير المبيعات</button>
+                <button onclick="switchDetTab('staff')" id="btn-det-staff" class="det-nav whitespace-nowrap flex-shrink-0 text-right px-4 py-3 rounded-xl font-bold text-sm bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition">الموظفين (Staff)</button>
+                                <button onclick="switchDetTab('customers')" id="btn-det-customers" class="det-nav whitespace-nowrap flex-shrink-0 text-right px-4 py-3 rounded-xl font-bold text-sm bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition">👥 العملاء والديون</button>
+                <button onclick="switchDetTab('suppliers')" id="btn-det-suppliers" class="det-nav whitespace-nowrap flex-shrink-0 text-right px-4 py-3 rounded-xl font-bold text-sm bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition">🚚 الموردين والمشتريات</button>
+                <button onclick="switchDetTab('branches')" id="btn-det-branches" class="det-nav whitespace-nowrap flex-shrink-0 text-right px-4 py-3 rounded-xl font-bold text-sm bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition">الفروع (Branches)</button>
+              </div>
+
+              <!-- Content area -->
+              <div class="flex-1 bg-white rounded-2xl border border-slate-100 shadow-sm p-6 min-h-[500px]">
+                <!-- Basics Tab -->
+                <div id="det-basics" class="det-content block">
+                  <h4 class="font-bold text-slate-800 mb-6 text-lg border-b pb-3">الإعدادات الأساسية</h4>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">اسم الصيدلية</label><input id="dbName" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none" /></div>
+                    <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">اسم المالك</label><input id="dbOwner" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none" /></div>
+                    <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">رقم الجوال</label><input id="dbPhone" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none" /></div>
+                    <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">تاريخ الانتهاء</label><input id="dbExpiry" type="date" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none" /></div>
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-500 mb-1.5">خطة الاشتراك</label
+                      ><select id="dbPlan" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white outline-none">
+                        <option value="monthly">شهري</option>
+                        <option value="annual">سنوي</option>
+                        <option value="lifetime">مدى الحياة</option>
+                        <option value="trial">تجريبي</option>
+                      </select>
+                    </div>
+                    <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">المبلغ المدفوع (₪)</label><input id="dbPaid" type="number" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none" /></div>
+                  </div>
+
+                  <!-- Owner Login Credentials -->
+                  <div class="border-t border-slate-100 pt-5 mb-5">
+                    <h5 class="text-sm font-bold text-slate-700 mb-4">🔐 بيانات دخول المالك</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">البريد الإلكتروني</label>
+                        <input id="dbEmail" type="email" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none" placeholder="email@example.com" />
+                      </div>
+                      <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">كلمة السر <span class="text-slate-400 font-normal">(فارغة = لا تغيير)</span></label>
+                        <div class="relative">
+                          <input id="dbPassword" type="password" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none" placeholder="••••••••" />
+                          <button type="button" onclick="toggleDbPass()" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <button onclick="saveDetBasics()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition">حفظ التعديلات الأساسية</button>
+                </div>
+
+                <!-- Stats Tab -->
+                <div id="det-stats" class="det-content hidden">
+                  <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-3">
+                    <h4 class="text-lg font-black text-slate-800">📊 إحصائيات الأداء والمبيعات</h4>
+                    <button onclick="loadPharmacyStats()" class="text-blue-600 hover:text-blue-800 text-sm font-semibold flex items-center gap-2">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                      تحديث
+                    </button>
+                  </div>
+                  
+                  <!-- Main Stats Cards -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6" id="detStatsContainer">
+                    <div class="bg-slate-50 border border-slate-100 rounded-2xl p-5 flex flex-col justify-center text-center animate-pulse h-28">
+                      <div class="h-4 bg-slate-200 rounded w-1/2 mx-auto mb-2"></div>
+                      <div class="h-6 bg-slate-200 rounded w-3/4 mx-auto"></div>
+                    </div>
+                  </div>
+                  
+                  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5" id="detSecondaryStatsContainer">
+                     <!-- More stats here -->
+                  </div>
+                </div>
+
+                <!-- Invoices Tab -->
+                <div id="det-invoices" class="det-content hidden">
+                  <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-slate-100 pb-3">
+                    <h4 class="text-lg font-black text-slate-800">🧾 سجل فواتير المبيعات</h4>
+                    <button onclick="loadAdminSales()" class="text-blue-600 hover:text-blue-800 text-sm font-semibold flex items-center gap-2">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                      تحديث
+                    </button>
+                  </div>
+                  
+                  <div class="overflow-x-auto w-full">
+                    <table class="w-full text-sm text-right">
+                      <thead class="text-xs text-slate-500 uppercase bg-slate-50">
+                        <tr>
+                          <th class="px-4 py-3 rounded-r-xl">رقم الفاتورة</th>
+                          <th class="px-4 py-3">التاريخ</th>
+                          <th class="px-4 py-3">القيمة</th>
+                          <th class="px-4 py-3">طريقة الدفع</th>
+                          <th class="px-4 py-3">الكاشير</th>
+                          <th class="px-4 py-3 rounded-l-xl">إجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody id="detInvoicesTbl" class="divide-y divide-slate-100">
+                        <tr><td colspan="7" class="text-center py-8 text-slate-400">جاري التحميل...</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="mt-4 flex justify-center gap-2" id="detInvoicesPagination"></div>
+                </div>
+
+                <!-- Staff Tab -->
+                <div id="det-staff" class="det-content hidden">
+                  <div class="flex justify-between items-center mb-6 border-b pb-3">
+                    <h4 class="font-bold text-slate-800 text-lg">قائمة الموظفين</h4>
+                    <button onclick="openAddStaff()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs px-4 py-2 rounded-lg transition">+ إضافة موظف</button>
+                  </div>
+                  <table class="w-full text-sm min-w-[800px] md:whitespace-normal whitespace-nowrap">
+                    <thead>
+                      <tr class="bg-slate-50 text-slate-500 text-xs font-semibold">
+                        <th class="text-right px-4 py-3">الاسم</th>
+                        <th class="text-right px-4 py-3">البريد</th>
+                        <th class="text-right px-4 py-3">الدور</th>
+                        <th class="text-right px-4 py-3">إجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody id="detStaffTbl" class="divide-y divide-slate-50 text-slate-700"></tbody>
+                  </table>
+                </div>
+
+
+                <!-- Customers Tab -->
+                
+                <!-- Suppliers & Purchases Tab -->
+                <div id="det-suppliers" class="det-content hidden">
+                  <div class="flex justify-between items-center mb-6 border-b pb-3">
+                    <h4 class="font-bold text-slate-800 text-lg">الموردين والمشتريات</h4>
+                  </div>
+                
+                  <div class="flex justify-between items-center mb-4">
+                    <div class="flex gap-2 bg-slate-100 p-1.5 rounded-xl w-max">
+                      <button id="supSubTabList" onclick="switchSupTab('list')" class="px-4 py-2 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition">قائمة الموردين</button>
+                      <button id="supSubTabPurchases" onclick="switchSupTab('purchases')" class="px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition">فواتير المشتريات</button>
+                    </div>
+                    <select id="supBranchFilter" onchange="renderAdminSuppliers()" class="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 bg-white shadow-sm focus:outline-none focus:border-indigo-500 hidden">
+                      <option value="all">كل الفروع</option>
+                    </select>
+                  </div>
+                
+                  <div id="supListView">
+                    <div class="overflow-x-auto">
+                      <table class="w-full text-sm text-right">
+                        <thead class="bg-slate-50 text-slate-500 font-semibold border-b">
+                          <tr>
+                            <th class="px-4 py-3">الشركة / المورد</th>
+                            <th class="px-4 py-3">رقم الهاتف</th>
+                            <th class="px-4 py-3">الرصيد المستحق (₪)</th>
+                          </tr>
+                        </thead>
+                        <tbody id="adminSuppliersTable" class="divide-y divide-slate-100">
+                          <tr><td colspan="3" class="text-center py-8 text-slate-400">جاري التحميل...</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                
+                  <div id="supPurchasesView" class="hidden">
+                    <div class="overflow-x-auto">
+                      <table class="w-full text-sm text-right">
+                        <thead class="bg-slate-50 text-slate-500 font-semibold border-b">
+                          <tr>
+                            <th class="px-4 py-3">رقم الفاتورة</th>
+                            <th class="px-4 py-3">المورد</th>
+                            <th class="px-4 py-3">التاريخ</th>
+                            <th class="px-4 py-3">الإجمالي (₪)</th>
+                            <th class="px-4 py-3">المدفوع (₪)</th>
+                            <th class="px-4 py-3">المتبقي (₪)</th>
+                            <th class="px-4 py-3">الحالة</th>
+                            <th class="px-4 py-3">الفرع</th>
+                          </tr>
+                        </thead>
+                        <tbody id="adminPurchasesTable" class="divide-y divide-slate-100">
+                          <tr><td colspan="8" class="text-center py-8 text-slate-400">جاري التحميل...</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="det-customers" class="det-content hidden">
+                  <div class="flex justify-between items-center mb-6 border-b pb-3">
+                    <h4 class="font-bold text-slate-800 text-lg">العملاء والديون</h4>
+                  </div>
+                
+                  <div class="flex justify-between items-center mb-4">
+                    <div class="flex gap-2 bg-slate-100 p-1.5 rounded-xl w-max">
+                      <button id="custSubTabList" onclick="switchCustTab('list')" class="px-4 py-2 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition">قائمة العملاء</button>
+                      <button id="custSubTabPayments" onclick="switchCustTab('payments')" class="px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition">سجل سداد الديون</button>
+                    </div>
+                    <select id="custBranchFilter" onchange="renderAdminCustomers()" class="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 bg-white shadow-sm focus:outline-none focus:border-indigo-500 hidden">
+                      <option value="all">كل الفروع</option>
+                    </select>
+                  </div>
+                
+                  <div id="custListView">
+                    <div class="overflow-x-auto">
+                      <table class="w-full text-sm text-right">
+                        <thead class="bg-slate-50 text-slate-500 font-semibold border-b">
+                          <tr>
+                            <th class="px-4 py-3">اسم العميل</th>
+                            <th class="px-4 py-3">الفرع</th>
+                            <th class="px-4 py-3">رقم الهاتف</th>
+                            <th class="px-4 py-3">الديون (₪)</th>
+                            <th class="px-4 py-3">آخر زيارة</th>
+                          </tr>
+                        </thead>
+                        <tbody id="adminCustomersTable" class="divide-y divide-slate-100">
+                          <tr><td colspan="5" class="text-center py-8 text-slate-400">جاري التحميل...</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                
+                  <div id="custPaymentsView" class="hidden">
+                    <div class="overflow-x-auto">
+                      <table class="w-full text-sm text-right">
+                        <thead class="bg-slate-50 text-slate-500 font-semibold border-b">
+                          <tr>
+                            <th class="px-4 py-3">اسم العميل</th>
+                            <th class="px-4 py-3">المبلغ (₪)</th>
+                            <th class="px-4 py-3">تاريخ السداد</th>
+                          </tr>
+                        </thead>
+                        <tbody id="adminDebtPaymentsTable" class="divide-y divide-slate-100">
+                          <tr><td colspan="3" class="text-center py-8 text-slate-400">جاري التحميل...</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Branches Tab -->
+                <div id="det-branches" class="det-content hidden">
+                  <div class="flex justify-between items-center mb-6 border-b pb-3">
+                    <h4 class="font-bold text-slate-800 text-lg">الفروع</h4>
+                    <button onclick="openAddBranch()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs px-4 py-2 rounded-lg transition">+ إضافة فرع</button>
+                  </div>
+                  <table class="w-full text-sm min-w-[800px] md:whitespace-normal whitespace-nowrap">
+                    <thead>
+                      <tr class="bg-slate-50 text-slate-500 text-xs font-semibold">
+                        <th class="text-right px-4 py-3">الاسم</th>
+                        <th class="text-right px-4 py-3">العنوان</th>
+                        <th class="text-right px-4 py-3">الحالة</th>
+                        <th class="text-right px-4 py-3">إجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody id="detBranchesTbl" class="divide-y divide-slate-50 text-slate-700"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-broadcasts" class="tab">
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 max-w-2xl mx-auto">
+              <h3 class="font-bold text-slate-800 mb-5">إرسال إشعار عام</h3>
+              <div class="space-y-4">
+                <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">عنوان الإشعار</label><input id="bTitle" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="مثال: تحديث النظام" /></div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-500 mb-1.5">نوع الإشعار</label>
+                  <select id="bType" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white outline-none">
+                    <option value="info">معلومة (Info)</option>
+                    <option value="warning">تحذير (Warning)</option>
+                  </select>
+                </div>
+                <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">نص الإشعار</label><textarea id="bMessage" rows="4" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="اكتب رسالتك هنا..."></textarea></div>
+                <button onclick="sendBroadcast()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl py-3 text-sm transition">إرسال الإشعار الآن</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-users" class="tab">
+            <div class="mb-6">
+              <input id="userSearch" oninput="filterU()" placeholder="بحث..." type="text" class="border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm w-full sm:w-80 outline-none" />
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
+              <table class="w-full text-sm min-w-[800px] md:whitespace-normal whitespace-nowrap">
+                <thead>
+                  <tr class="bg-slate-50 text-slate-500 text-xs font-semibold">
+                    <th class="text-right px-6 py-3">الاسم</th>
+                    <th class="text-right px-4 py-3">البريد الإلكتروني</th>
+                    <th class="text-right px-4 py-3">الصيدلية</th>
+                    <th class="text-right px-4 py-3">الدور</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTbl" class="divide-y divide-slate-50 text-slate-700">
+                  <tr>
+                    <td colspan="3" class="text-center py-8 text-slate-400">جاري التحميل...</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div id="usersPagination" class="pagination-container"></div>
+            </div>
+          </div>
+
+          <div id="tab-sales" class="tab">
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
+              <div class="px-6 py-4 border-b border-slate-50">
+                <h3 class="font-bold text-slate-800">المبيعات حسب الصيدلية</h3>
+              </div>
+              <table class="w-full text-sm min-w-[800px] md:whitespace-normal whitespace-nowrap">
+                <thead>
+                  <tr class="bg-slate-50 text-slate-500 text-xs font-semibold">
+                    <th class="text-right px-6 py-3">الصيدلية</th>
+                    <th class="text-right px-4 py-3">عدد الفواتير</th>
+                    <th class="text-right px-4 py-3">إجمالي المبيعات</th>
+                    <th class="text-right px-4 py-3">آخر فاتورة</th>
+                  </tr>
+                </thead>
+                <tbody id="salesTbl" class="divide-y divide-slate-50 text-slate-700">
+                  <tr>
+                    <td colspan="3" class="text-center py-8 text-slate-400">جاري التحميل...</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div id="salesPagination" class="pagination-container"></div>
+            </div>
+          </div>
+
+          <div id="tab-subrequests" class="tab">
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
+              <table class="w-full text-sm min-w-[800px] md:whitespace-normal whitespace-nowrap">
+                <thead>
+                  <tr class="bg-slate-50 text-slate-500 text-xs font-semibold">
+                    <th class="text-right px-6 py-3">الصيدلية</th>
+                    <th class="text-right px-4 py-3">الخطة</th>
+                    <th class="text-right px-4 py-3">طريقة التحويل</th>
+                    <th class="text-right px-4 py-3">الإيصال</th>
+                    <th class="text-right px-4 py-3">التاريخ</th>
+                    <th class="text-right px-4 py-3">الحالة</th>
+                    <th class="text-right px-4 py-3">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody id="reqTbl" class="divide-y divide-slate-50 text-slate-700">
+                  <tr>
+                    <td colspan="6" class="text-center py-8 text-slate-400">جاري التحميل...</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div id="reqPagination" class="pagination-container"></div>
+            </div>
+          </div>
+
+          <div id="tab-tickets" class="tab">
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
+              <table class="w-full text-sm min-w-[800px] md:whitespace-normal whitespace-nowrap">
+                <thead>
+                  <tr class="bg-slate-50 text-slate-500 text-xs font-semibold">
+                    <th class="text-right px-6 py-3">الموضوع</th>
+                    <th class="text-right px-4 py-3">الصيدلية</th>
+                    <th class="text-right px-4 py-3">الأولوية</th>
+                    <th class="text-right px-4 py-3">التاريخ</th>
+                    <th class="text-right px-4 py-3">الحالة</th>
+                    <th class="text-right px-4 py-3">تغيير</th>
+                  </tr>
+                </thead>
+                <tbody id="ticketsTbl" class="divide-y divide-slate-50 text-slate-700">
+                  <tr>
+                    <td colspan="6" class="text-center py-8 text-slate-400">جاري التحميل...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="tab-settings" class="tab">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                <h3 class="font-bold text-slate-800 mb-5">إعدادات النظام</h3>
+                <div class="space-y-4">
+                  <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">اسم المنصة</label><input id="sName" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" /></div>
+                  <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">البريد الإلكتروني للمدير</label><input id="sEmail" type="email" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" /></div>
+                  <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">كلمة المرور الجديدة</label><input id="sPass" type="password" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="اتركه فارغاً للإبقاء على الحالي" /></div>
+                  <div class="flex items-center justify-between py-3 px-4 bg-amber-50 rounded-xl border border-amber-100">
+                    <div>
+                      <div class="text-sm font-semibold text-amber-800">وضع الصيانة</div>
+                      <div class="text-xs text-amber-600">يظهر للمستخدمين رسالة صيانة</div>
+                    </div>
+                    <label class="relative inline-flex cursor-pointer"
+                      ><input type="checkbox" id="sMaint" class="sr-only peer" />
+                      <div class="w-11 h-6 bg-slate-200 peer-checked:bg-amber-500 rounded-full after:content-[''] after:absolute after:top-0.5 after:start-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition peer-checked:after:translate-x-full transition"></div
+                    ></label>
+                  </div>
+                  <button onclick="saveSettings()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl py-3 text-sm transition">حفظ الإعدادات</button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div id="tab-payment" class="tab hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl">
+              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex flex-col">
+                <h3 class="font-bold text-slate-800 mb-5">بيانات الدفع</h3>
+                <div class="space-y-4">
+                  <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">اسم الشركة</label><input id="sCompany" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="مثال: روشتة" /></div>
+                  <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">اسم البنك</label><input id="sBankName" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="بنك فلسطين" /></div>
+                  <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">رقم الحساب</label><input id="sBankAccount" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" /></div>
+                  <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">اسم صاحب الحساب</label><input id="sBankAccountName" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="مثال: أحمد محمد علي" /></div>
+                  <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">رقم الايبان (IBAN)</label><input id="sBankIban" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" /></div>
+                  <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">رقم المحفظة</label><input id="sWallet" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" /></div>
+                  <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">اسم حساب بال باي PalPay</label><input id="sPalpayName" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="مثال: أحمد محمد علي" /></div>
+                  <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">اسم حساب جوال باي JawwalPay</label><input id="sJawwalpayName" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="مثال: أحمد محمد علي" /></div>
+                </div>
+              </div>
+              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex flex-col">
+                <h3 class="font-bold text-slate-800 mb-5">بيانات التواصل (روابط الدعم والمطور)</h3>
+                <div class="space-y-4">
+                  <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">رقم الواتساب للدعم الفني</label><input id="sWhatsapp" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="201xxxxxx" /></div>
+                  <div><label class="block text-xs font-semibold text-slate-500 mb-1.5 mt-4">رابط واتساب المطور</label><input id="sDevWhatsapp" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" dir="ltr" /></div>
+                  <div><label class="block text-xs font-semibold text-slate-500 mb-1.5 mt-4">رابط انستجرام المطور</label><input id="sDevInstagram" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" dir="ltr" /></div>
+                  <div><label class="block text-xs font-semibold text-slate-500 mb-1.5 mt-4">رابط موقع المطور</label><input id="sDevWebsite" class="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none" dir="ltr" /></div>
+                </div>
+                <div class="mt-auto pt-6">
+                  <button onclick="saveSettings()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl py-3 text-sm transition">حفظ البيانات</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Plans Tab -->
+          <div id="tab-plans" class="tab">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+              <div>
+                <h1 class="text-2xl font-bold text-slate-800">الباقات والأسعار</h1>
+                <p class="text-sm text-slate-500 mt-1">إدارة باقات الاشتراك والمميزات</p>
+              </div>
+              <button onclick="openPlanModal()" class="bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xl px-5 py-2.5 transition flex items-center gap-2 shadow-sm">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                إضافة باقة
+              </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="plansGrid">
+              <!-- Plans will be rendered here -->
+            </div>
+          </div>
+
+          <!-- Platform Staff Tab -->
+          <div id="tab-platform-staff" class="tab">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+              <div>
+                <h1 class="text-2xl font-bold text-slate-800">فريق عمل المنصة</h1>
+                <p class="text-sm text-slate-500 mt-1">إدارة موظفي لوحة تحكم السوبر أدمين والصلاحيات</p>
+              </div>
+              <button id="addPlatformStaffBtn" onclick="openPlatformStaffModal()" class="bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xl px-5 py-2.5 transition flex items-center gap-2 shadow-sm">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                إضافة موظف
+              </button>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full text-right text-sm min-w-[800px] md:whitespace-normal whitespace-nowrap">
+                  <thead class="bg-slate-50 border-b border-slate-100 text-slate-500">
+                    <tr>
+                      <th class="px-6 py-4 font-semibold">الاسم</th>
+                      <th class="px-6 py-4 font-semibold">البريد الإلكتروني</th>
+                      <th class="px-6 py-4 font-semibold">الصلاحية</th>
+                      <th class="px-6 py-4 font-semibold">تاريخ الإضافة</th>
+                      <th class="px-6 py-4 font-semibold text-left">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody id="platformStaffTbl" class="divide-y divide-slate-50 text-slate-700"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Plan Modal -->
+    <div id="planModal" class="fixed inset-0 hidden items-center justify-center z-50">
+      <div class="modal-bg absolute inset-0" onclick="closePlanModal()"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 z-10 mx-4 max-h-[90vh] overflow-y-auto">
+        <h2 id="planModalTitle" class="text-xl font-bold text-slate-800 mb-6">إضافة باقة</h2>
+        <div class="space-y-4">
+          <input type="hidden" id="planId" />
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">اسم الباقة</label>
+            <input type="text" id="planName" class="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-slate-400 transition" />
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">السعر (₪)</label>
+              <input type="number" id="planPrice" class="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-slate-400 transition" />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">السعر القديم (₪)</label>
+              <input type="number" id="planOldPrice" class="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-slate-400 transition" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">المدة (بالأشهر)</label>
+            <input type="number" id="planDuration" class="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-slate-400 transition" />
+          </div>
+          <div>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="planIsActive" class="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
+              <span class="text-sm font-semibold text-slate-700">باقة نشطة</span>
+            </label>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">المميزات (كل ميزة في سطر)</label>
+            <textarea id="planFeatures" rows="5" class="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-slate-400 transition resize-none"></textarea>
+          </div>
+        </div>
+        <div class="flex items-center justify-end gap-3 mt-8">
+          <button onclick="closePlanModal()" class="px-5 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-slate-50 transition">إلغاء</button>
+          <button onclick="savePlan()" class="bg-slate-900 hover:bg-slate-800 text-white px-6 py-2.5 rounded-xl font-medium shadow-lg shadow-slate-200 transition">حفظ الباقة</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Platform Staff Modal -->
+    <div id="platformStaffModal" class="fixed inset-0 hidden items-center justify-center z-50">
+      <div class="modal-bg absolute inset-0" onclick="closePlatformStaffModal()"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 z-10 mx-4">
+        <h2 id="platformStaffTitle" class="text-xl font-bold text-slate-800 mb-6">إضافة موظف للمنصة</h2>
+        <div class="space-y-4">
+          <input type="hidden" id="psId" />
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">الاسم</label>
+            <input type="text" id="psName" class="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-slate-400 transition" />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">البريد الإلكتروني</label>
+            <input type="email" id="psEmail" class="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-slate-400 transition" />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">كلمة المرور (اتركه فارغاً للتعديل دون تغيير)</label>
+            <input type="password" id="psPassword" class="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-slate-400 transition" />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">الصلاحية</label>
+            <select id="psRole" class="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-slate-400 transition">
+              <option value="support">موظف دعم فني (Support)</option>
+              <option value="sales">مسؤول مبيعات واشتراكات (Sales)</option>
+              <option value="accountant">محاسب المنصة (Accountant)</option>
+              <option value="owner">مدير رئيسي (Owner)</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex items-center justify-end gap-3 mt-8">
+          <button onclick="closePlatformStaffModal()" class="px-5 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-slate-50 transition">إلغاء</button>
+          <button onclick="savePlatformStaff()" class="bg-slate-900 hover:bg-slate-800 text-white px-6 py-2.5 rounded-xl font-medium shadow-lg shadow-slate-200 transition">حفظ الموظف</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="pharmModal" class="fixed inset-0 hidden items-center justify-center z-50">
+      <div class="modal-bg absolute inset-0" onclick="closeP()"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 z-10 mx-4">
+        <div class="flex items-center justify-between mb-6">
+          <h3 id="pModalTitle" class="text-lg font-bold text-slate-900">إضافة صيدلية</h3>
+          <button onclick="closeP()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">اسم الصيدلية *</label><input id="pName" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none" /></div>
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">اسم المالك *</label><input id="pOwner" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none" /></div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">البريد الإلكتروني *</label><input id="pEmail" type="email" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none" /></div>
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">كلمة المرور *</label><input id="pPass" type="password" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none" /></div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">رقم الجوال</label><input id="pPhone" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none" /></div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1.5">خطة الاشتراك</label>
+            <select id="pPlan" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white outline-none">
+              <option value="monthly">شهري</option>
+              <option value="annual">سنوي</option>
+              <option value="trial">تجريبي</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-5"><label class="block text-xs font-semibold text-slate-500 mb-1.5">المبلغ المدفوع (₪)</label><input id="pPaid" type="number" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none" placeholder="0" /></div>
+        <div class="flex gap-3">
+          <button onclick="closeP()" class="flex-1 border-2 border-slate-200 text-slate-600 font-semibold rounded-xl py-2.5 text-sm hover:bg-slate-50">إلغاء</button>
+          <button onclick="saveP()" id="savePBtn" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl py-2.5 text-sm transition">حفظ</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="confirmModal" class="fixed inset-0 hidden items-center justify-center z-50">
+      <div class="modal-bg absolute inset-0" onclick="closeConfirm()"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 z-10 mx-4 text-center">
+        <div id="confirmIcon" class="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center"></div>
+        <h3 id="confirmTitle" class="text-lg font-bold text-slate-900 mb-2"></h3>
+        <p id="confirmDesc" class="text-sm text-slate-500 mb-6"></p>
+        <div class="flex gap-3">
+          <button onclick="closeConfirm()" class="flex-1 border-2 border-slate-200 text-slate-600 font-semibold rounded-xl py-2.5 text-sm hover:bg-slate-50">إلغاء</button>
+          <button id="confirmBtn" class="flex-1 font-bold rounded-xl py-2.5 text-sm text-white transition"></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="renewModal" class="fixed inset-0 hidden items-center justify-center z-[60]">
+      <div class="modal-bg absolute inset-0" onclick="closeRenewModal()"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 z-10 mx-4">
+        <h3 class="text-lg font-bold text-slate-900 mb-4">تجديد يدوي للاشتراك</h3>
+        <div class="space-y-3 mb-5">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1.5">عدد الأشهر</label>
+            <input id="rMonths" type="number" placeholder="مثال: 12" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1.5">المبلغ المدفوع (₪)</label>
+            <input id="rAmount" type="number" placeholder="مثال: 500" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm outline-none" />
+          </div>
+        </div>
+        <div class="flex gap-3"><button onclick="closeRenewModal()" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-2 font-bold text-sm">إلغاء</button><button onclick="submitManualRenew()" id="renewBtn" class="flex-1 bg-emerald-600 text-white rounded-xl py-2 font-bold text-sm">تأكيد التجديد</button></div>
+      </div>
+    </div>
+
+    <!-- Add Staff Modal -->
+    <div id="staffModal" class="fixed inset-0 hidden items-center justify-center z-[60]">
+      <div class="modal-bg absolute inset-0" onclick="closeStaffModal()"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 z-10 mx-4">
+        <h3 class="text-lg font-bold text-slate-900 mb-4">إضافة موظف</h3>
+        <div class="space-y-3 mb-5">
+          <input id="stName" placeholder="الاسم" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm outline-none" />
+          <input id="stEmail" placeholder="البريد الإلكتروني" type="email" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm outline-none" />
+          <div class="relative">
+            <input id="stPass" placeholder="كلمة المرور" type="password" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm outline-none pr-10" />
+            <button type="button" onclick="togglePassVisibility('stPass', this)" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+            </button>
+          </div>
+          <select id="stRole" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm outline-none bg-white">
+            <option value="pharmacist">صيدلاني</option>
+            <option value="cashier">كاشير</option>
+            <option value="manager">مدير</option>
+          </select>
+          <select id="stBranch" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm outline-none bg-white">
+            <option value="">جميع الفروع (أو الفرع الرئيسي)</option>
+          </select>
+        </div>
+        <div class="flex gap-3"><button onclick="closeStaffModal()" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-2 font-bold text-sm">إلغاء</button><button onclick="saveStaff()" class="flex-1 bg-blue-600 text-white rounded-xl py-2 font-bold text-sm">حفظ</button></div>
+      </div>
+    </div>
+
+    <!-- Invoice Detail Modal -->
+    <div id="invoiceModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm items-center justify-center p-4">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <h3 class="text-lg font-black text-slate-800">تفاصيل الفاتورة <span id="invDetId" class="text-blue-600 ml-2"></span></h3>
+          <button onclick="toggleModal('invoiceModal', false)" class="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-200 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div class="p-6 overflow-y-auto">
+          <div class="grid grid-cols-2 gap-4 mb-6 text-sm">
+            <div><span class="text-slate-500 font-semibold block mb-1">العميل</span><div id="invDetCustomer" class="font-bold"></div></div>
+            <div><span class="text-slate-500 font-semibold block mb-1">التاريخ</span><div id="invDetDate" class="font-bold text-slate-700" dir="ltr"></div></div>
+            <div><span class="text-slate-500 font-semibold block mb-1">الكاشير</span><div id="invDetCashier" class="font-bold"></div></div>
+            <div><span class="text-slate-500 font-semibold block mb-1">الإجمالي</span><div id="invDetTotal" class="font-bold text-emerald-600 text-lg"></div></div>
+          </div>
+          <h4 class="font-bold text-slate-700 mb-3 border-b pb-2">الأصناف المشتراة</h4>
+          <div class="overflow-x-auto border border-slate-100 rounded-xl">
+            <table class="w-full text-sm text-right">
+              <thead class="bg-slate-50 text-slate-500 text-xs">
+                <tr><th class="px-4 py-2">الصنف</th><th class="px-4 py-2">الكمية</th><th class="px-4 py-2">السعر</th><th class="px-4 py-2">الإجمالي</th></tr>
+              </thead>
+              <tbody id="invDetItems" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+          <button onclick="toggleModal('invoiceModal', false)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-6 py-2.5 rounded-xl text-sm transition">إغلاق</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Branch Modal -->
+    <div id="branchModal" class="fixed inset-0 hidden items-center justify-center z-[60]">
+      <div class="modal-bg absolute inset-0" onclick="closeBranchModal()"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 z-10 mx-4">
+        <h3 class="text-lg font-bold text-slate-900 mb-4">إضافة فرع</h3>
+        <div class="space-y-3 mb-5">
+          <input id="brName" placeholder="اسم الفرع" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm outline-none" />
+          <input id="brAddr" placeholder="العنوان" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm outline-none" />
+        </div>
+        <div class="flex gap-3"><button onclick="closeBranchModal()" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-2 font-bold text-sm">إلغاء</button><button onclick="saveBranch()" class="flex-1 bg-blue-600 text-white rounded-xl py-2 font-bold text-sm">حفظ</button></div>
+      </div>
+    </div>
+
+    <div id="toast" class="slide-in fixed bottom-6 left-6 hidden items-center gap-3 px-5 py-3 rounded-2xl shadow-xl text-white text-sm font-semibold z-[200]">
+      <span id="toastMsg"></span>
+    </div>
+
+    <!-- 🔑 إعادة تعيين كلمة المرور -->
+    <div id="resetPassModal" class="fixed inset-0 hidden items-center justify-center z-[60]">
+      <div class="modal-bg absolute inset-0" onclick="closeResetPassModal()"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 z-10 mx-4">
+        <h3 class="text-lg font-bold text-slate-900 mb-1">🔑 إعادة تعيين كلمة المرور</h3>
+        <p class="text-xs text-slate-400 mb-4">ستتغير كلمة مرور مدير هذه الصيدلية فوراً</p>
+        <div class="space-y-3 mb-5">
+          <input id="resetPassValue" type="text" placeholder="كلمة المرور الجديدة" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-400" />
+        </div>
+        <div class="flex gap-3"><button onclick="closeResetPassModal()" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-2.5 font-bold text-sm">إلغاء</button><button onclick="submitResetPassword()" class="flex-1 bg-blue-600 text-white rounded-xl py-2.5 font-bold text-sm hover:bg-blue-700">تأكيد</button></div>
+      </div>
+    </div>
+
+    <!-- 📩 إشعار خاص لصيدلية -->
+    <div id="privateNotifyModal" class="fixed inset-0 hidden items-center justify-center z-[60]">
+      <div class="modal-bg absolute inset-0" onclick="closePrivateNotifyModal()"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 z-10 mx-4">
+        <h3 class="text-lg font-bold text-slate-900 mb-1">📩 إرسال إشعار خاص</h3>
+        <p class="text-xs text-slate-400 mb-4">سيصل هذا الإشعار لهذه الصيدلية فقط</p>
+        <div class="space-y-3 mb-5">
+          <input id="pnTitle" type="text" placeholder="عنوان الإشعار" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-400" />
+          <textarea id="pnMessage" placeholder="نص الرسالة..." rows="3" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-400 resize-none"></textarea>
+        </div>
+        <div class="flex gap-3"><button onclick="closePrivateNotifyModal()" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-2.5 font-bold text-sm">إلغاء</button><button onclick="submitPrivateNotify()" class="flex-1 bg-indigo-600 text-white rounded-xl py-2.5 font-bold text-sm hover:bg-indigo-700">إرسال</button></div>
+      </div>
+    </div>
+
+    <!-- 🏷️ سعر VIP مخصص -->
+    <div id="vipPriceModal" class="fixed inset-0 hidden items-center justify-center z-[60]">
+      <div class="modal-bg absolute inset-0" onclick="closeVipPriceModal()"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 z-10 mx-4">
+        <h3 class="text-lg font-bold text-slate-900 mb-1">🏷️ سعر اشتراك مخصص (VIP)</h3>
+        <p class="text-xs text-slate-400 mb-4">اتركه فارغاً للعودة للسعر العام</p>
+        <div class="space-y-3 mb-5">
+          <input id="vipPriceValue" type="number" placeholder="مثال: 30" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-amber-400" />
+        </div>
+        <div class="flex gap-3"><button onclick="closeVipPriceModal()" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-2.5 font-bold text-sm">إلغاء</button><button onclick="submitVipPrice()" class="flex-1 bg-amber-500 text-white rounded-xl py-2.5 font-bold text-sm hover:bg-amber-600">حفظ</button></div>
+      </div>
+    </div>
+
+    <script src="assets/api.js?v=3"></script>
+    <script src="assets/app.js?v=3"></script>
+
+    <script>
+      function toggleSidebar() {
+        const sidebar = document.getElementById("mobileSidebar");
+        const overlay = document.getElementById("sidebarOverlay");
+
+        if (sidebar.classList.contains("translate-x-full")) {
+          sidebar.classList.remove("translate-x-full");
+          overlay.classList.remove("hidden");
+        } else {
+          sidebar.classList.add("translate-x-full");
+          overlay.classList.add("hidden");
+        }
+      }
+
+      // Auto close sidebar when clicking a tab on mobile
+      document.querySelectorAll(".sidebar-link").forEach((link) => {
+        link.addEventListener("click", () => {
+          if (window.innerWidth < 768) {
+            const sidebar = document.getElementById("mobileSidebar");
+            const overlay = document.getElementById("sidebarOverlay");
+            sidebar.classList.add("translate-x-full");
+            overlay.classList.add("hidden");
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

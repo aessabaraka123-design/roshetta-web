@@ -28,6 +28,11 @@ export default function SuppliersPage() {
   const invoices = invoicesData?.invoices || [];
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [payingSupplier, setPayingSupplier] = useState<any>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("كاش");
+  const [isPaying, setIsPaying] = useState(false);
   const [viewingSupplierInvoices, setViewingSupplierInvoices] =
     useState<any>(null);
   const [viewingInvoiceDetails, setViewingInvoiceDetails] = useState<any>(null);
@@ -101,6 +106,45 @@ export default function SuppliersPage() {
       handleCloseModal();
     } catch (err) {
       toast.error(language === 'en' ? 'An error occurred while saving' : "حدث خطأ أثناء الحفظ");
+    }
+  };
+
+  const handleOpenPaymentModal = (e: React.MouseEvent, supplier: any) => {
+    e.stopPropagation(); // prevent opening invoices
+    setPayingSupplier(supplier);
+    setPaymentAmount("");
+    setPaymentMethod("كاش");
+    setIsPaymentModalOpen(true);
+  };
+
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pharmacyId || !payingSupplier) return;
+    setIsPaying(true);
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/pharmacies/${pharmacyId}/suppliers/${payingSupplier.id}/payment`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: parseFloat(paymentAmount),
+            paymentMethod,
+          }),
+        }
+      );
+
+      if (!res.ok) throw new Error("Failed to process payment");
+
+      toast.success(language === 'en' ? 'Payment processed successfully' : "تم تسجيل الدفعة بنجاح");
+      mutate();
+      setIsPaymentModalOpen(false);
+      setPayingSupplier(null);
+    } catch (err) {
+      toast.error(language === 'en' ? 'Error processing payment' : "حدث خطأ أثناء التسديد");
+    } finally {
+      setIsPaying(false);
     }
   };
 
@@ -217,6 +261,15 @@ export default function SuppliersPage() {
                     </td>
                     <td className="p-4">
                       <div className="flex justify-center gap-2">
+                        <button
+                          onClick={(e) => handleOpenPaymentModal(e, supplier)}
+                          className="text-teal hover:text-teal/80 transition-colors bg-teal/10 hover:bg-teal/20 w-8 h-8 flex items-center justify-center rounded-lg border border-teal/20"
+                          title={language === 'en' ? 'Pay Supplier' : "تسديد دفعة"}
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
