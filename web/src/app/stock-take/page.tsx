@@ -19,18 +19,19 @@ export default function StockTake() {
     if (!user) router.push("/login");
   }, [user, router]);
 
-  const { data, mutate } = useSWR(
-    user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/inventory?branch_id=${branchFilter}`
-      : null,
-    fetcher,
-  );
   const [branchFilter, setBranchFilter] = useState("all");
   const { data: dashboardData } = useSWR(
     user ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/dashboard` : null,
     fetcher
   );
   const branches = dashboardData?.branches || [];
+
+  const { data, mutate } = useSWR(
+    user
+      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/inventory?branch_id=${branchFilter}`
+      : null,
+    fetcher,
+  );
 
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
