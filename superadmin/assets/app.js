@@ -915,7 +915,10 @@ function renderReqList() {
         (r) => `<tr>
       <td class="px-6 py-3 font-semibold text-slate-900">${r.pharmacy_name || r.pharmacy_id}<br><span class="text-xs text-slate-400">${r.pharmacy_phone || ""}</span></td>
       <td class="px-4 py-3">${subBadge(r.plan_type)}</td>
-      <td class="px-4 py-3"><span class="text-xs text-indigo-600 font-bold">${r.payment_method === "bop" ? "بنك فلسطين" : r.payment_method === "palpay" ? "PalPay" : r.payment_method === "jawwalpay" ? "Jawwal Pay" : "-"}</span></td>
+      <td class="px-4 py-3">
+        <span class="text-xs text-indigo-600 font-bold">${(r.payment_method === "bop" || r.payment_method === "bank") ? "بنك فلسطين" : r.payment_method === "palpay" ? "PalPay" : (r.payment_method === "jawwalpay" || r.payment_method === "jawwal") ? "Jawwal Pay" : r.payment_method || "-"}</span>
+        ${(r.transferName || r.transferRef) ? `<div class="text-[10px] text-slate-500 mt-1">${r.transferName ? "بواسطة: " + r.transferName : ""}<br>${r.transferRef ? "رقم: " + r.transferRef : ""}</div>` : ""}
+      </td>
       <td class="px-4 py-3">${r.receipt_url === "trial_activation" ? '<span class="text-emerald-600 font-semibold text-xs">تفعيل تجريبي</span>' : (r.receipt_url || "").startsWith("ref_") ? `<span class="text-slate-600 font-mono text-xs">رقم حوالة: ${r.receipt_url.replace("ref_", "")}</span>` : `<a href="javascript:void(0)" onclick="viewReceipt('${r.id}')" class="text-blue-500 hover:underline">عرض الإيصال</a>`}</td>
       <td class="px-4 py-3 text-xs text-slate-500">${fd(r.createdAt)}</td>
       <td class="px-4 py-3"><span class="${r.status === "approved" ? "bg-emerald-100 text-emerald-700" : r.status === "rejected" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"} text-xs font-semibold px-2.5 py-1 rounded-full">${r.status === "approved" ? "مفعل" : r.status === "rejected" ? "مرفوض" : "قيد المراجعة"}</span></td>

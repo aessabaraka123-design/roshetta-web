@@ -30,6 +30,10 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
 });
+
+const PORT = process.env.PORT || 3001;
+const IP = process.env.IP || '0.0.0.0';
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
