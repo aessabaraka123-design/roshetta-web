@@ -72,7 +72,7 @@ export default function MainLayoutWrapper({
     );
   }
 
-  const plan = user?.subscriptionType || "monthly";
+  const activePlan = subStatusData?.plan_type || user?.subscriptionType || "monthly";
 
   return (
     <div className="flex-1 w-full min-h-screen flex flex-col relative">
@@ -85,7 +85,7 @@ export default function MainLayoutWrapper({
             <>
               <span>{language === "en" ? "Receipt rejected. Please review your receipt or contact technical support." : "تم رفض إيصال الدفع، يرجى مراجعة إيصالك أو التواصل مع الدعم الفني."}</span>
               <Link
-                href="/receipt-upload"
+                href={`/receipt-upload?plan=${encodeURIComponent(activePlan)}`}
                 className="bg-white text-red-700 rounded-lg px-3 py-1 text-xs font-bold hover:bg-red-50 transition-colors shrink-0 shadow-sm flex items-center gap-1"
                 style={{
                   color: "#B91C1C",
@@ -120,7 +120,7 @@ export default function MainLayoutWrapper({
             <>
               <span>{language === "en" ? "App in Read-Only mode. Awaiting admin approval. Please check your receipt." : "التطبيق في وضع القراءة فقط. بانتظار موافقة المسؤول على تأكيد الاشتراك. راجع إيصالك."}</span>
               <Link
-                href="/receipt-upload"
+                href={`/receipt-upload?plan=${encodeURIComponent(activePlan)}`}
                 className="bg-white text-red-600 rounded-lg px-3 py-1 text-xs font-bold hover:bg-red-50 transition-colors shrink-0 shadow-sm"
                 style={{
                   color: "#EF4444",

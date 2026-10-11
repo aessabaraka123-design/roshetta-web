@@ -115,6 +115,8 @@ export default function Reports() {
     totalRevenue: 0,
     totalProfit: 0,
     totalExpenses: 0,
+    totalDiscount: 0,
+    totalVat: 0,
     netProfit: 0,
     profitMargin: 0,
     dailyTrend: [],
@@ -255,41 +257,57 @@ export default function Reports() {
           )}
         </div>
 
-        {/* 4 Summary Cards (Revenue, Profit, Expenses, Net Profit) */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:grid-cols-4">
-          <div className="bg-primary text-white rounded-2xl p-5 shadow-lg shadow-primary/20 transform hover:-translate-y-1 transition-all">
-            <div className="text-[13px] font-bold text-white/80 mb-1">
+        {/* 6 Summary Cards (Revenue, Gross Profit, Expenses, Discounts, VAT, Net Profit) */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print:grid-cols-6">
+          <div className="bg-primary text-white rounded-2xl p-4 shadow-lg shadow-primary/20 transform hover:-translate-y-1 transition-all">
+            <div className="text-[12px] font-bold text-white/80 mb-1">
               {language === "en" ? "Total Revenue" : "إجمالي المبيعات"}
             </div>
-            <div className="font-mono text-[24px] md:text-[28px] font-black">
+            <div className="font-mono text-[20px] md:text-[24px] font-black">
               ₪{report.totalRevenue.toLocaleString()}
             </div>
           </div>
-          <div className="bg-teal text-white rounded-2xl p-5 shadow-lg shadow-teal/20 transform hover:-translate-y-1 transition-all">
-            <div className="text-[13px] font-bold text-white/80 mb-1">
-              {language === "en" ? "Gross Profit (from sales)" : "الربح الإجمالي (من المبيعات)"}
+          <div className="bg-teal text-white rounded-2xl p-4 shadow-lg shadow-teal/20 transform hover:-translate-y-1 transition-all">
+            <div className="text-[12px] font-bold text-white/80 mb-1">
+              {language === "en" ? "Gross Profit" : "الربح الإجمالي"}
             </div>
-            <div className="font-mono text-[24px] md:text-[28px] font-black">
+            <div className="font-mono text-[20px] md:text-[24px] font-black">
               ₪{report.totalProfit.toLocaleString()}
             </div>
           </div>
-          <div className="bg-coral text-white rounded-2xl p-5 shadow-lg shadow-coral/20 transform hover:-translate-y-1 transition-all">
-            <div className="text-[13px] font-bold text-white/80 mb-1">
+          <div className="bg-coral text-white rounded-2xl p-4 shadow-lg shadow-coral/20 transform hover:-translate-y-1 transition-all">
+            <div className="text-[12px] font-bold text-white/80 mb-1">
               {language === "en" ? "Total Expenses" : "إجمالي المصروفات"}
             </div>
-            <div className="font-mono text-[24px] md:text-[28px] font-black">
+            <div className="font-mono text-[20px] md:text-[24px] font-black">
               ₪{(report.totalExpenses || 0).toLocaleString()}
             </div>
           </div>
-          <div className="bg-white border-2 border-primary/20 rounded-2xl p-5 shadow-sm transform hover:-translate-y-1 transition-all">
-            <div className="text-[13px] font-bold text-primary mb-1 flex items-center justify-between">
+          <div className="bg-amber text-ink rounded-2xl p-4 shadow-sm border border-amber/30 transform hover:-translate-y-1 transition-all">
+            <div className="text-[12px] font-bold text-ink-soft mb-1">
+              {language === "en" ? "Total Discounts" : "إجمالي الخصومات"}
+            </div>
+            <div className="font-mono text-[20px] md:text-[24px] font-black text-amber-700">
+              ₪{(report.totalDiscount || 0).toLocaleString()}
+            </div>
+          </div>
+          <div className="bg-emerald-50 text-emerald-800 rounded-2xl p-4 shadow-sm border border-emerald-200 transform hover:-translate-y-1 transition-all">
+            <div className="text-[12px] font-bold text-emerald-600 mb-1">
+              {language === "en" ? "Total VAT" : "ضريبة القيمة المضافة"}
+            </div>
+            <div className="font-mono text-[20px] md:text-[24px] font-black text-emerald-800">
+              ₪{(report.totalVat || 0).toLocaleString()}
+            </div>
+          </div>
+          <div className="bg-white border-2 border-primary/20 rounded-2xl p-4 shadow-sm transform hover:-translate-y-1 transition-all">
+            <div className="text-[12px] font-bold text-primary mb-1 flex items-center justify-between">
               {language === "en" ? "Net Profit" : "صافي الربح"}
-              <span className="text-[11px] bg-primary/10 px-2 py-0.5 rounded-full">
-                {report.profitMargin}% {language === "en" ? "Margin" : "هامش"}
+              <span className="text-[10px] bg-primary/10 px-1.5 py-0.5 rounded-full">
+                {report.profitMargin}%
               </span>
             </div>
             <div
-              className={`font-mono text-[24px] md:text-[28px] font-black ${(report.netProfit || 0) >= 0 ? "text-primary" : "text-coral"}`}
+              className={`font-mono text-[20px] md:text-[24px] font-black ${(report.netProfit || 0) >= 0 ? "text-primary" : "text-coral"}`}
             >
               ₪{(report.netProfit || 0).toLocaleString()}
             </div>

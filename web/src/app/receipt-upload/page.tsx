@@ -18,7 +18,13 @@ export default function ReceiptUpload() {
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [transferName, setTransferName] = useState("");
   const [transferRef, setTransferRef] = useState("");
-  const [plan, setPlan] = useState("monthly");
+  const [plan, setPlan] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search).get('plan');
+      if (p) return p;
+    }
+    return user?.subscriptionType && user.subscriptionType !== "free" ? user.subscriptionType : "monthly";
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [adminSettings, setAdminSettings] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
@@ -35,11 +41,23 @@ export default function ReceiptUpload() {
       router.push("/login");
       return;
     }
-    // Allow active users to upload a receipt for renewal
-    // if (!user.isReadOnly) {
-    //   router.push("/");
-    //   return;
-    // }
+
+    if (user?.pharmacy_id) {
+      fetch(
+        (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
+          `/api/pharmacies/${user.pharmacy_id}/subscription-status`,
+      )
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.success && d.plan_type) {
+            const urlPlan = new URLSearchParams(window.location.search).get("plan");
+            if (!urlPlan) {
+              setPlan(d.plan_type);
+            }
+          }
+        })
+        .catch(() => {});
+    }
 
     fetch(
       (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
@@ -57,17 +75,26 @@ export default function ReceiptUpload() {
       .then((r) => r.json())
       .then((data) => {
         const rawPlans = data.plans || (Array.isArray(data) ? data : []);
-        setPlans(
-          rawPlans.map((p: any) => ({
-            ...p,
-            id: String(p.id || p.type),
-            name: p.name,
-            price: p.price ?? 0,
-          })),
-        );
-        if (rawPlans.length > 0 && !new URLSearchParams(window.location.search).get('plan')) {
-            setPlan(String(rawPlans[0].id || rawPlans[0].type));
+        const formattedPlans = rawPlans.map((p: any) => ({
+          ...p,
+          id: String(p.id || p.type),
+          name: p.name,
+          price: p.price ?? 0,
+        }));
+        setPlans(formattedPlans);
+
+        const urlPlan = new URLSearchParams(window.location.search).get('plan');
+        if (urlPlan) {
+          setPlan(urlPlan);
+        } else if (user?.subscriptionType && user.subscriptionType !== 'free') {
+          setPlan(user.subscriptionType);
+        } else {
+          // If no plan is specified, pick the first paid plan (never free for a payment receipt)
+          const firstPaid = formattedPlans.find((p: any) => (p.price ?? 0) > 0);
+          if (firstPaid) {
+            setPlan(firstPaid.id);
           }
+        }
       })
       .catch((err) => console.error("Error fetching plans", err));
   }, [user, router]);
@@ -177,7 +204,7 @@ export default function ReceiptUpload() {
             <div className="field">
               <label>{language === 'en' ? 'Required Plan' : 'الباقة المطلوبة'}</label>
               {(() => {
-              const selectedP = plans.find(p => p.id === plan);
+              const selectedP = plans.find(p => p.id === plan || p.type === plan || p.name === plan);
               return (
                 <div style={{
                   border: "1.5px solid var(--line)",
@@ -189,7 +216,7 @@ export default function ReceiptUpload() {
                   color: "var(--deep)",
                   fontWeight: 600
                 }}>
-                  {selectedP ? `${selectedP.name} - ${selectedP.price}` : (language === "en" ? "Loading..." : "جاري التحميل...")}
+                  {selectedP ? `${selectedP.name} - ${selectedP.price} ₪` : (language === "en" ? "Loading..." : "جاري التحميل...")}
                 </div>
               );
             })()}

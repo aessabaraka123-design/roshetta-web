@@ -104,6 +104,9 @@ function POSContent() {
   const [prescriptionSearch, setPrescriptionSearch] = useState("");
   const [showPrescriptionDropdown, setShowPrescriptionDropdown] =
     useState(false);
+  const [discountType, setDiscountType] = useState<"fixed" | "percent">("fixed");
+  const [discountVal, setDiscountVal] = useState("");
+  const [showDiscountInput, setShowDiscountInput] = useState(false);
 
   const { data: prescriptionsData } = useSWR(
     user
@@ -125,10 +128,23 @@ function POSContent() {
     }
   }, [branches, selectedBranch, user]);
 
-  const total = cart.reduce(
+  const subtotal = cart.reduce(
     (acc, item) => acc + (item.unitPrice || item.price || 0) * item.cartQty,
     0,
   );
+  const parsedDiscountNum = parseFloat(discountVal) || 0;
+  const calculatedDiscount = discountType === "percent"
+    ? (subtotal * Math.min(100, Math.max(0, parsedDiscountNum))) / 100
+    : Math.min(subtotal, Math.max(0, parsedDiscountNum));
+
+  const afterDiscount = Math.max(0, subtotal - calculatedDiscount);
+  const enableVat = Boolean(pharmacyData?.pharmacy?.enableVat);
+  const vatPercentage = Number(pharmacyData?.pharmacy?.vatPercentage) || 0;
+  const vatAmount = (enableVat && vatPercentage > 0)
+    ? (afterDiscount * (vatPercentage / 100))
+    : 0;
+
+  const total = afterDiscount + vatAmount;
 
   const activeBranchObj = branches.find((b: any) => b.name === selectedBranch);
   const activeBranchId = activeBranchObj ? activeBranchObj.id : null;
@@ -245,6 +261,9 @@ function POSContent() {
           body: JSON.stringify({
             items: payloadItems,
             total,
+            discount: calculatedDiscount,
+            vatAmount,
+            subtotal,
             paymentMethod: payMethod,
             customer: selectedCustomer,
             cashierName: user?.managerName || (language === 'en' ? "Pharmacist 1" : "صيدلي 1"),
@@ -261,6 +280,9 @@ function POSContent() {
         id: data.saleId,
         date: new Date().toLocaleString(language === 'en' ? "en-US" : language === "en" ? "en-US" : "ar-EG"),
         total,
+        discount: calculatedDiscount,
+        vatAmount,
+        subtotal,
         items: [...cart],
         method: payMethod,
       });
@@ -269,6 +291,8 @@ function POSContent() {
       checkout(); // clear local cart
       setSelectedPrescriptionId("");
       setPrescriptionSearch("");
+      setDiscountVal("");
+      setShowDiscountInput(false);
       mutate(); // refresh inventory qty from backend
       toast.success(language === 'en' ? "Sale completed successfully!" : "تم إتمام البيع بنجاح!");
     } catch (error: any) {
@@ -617,6 +641,94 @@ function POSContent() {
 
             {/* Divider */}
             <div className="border-t border-white/20" />
+
+            {/* Discount & VAT Section */}
+            <div className="bg-white/10 rounded-xl p-3 border border-white/20 space-y-2">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setShowDiscountInput(!showDiscountInput)}
+                  className="text-[13px] font-bold text-amber hover:underline flex items-center gap-1"
+                >
+                  <span>🏷️</span>
+                  <span>
+                    {calculatedDiscount > 0
+                      ? `${language === 'en' ? 'Discount:' : 'الخصم:'} -${calculatedDiscount.toFixed(2)} ₪`
+                      : showDiscountInput
+                        ? (language === 'en' ? 'Hide Discount' : 'إخفاء الخصم')
+                        : (language === 'en' ? '+ Add Discount' : '+ إضافة خصم')}
+                  </span>
+                </button>
+                {calculatedDiscount > 0 && !showDiscountInput && (
+                  <button
+                    type="button"
+                    onClick={() => setDiscountVal("")}
+                    className="text-white/60 hover:text-white text-[12px]"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {showDiscountInput && (
+                <div className="flex items-center gap-2 pt-1">
+                  <div className="flex bg-white/20 rounded-lg p-0.5 border border-white/20">
+                    <button
+                      type="button"
+                      onClick={() => setDiscountType("fixed")}
+                      className={`px-2.5 py-1 rounded-md text-[12px] font-bold transition-all ${discountType === "fixed" ? "bg-white text-primary shadow-sm" : "text-white"}`}
+                    >
+                      ₪
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDiscountType("percent")}
+                      className={`px-2.5 py-1 rounded-md text-[12px] font-bold transition-all ${discountType === "percent" ? "bg-white text-primary shadow-sm" : "text-white"}`}
+                    >
+                      %
+                    </button>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder={discountType === "percent" ? "10%" : "0.00 ₪"}
+                    value={discountVal}
+                    onChange={(e) => setDiscountVal(e.target.value)}
+                    className="flex-1 bg-white text-ink text-[13px] font-bold rounded-lg px-3 py-1.5 outline-none"
+                  />
+                  {discountVal && (
+                    <button
+                      type="button"
+                      onClick={() => setDiscountVal("")}
+                      className="text-white/80 hover:text-white text-[14px]"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {(calculatedDiscount > 0 || (enableVat && vatAmount > 0)) && (
+                <div className="border-t border-white/10 pt-2 space-y-1 text-[12px]">
+                  <div className="flex justify-between text-white/70">
+                    <span>{language === 'en' ? 'Subtotal:' : 'المجموع قبل الخصم:'}</span>
+                    <span className="font-mono">₪{subtotal.toFixed(2)}</span>
+                  </div>
+                  {calculatedDiscount > 0 && (
+                    <div className="flex justify-between text-amber font-bold">
+                      <span>{language === 'en' ? 'Discount:' : 'الخصم:'}</span>
+                      <span className="font-mono">-₪{calculatedDiscount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {enableVat && vatAmount > 0 && (
+                    <div className="flex justify-between text-white/90">
+                      <span>{language === 'en' ? `VAT (${vatPercentage}%):` : `ضريبة القيمة المضافة (${vatPercentage}%):`}</span>
+                      <span className="font-mono">+₪{vatAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Total */}
             <div className="flex items-center justify-between">
