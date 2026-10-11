@@ -332,6 +332,88 @@ export default function SuppliersPage() {
         </div>
       </main>
 
+      {/* Payment Modal */}
+      {isPaymentModalOpen && payingSupplier && (
+        <div className="fixed inset-0 bg-ink/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-mint-line">
+            <div className="p-5 border-b border-mint-line flex justify-between items-center bg-bg/50">
+              <h3 className="font-bold text-[18px] text-primary">
+                {language === 'en' ? 'Pay Supplier: ' : "تسديد المورد: "}
+                <span className="text-teal">{payingSupplier.name}</span>
+              </h3>
+              <button
+                onClick={() => setIsPaymentModalOpen(false)}
+                className="text-ink-soft hover:text-coral transition-colors bg-white hover:bg-coral-pale/30 w-8 h-8 flex items-center justify-center rounded-lg border border-mint-line text-lg font-bold"
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handlePaymentSubmit} className="p-6 space-y-4 text-start">
+              <div className="bg-coral-pale/20 p-3 rounded-xl border border-coral/20 flex justify-between items-center">
+                <span className="text-sm text-ink-soft">{language === 'en' ? 'Current Debt / Balance:' : "الرصيد المستحق الحالي:"}</span>
+                <span className="font-bold font-mono text-coral text-base">₪{Number(payingSupplier.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-ink mb-1.5">
+                  {language === 'en' ? 'Payment Amount (₪) *' : "المبلغ المدفوع (₪) *"}
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0.01"
+                  step="0.01"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  className="w-full p-3 border border-mint-line rounded-xl focus:ring-2 focus:ring-teal/20 focus:border-teal outline-none transition-all font-mono text-lg font-bold text-teal"
+                  placeholder="0.00"
+                  autoFocus
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-ink mb-1.5">
+                  {language === 'en' ? 'Payment Method' : "طريقة الدفع"}
+                </label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="w-full p-3 border border-mint-line rounded-xl focus:ring-2 focus:ring-teal/20 focus:border-teal outline-none transition-all font-semibold bg-white"
+                >
+                  <option value="كاش">{language === 'en' ? 'Cash (from drawer)' : "كاش (نقداً من الدرج)"}</option>
+                  <option value="شيك">{language === 'en' ? 'Cheque' : "شيك"}</option>
+                  <option value="حوالة بنكية">{language === 'en' ? 'Bank Transfer' : "حوالة بنكية"}</option>
+                  <option value="جوال باي">{language === 'en' ? 'Jawwal Pay' : "جوال باي"}</option>
+                  <option value="بال باي">{language === 'en' ? 'PalPay' : "بال باي"}</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-mint-line">
+                <button
+                  type="button"
+                  onClick={() => setIsPaymentModalOpen(false)}
+                  className="px-4 py-2.5 text-ink-soft hover:bg-bg rounded-xl transition-colors border border-mint-line font-bold text-sm"
+                >
+                  {language === 'en' ? 'Cancel' : "إلغاء"}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPaying || !paymentAmount || parseFloat(paymentAmount) <= 0}
+                  className="px-6 py-2.5 bg-teal hover:bg-teal-dark text-white rounded-xl transition-all font-bold text-sm flex items-center justify-center min-w-[110px] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isPaying ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    language === 'en' ? 'Confirm Payment' : "تأكيد الدفع"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-ink/50 flex items-center justify-center p-4 z-50">
