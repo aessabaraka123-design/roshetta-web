@@ -104,6 +104,10 @@ export default function ReceiptUpload() {
       toast.error(language === 'en' ? "Please upload the receipt image first" : "الرجاء رفع صورة الإيصال أولاً");
       return;
     }
+    if (!transferName.trim() && !transferRef.trim()) {
+      toast.error(language === 'en' ? "Please enter either the transferer name or reference number" : "يرجى إدخال اسم المحول أو رقم المرجع على الأقل");
+      return;
+    }
     setIsLoading(true);
     try {
       const res = await fetch(
@@ -298,9 +302,9 @@ export default function ReceiptUpload() {
               )}
             </div>
 
-            {/* Optional fields */}
+            {/* Required fields (at least one) */}
             <div className="field">
-              <label>{language === 'en' ? 'Transfer Name (Optional)' : 'اسم المحول (اختياري)'}</label>
+              <label>{language === 'en' ? 'Transferer Name (At least one required)' : 'اسم المحول (مطلوب أحدهما)'}</label>
               <input
                 type="text"
                 placeholder={language === 'en' ? 'Name as it appears in the transfer' : 'الاسم كما يظهر في الحوالة'}
@@ -309,7 +313,7 @@ export default function ReceiptUpload() {
               />
             </div>
             <div className="field">
-              <label>{language === 'en' ? 'Reference Number (Optional)' : 'رقم المرجع (اختياري)'}</label>
+              <label>{language === 'en' ? 'Reference Number (At least one required)' : 'رقم المرجع (مطلوب أحدهما)'}</label>
               <input
                 type="text"
                 placeholder={language === 'en' ? 'Example: 123456789' : 'مثال: 123456789'}
@@ -362,7 +366,7 @@ export default function ReceiptUpload() {
             <button
               className="submit-btn"
               onClick={handleSubmit}
-              disabled={isLoading || !receiptImage}
+              disabled={isLoading || !receiptImage || (!transferName.trim() && !transferRef.trim())}
             >
               {isLoading ? (language === 'en' ? "Sending..." : "جاري الإرسال...") : (language === 'en' ? "✅ Send receipt for review" : "✅ إرسال الإيصال للمراجعة")}
             </button>
