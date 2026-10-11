@@ -200,8 +200,8 @@ function RegisterPageContent() {
 
     if (!formData.password) {
       newErrors.password = language === "en" ? "Please enter password" : "يرجى إدخال كلمة المرور";
-    } else if (formData.password.length < 6) {
-      newErrors.password = language === "en" ? "Password must be at least 6 characters" : "كلمة المرور يجب أن لا تقل عن 6 خانات";
+    } else if (formData.password.length < 8) {
+      newErrors.password = language === "en" ? "Password must be at least 8 characters" : "كلمة المرور يجب أن لا تقل عن 8 خانات";
     } else if (!/(?=.*[a-zA-Z\u0600-\u06FF])(?=.*\d)(?=.*[^a-zA-Z\u0600-\u06FF\d\s])/.test(formData.password)) {
       newErrors.password = language === "en" ? "Password must contain letters, numbers, and symbols" : "يجب أن تحتوي كلمة المرور على أحرف، وأرقام، ورموز";
     }
