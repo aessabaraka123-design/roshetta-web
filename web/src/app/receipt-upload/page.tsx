@@ -260,10 +260,10 @@ export default function ReceiptUpload() {
                       <span dir="ltr">{adminSettings.bankIban}</span>
                     </div>
                   )}
-                  {adminSettings?.companyName && (
+                  {(adminSettings?.bankAccountName || adminSettings?.companyName) && (
                     <div className="info-row">
                       <strong>{language === 'en' ? 'Name:' : 'الاسم:'}</strong>{" "}
-                      <span>{adminSettings.companyName}</span>
+                      <span>{adminSettings.bankAccountName || adminSettings.companyName}</span>
                     </div>
                   )}
                 </>
@@ -274,10 +274,10 @@ export default function ReceiptUpload() {
                     <strong>{language === 'en' ? 'Wallet Number (PalPay):' : 'رقم المحفظة (PalPay):'}</strong>{" "}
                     <span dir="ltr">{adminSettings?.walletNumber || ""}</span>
                   </div>
-                  {adminSettings?.companyName && (
+                  {(adminSettings?.palpayName || adminSettings?.walletName || adminSettings?.bankAccountName || adminSettings?.companyName) && (
                     <div className="info-row">
                       <strong>{language === 'en' ? 'Name:' : 'الاسم:'}</strong>{" "}
-                      <span>{adminSettings.companyName}</span>
+                      <span>{adminSettings.palpayName || adminSettings.walletName || adminSettings.bankAccountName || adminSettings.companyName}</span>
                     </div>
                   )}
                 </>
@@ -288,10 +288,10 @@ export default function ReceiptUpload() {
                     <strong>{language === 'en' ? 'Wallet Number (Jawwal Pay):' : 'رقم المحفظة (Jawwal Pay):'}</strong>{" "}
                     <span dir="ltr">{adminSettings?.walletNumber || ""}</span>
                   </div>
-                  {adminSettings?.companyName && (
+                  {(adminSettings?.jawwalpayName || adminSettings?.walletName || adminSettings?.bankAccountName || adminSettings?.companyName) && (
                     <div className="info-row">
                       <strong>{language === 'en' ? 'Name:' : 'الاسم:'}</strong>{" "}
-                      <span>{adminSettings.companyName}</span>
+                      <span>{adminSettings.jawwalpayName || adminSettings.walletName || adminSettings.bankAccountName || adminSettings.companyName}</span>
                     </div>
                   )}
                 </>
