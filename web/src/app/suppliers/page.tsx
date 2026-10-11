@@ -202,38 +202,46 @@ export default function SuppliersPage() {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto bg-white rounded-xl border border-mint-line shadow-sm">
-          <table className={`w-full text-start`}>
-            <thead className="bg-bg border-b border-mint-line">
+        <div className="overflow-x-auto bg-white rounded-2xl border border-mint-line shadow-sm">
+          <table className="w-full text-start border-collapse">
+            <thead className="bg-bg/80 border-b border-mint-line text-[14px]">
               <tr>
-                <th className="p-4 text-ink-soft font-medium text-start">{language === 'en' ? 'Name' : "الاسم"}</th>
-                <th className="p-4 text-ink-soft font-medium text-start">{language === 'en' ? 'Company' : "الشركة"}</th>
-                <th className="p-4 text-ink-soft font-medium text-start">{language === 'en' ? 'Phone' : "الجوال"}</th>
-                <th className="p-4 text-ink-soft font-medium text-start">
+                <th className="py-4 px-6 text-ink-soft font-semibold text-start w-[22%]">
+                  {language === 'en' ? 'Supplier Name' : "الاسم"}
+                </th>
+                <th className="py-4 px-6 text-ink-soft font-semibold text-start w-[18%]">
+                  {language === 'en' ? 'Company' : "الشركة"}
+                </th>
+                <th className="py-4 px-6 text-ink-soft font-semibold text-start w-[16%]">
+                  {language === 'en' ? 'Phone' : "الجوال"}
+                </th>
+                <th className="py-4 px-6 text-ink-soft font-semibold text-start w-[16%]">
                   {language === 'en' ? 'Remaining Balance' : "الرصيد المتبقي"}
                 </th>
-                <th className="p-4 text-ink-soft font-medium text-start">{language === 'en' ? 'Date Added' : "تاريخ الإضافة"}</th>
-                <th className="p-4 text-ink-soft font-medium text-center">
+                <th className="py-4 px-6 text-ink-soft font-semibold text-start w-[14%]">
+                  {language === 'en' ? 'Date Added' : "تاريخ الإضافة"}
+                </th>
+                <th className="py-4 px-6 text-ink-soft font-semibold text-center w-[14%]">
                   {language === 'en' ? 'Actions' : "الإجراءات"}
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-mint-line/40 text-[14px]">
               {!suppliers ? (
                 <tr>
-                  <td colSpan={6} className="p-4 text-center text-ink-soft">
+                  <td colSpan={6} className="py-8 text-center text-ink-soft">
                     {language === 'en' ? 'Loading...' : "جاري التحميل..."}
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={6} className="p-4 text-center text-coral">
+                  <td colSpan={6} className="py-8 text-center text-coral">
                     {language === 'en' ? 'An error occurred while loading data' : "حدث خطأ أثناء تحميل البيانات"}
                   </td>
                 </tr>
               ) : suppliers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-4 text-center text-ink-soft">
+                  <td colSpan={6} className="py-8 text-center text-ink-soft">
                     {language === 'en' ? 'No suppliers found' : "لا يوجد موردين"}
                   </td>
                 </tr>
@@ -242,40 +250,66 @@ export default function SuppliersPage() {
                   <tr
                     key={supplier.id}
                     onClick={() => setViewingSupplierInvoices(supplier)}
-                    className="border-b border-mint-line hover:bg-bg/50 cursor-pointer group"
+                    className="hover:bg-bg/60 cursor-pointer transition-colors group"
                   >
-                    <td className="p-4 font-bold text-primary group-hover:underline">
-                      {supplier.name}
+                    <td className="py-4 px-6 text-start">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary-pale text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                          {(supplier.name || "م").substring(0, 1).toUpperCase()}
+                        </div>
+                        <span className="font-bold text-primary group-hover:underline">
+                          {supplier.name}
+                        </span>
+                      </div>
                     </td>
-                    <td className="p-4">{supplier.company || "-"}</td>
-                    <td className="p-4">{supplier.phone || "-"}</td>
-                    <td className="p-4 font-semibold text-coral" dir="ltr">
-                      {Number(supplier.balance || 0).toFixed(2)}
+                    <td className="py-4 px-6 text-start text-ink-soft">
+                      {supplier.company || "—"}
                     </td>
-                    <td className="p-4">
+                    <td className="py-4 px-6 text-start font-mono text-ink-soft">
+                      {supplier.phone || "—"}
+                    </td>
+                    <td className="py-4 px-6 text-start">
+                      <span
+                        className={`font-bold font-mono text-[14px] px-2.5 py-1 rounded-lg ${
+                          Number(supplier.balance || 0) > 0
+                            ? "bg-coral-pale/30 text-coral"
+                            : "bg-teal-pale/30 text-teal"
+                        }`}
+                      >
+                        ₪{Number(supplier.balance || 0).toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-start text-ink-soft text-[13px]">
                       {supplier.date_added
                         ? new Date(supplier.date_added).toLocaleDateString(
                             language === 'en' ? "en-US" : "ar-SA",
                           )
                         : "—"}
                     </td>
-                    <td className="p-4">
-                      <div className="flex justify-center gap-2">
+                    <td
+                      className="py-4 px-6 text-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={(e) => handleOpenPaymentModal(e, supplier)}
-                          className="text-teal hover:text-teal/80 transition-colors bg-teal/10 hover:bg-teal/20 w-8 h-8 flex items-center justify-center rounded-lg border border-teal/20"
+                          className="px-2.5 py-1.5 text-xs font-bold text-teal bg-teal/10 hover:bg-teal hover:text-white rounded-lg transition-all flex items-center gap-1 shadow-sm border border-teal/20"
                           title={language === 'en' ? 'Pay Supplier' : "تسديد دفعة"}
                         >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
+                          <span>{language === 'en' ? 'Pay' : "تسديد"}</span>
                         </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleOpenModal(supplier);
                           }}
-                          className="text-teal hover:bg-teal/10 px-3 py-1 rounded transition-colors"
+                          className="px-2.5 py-1.5 text-xs font-bold text-primary bg-primary-pale hover:bg-primary hover:text-white rounded-lg transition-all border border-mint-line shadow-sm"
                         >
                           {language === 'en' ? 'Edit' : "تعديل"}
                         </button>
@@ -284,7 +318,7 @@ export default function SuppliersPage() {
                             e.stopPropagation();
                             handleDelete(supplier.id);
                           }}
-                          className="text-coral hover:bg-coral/10 px-3 py-1 rounded transition-colors"
+                          className="px-2.5 py-1.5 text-xs font-bold text-coral bg-coral-pale/30 hover:bg-coral hover:text-white rounded-lg transition-all border border-coral/20 shadow-sm"
                         >
                           {language === 'en' ? 'Delete' : "حذف"}
                         </button>
