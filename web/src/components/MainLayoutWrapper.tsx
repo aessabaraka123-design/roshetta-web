@@ -83,7 +83,22 @@ export default function MainLayoutWrapper({
         >
           {isRejected ? (
             <>
-              <span>{language === "en" ? "Receipt rejected. Please review with technical support." : "تم رفض إيصال الدفع، يرجى مراجعة الدعم الفني."}</span>
+              <span>{language === "en" ? "Receipt rejected. Please review your receipt or contact technical support." : "تم رفض إيصال الدفع، يرجى مراجعة إيصالك أو التواصل مع الدعم الفني."}</span>
+              <Link
+                href="/receipt-upload"
+                className="bg-white text-red-700 rounded-lg px-3 py-1 text-xs font-bold hover:bg-red-50 transition-colors shrink-0 shadow-sm flex items-center gap-1"
+                style={{
+                  color: "#B91C1C",
+                  background: "white",
+                  borderRadius: "8px",
+                  padding: "4px 12px",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                  textDecoration: "none",
+                }}
+              >
+                📄 {language === "en" ? "Review Receipt" : "راجع إيصالك"}
+              </Link>
               <a
                 href={`https://wa.me/${subStatusData?.whatsapp || "972590000000"}`} 
                 target="_blank"
