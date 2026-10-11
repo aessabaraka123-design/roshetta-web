@@ -969,6 +969,9 @@ app.post("/api/auth/register", (req, res) => {
                     const reqId =
                       Date.now().toString() +
                       Math.random().toString(36).substring(2, 7);
+                    const pMethod = req.body.paymentMethod || req.body.payment_method || req.body.payMethod || req.body.transferMethod || "";
+                    const tName = req.body.transferName || req.body.senderName || "";
+                    const tRef = req.body.transferRef || req.body.refNumber || "";
                     db.run(
                       "INSERT INTO subscription_requests (id, pharmacy_id, plan_type, receipt_url, payment_method, status, createdAt, transferName, transferRef) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                       [
@@ -976,11 +979,11 @@ app.post("/api/auth/register", (req, res) => {
                         pharmacyId,
                         subType,
                         req.body.receiptImage || "",
-                        req.body.paymentMethod || "",
+                        pMethod,
                         "pending",
                         new Date().toISOString(),
-                        req.body.transferName || "",
-                        req.body.transferRef || "",
+                        tName,
+                        tRef,
                       ],
                       (err) => {
                         sendResponse();
@@ -1076,28 +1079,36 @@ app.post(
   "/api/subscriptions/upload-receipt",
   upload.single("receipt"),
   (req, res) => {
-    const { pharmacy_id, plan_type, refNumber, paymentMethod } = req.body;
-    if (!pharmacy_id || (plan_type !== "trial" && !req.file && !refNumber))
+    const pharmacy_id = req.body.pharmacy_id || req.body.pharmacyId;
+    const { plan_type, plan, refNumber, transferRef, paymentMethod, payment_method, payMethod, transferMethod, transferName, senderName } = req.body;
+    if (!pharmacy_id || (plan_type !== "trial" && !req.file && !refNumber && !transferRef))
       return res.status(400).json({
         success: false,
         error: "Missing required fields or file",
       });
     const receipt_url = req.file
       ? req.file.filename
-      : refNumber
-        ? "ref_" + refNumber
+      : (refNumber || transferRef)
+        ? "ref_" + (transferRef || refNumber)
         : "trial_activation";
+    const pMethod = paymentMethod || payment_method || payMethod || transferMethod || "";
+    const tName = transferName || senderName || "";
+    const tRef = transferRef || refNumber || "";
+    const pType = plan_type || plan || "monthly";
+
     db.get(
       "SELECT * FROM subscription_requests WHERE pharmacy_id = ? AND status = 'pending' ORDER BY createdAt DESC LIMIT 1",
       [pharmacy_id],
       (err, existing) => {
         if (existing) {
           db.run(
-            "UPDATE subscription_requests SET receipt_url = ?, payment_method = ?, plan_type = ?, createdAt = ? WHERE id = ?",
+            "UPDATE subscription_requests SET receipt_url = ?, payment_method = ?, plan_type = ?, transferName = ?, transferRef = ?, createdAt = ? WHERE id = ?",
             [
               receipt_url,
-              paymentMethod || existing.payment_method,
-              plan_type || existing.plan_type,
+              pMethod || existing.payment_method,
+              pType || existing.plan_type,
+              tName || existing.transferName,
+              tRef || existing.transferRef,
               new Date().toISOString(),
               existing.id,
             ],
@@ -1110,15 +1121,17 @@ app.post(
           const id =
             Date.now().toString() + Math.random().toString(36).substring(2, 7);
           db.run(
-            "INSERT INTO subscription_requests (id, pharmacy_id, plan_type, receipt_url, payment_method, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO subscription_requests (id, pharmacy_id, plan_type, receipt_url, payment_method, status, createdAt, transferName, transferRef) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
               id,
               pharmacy_id,
-              plan_type || "monthly",
+              pType,
               receipt_url,
-              paymentMethod || "",
+              pMethod,
               "pending",
               new Date().toISOString(),
+              tName,
+              tRef,
             ],
             (err) => {
               if (err) return handleError(res, err);
@@ -1150,12 +1163,16 @@ app.get("/api/pharmacies/:id/subscription-status", (req, res) => {
 });
 
 app.put("/api/pharmacies/:id/subscription-request", (req, res) => {
-  const { pharmacy_id } = req.params;
-  const { plan, receiptImage, paymentMethod, transferName, transferRef } = req.body;
+  const pharmacy_id = req.params.id || req.params.pharmacy_id || req.body.pharmacy_id;
+  const { plan, receiptImage, paymentMethod, payment_method, payMethod, transferMethod, transferName, senderName, transferRef, refNumber } = req.body;
   if (!plan) return res.status(400).json({ success: false, error: "Missing plan" });
 
+  const pMethod = paymentMethod || payment_method || payMethod || transferMethod || "";
+  const tName = transferName || senderName || "";
+  const tRef = transferRef || refNumber || "";
+
   db.get(
-    "SELECT * FROM subscription_requests WHERE pharmacy_id = ? AND status = 'pending'",
+    "SELECT * FROM subscription_requests WHERE pharmacy_id = ? AND status = 'pending' ORDER BY createdAt DESC LIMIT 1",
     [pharmacy_id],
     (err, existing) => {
       if (existing) {
@@ -1164,9 +1181,9 @@ app.put("/api/pharmacies/:id/subscription-request", (req, res) => {
           [
             plan,
             receiptImage || existing.receipt_url,
-            paymentMethod || existing.payment_method,
-            transferName || existing.transferName,
-            transferRef || existing.transferRef,
+            pMethod || existing.payment_method,
+            tName || existing.transferName,
+            tRef || existing.transferRef,
             new Date().toISOString(),
             existing.id
           ],
@@ -1184,10 +1201,10 @@ app.put("/api/pharmacies/:id/subscription-request", (req, res) => {
             pharmacy_id,
             plan,
             receiptImage || "",
-            paymentMethod || "",
+            pMethod,
             new Date().toISOString(),
-            transferName || "",
-            transferRef || ""
+            tName,
+            tRef
           ],
           (err) => {
             if (err) return handleError(res, err);
@@ -1206,9 +1223,11 @@ app.get("/api/admin/subscription-requests", (req, res) => {
               WHEN r.receipt_url LIKE 'data:%' THEN 'base64'
               ELSE r.receipt_url 
             END as receipt_url,
-            p.name as pharmacy_name, p.phone as pharmacy_phone 
+            p.name as pharmacy_name, p.phone as pharmacy_phone,
+            u.managerName as owner_name, u.email as owner_email
             FROM subscription_requests r 
             LEFT JOIN pharmacies p ON r.pharmacy_id = p.id 
+            LEFT JOIN users u ON p.id = u.pharmacy_id AND u.role = 'manager'
             ORDER BY r.createdAt DESC`,
     (err, rows) => {
       if (err) return handleError(res, err);
@@ -1568,7 +1587,12 @@ app.post("/api/auth/login", (req, res) => {
 
 app.get("/api/admin/pharmacies", (req, res) => {
   db.all(
-    "SELECT p.*, u.managerName as owner FROM pharmacies p LEFT JOIN users u ON p.id = u.pharmacy_id AND u.role = 'manager'",
+    `SELECT p.*, u.managerName as owner,
+            (SELECT payment_method FROM subscription_requests WHERE pharmacy_id = p.id ORDER BY createdAt DESC LIMIT 1) as payment_method,
+            (SELECT transferName FROM subscription_requests WHERE pharmacy_id = p.id ORDER BY createdAt DESC LIMIT 1) as transferName,
+            (SELECT transferRef FROM subscription_requests WHERE pharmacy_id = p.id ORDER BY createdAt DESC LIMIT 1) as transferRef
+     FROM pharmacies p 
+     LEFT JOIN users u ON p.id = u.pharmacy_id AND u.role = 'manager'`,
     (err, rows) =>
       res.json({
         success: true,
@@ -1581,7 +1605,10 @@ app.get("/api/admin/pharmacies/:id", (req, res) => {
   const { id } = req.params;
   db.get(
     `
-      SELECT p.*, u.email, u.password, u.managerName as owner 
+      SELECT p.*, u.email, u.password, u.managerName as owner,
+             (SELECT payment_method FROM subscription_requests WHERE pharmacy_id = p.id ORDER BY createdAt DESC LIMIT 1) as payment_method,
+             (SELECT transferName FROM subscription_requests WHERE pharmacy_id = p.id ORDER BY createdAt DESC LIMIT 1) as transferName,
+             (SELECT transferRef FROM subscription_requests WHERE pharmacy_id = p.id ORDER BY createdAt DESC LIMIT 1) as transferRef
       FROM pharmacies p 
       LEFT JOIN users u ON p.id = u.pharmacy_id AND u.role = 'manager' 
       WHERE p.id = ?

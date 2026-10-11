@@ -294,12 +294,13 @@ async function loadDash() {
       <td class="px-6 py-3 font-semibold text-slate-900">${p.name}</td>
       <td class="px-4 py-3 text-slate-500">${p.owner || "—"}</td>
       <td class="px-4 py-3">${subBadge(p.subscriptionType)}</td>
+      <td class="px-4 py-3">${formatPayMethod(p.payment_method)}</td>
       <td class="px-4 py-3 text-xs text-slate-400">${fd(p.createdAt)}</td>
       <td class="px-4 py-3"><span class="${p.isActive ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"} text-xs font-semibold px-2.5 py-1 rounded-full">${p.isActive ? "نشطة" : "معلقة"}</span></td>
     </tr>`,
           )
           .join("")
-      : '<tr><td colspan="5" class="text-center py-8 text-slate-400">لا توجد صيدليات</td></tr>';
+      : '<tr><td colspan="6" class="text-center py-8 text-slate-400">لا توجد صيدليات</td></tr>';
   } catch (e) {
     console.error(e);
   }
@@ -373,7 +374,7 @@ function renderPharmsList() {
 
   if (!paged.length) {
     tb.innerHTML =
-      '<tr><td colspan="9" class="text-center py-8 text-slate-400">لا يوجد صيدليات</td></tr>';
+      '<tr><td colspan="10" class="text-center py-8 text-slate-400">لا يوجد صيدليات</td></tr>';
   } else {
     tb.innerHTML = paged
       .map((p) => {
@@ -397,6 +398,7 @@ function renderPharmsList() {
       <td class="px-4 py-3 text-slate-600">${p.owner || "—"}</td>
       <td class="px-4 py-3 text-slate-500">${p.phone || "—"}</td>
       <td class="px-4 py-3">${subBadge(p.subscriptionType)}</td>
+      <td class="px-4 py-3">${formatPayMethod(p.payment_method)}</td>
       <td class="px-4 py-3 text-xs text-slate-500">${fd(p.createdAt)}</td>
       <td class="px-4 py-3 text-xs text-slate-500">${p.subscriptionType === "lifetime" ? '<span class="text-indigo-600 font-bold">مدى الحياة</span>' : fd(p.subscriptionExpiry)}</td>
       <td class="px-4 py-3 font-mono text-sm">${Number(p.totalPaid || 0).toLocaleString("en-US")} ₪</td>
@@ -899,6 +901,40 @@ async function loadSubRequests() {
       '<tr><td colspan="6" class="text-center py-8 text-red-400">خطأ في التحميل</td></tr>';
   }
 }
+
+function formatPayMethod(method) {
+  if (!method) return '<span class="text-slate-400 text-xs">—</span>';
+  const m = String(method).toLowerCase().trim();
+  if (m === "bank" || m === "bop" || m.includes("بنك") || m.includes("فلسطين")) {
+    return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">🏦 بنك فلسطين</span>';
+  }
+  if (m === "palpay" || m.includes("palpay") || m.includes("بال")) {
+    return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">💳 PalPay</span>';
+  }
+  if (m === "jawwal" || m === "jawwalpay" || m.includes("jawwal") || m.includes("جوال")) {
+    return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">📱 Jawwal Pay</span>';
+  }
+  if (m === "trial" || m.includes("تجريب")) {
+    return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">⚡ تجريبي</span>';
+  }
+  return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">${method}</span>`;
+}
+
+function formatTransferDetails(name, ref) {
+  const n = (name || "").trim();
+  const r = (ref || "").trim();
+  if (!n && !r) return '<span class="text-slate-400 text-xs">—</span>';
+  let html = '<div class="text-xs space-y-0.5">';
+  if (n) {
+    html += `<div class="text-slate-800 font-medium truncate max-w-[150px]" title="${n}"><span class="text-slate-400 text-[10px]">بواسطة:</span> ${n}</div>`;
+  }
+  if (r) {
+    html += `<div class="font-mono text-slate-600 text-[11px] truncate max-w-[150px]" title="${r}"><span class="text-slate-400 text-[10px]">مرجع:</span> ${r}</div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
 function renderReqList() {
   const paged = paginateData(
     subRequests,
@@ -908,17 +944,15 @@ function renderReqList() {
   const tb = document.getElementById("reqTbl");
   if (!paged.length) {
     tb.innerHTML =
-      '<tr><td colspan="7" class="text-center py-8 text-slate-400">لا توجد طلبات</td></tr>';
+      '<tr><td colspan="8" class="text-center py-8 text-slate-400">لا توجد طلبات</td></tr>';
   } else {
     tb.innerHTML = paged
       .map(
         (r) => `<tr>
-      <td class="px-6 py-3 font-semibold text-slate-900">${r.pharmacy_name || r.pharmacy_id}<br><span class="text-xs text-slate-400">${r.pharmacy_phone || ""}</span></td>
+      <td class="px-6 py-3 font-semibold text-slate-900">${r.pharmacy_name || r.pharmacy_id}<br><span class="text-xs text-slate-400">${r.pharmacy_phone || (r.owner_name ? 'المالك: ' + r.owner_name : "")}</span></td>
       <td class="px-4 py-3">${subBadge(r.plan_type)}</td>
-      <td class="px-4 py-3">
-        <span class="text-xs text-indigo-600 font-bold">${(r.payment_method === "bop" || r.payment_method === "bank") ? "بنك فلسطين" : r.payment_method === "palpay" ? "PalPay" : (r.payment_method === "jawwalpay" || r.payment_method === "jawwal") ? "Jawwal Pay" : r.payment_method || "-"}</span>
-        ${(r.transferName || r.transferRef) ? `<div class="text-[10px] text-slate-500 mt-1">${r.transferName ? "بواسطة: " + r.transferName : ""}<br>${r.transferRef ? "رقم: " + r.transferRef : ""}</div>` : ""}
-      </td>
+      <td class="px-4 py-3">${formatPayMethod(r.payment_method)}</td>
+      <td class="px-4 py-3">${formatTransferDetails(r.transferName, r.transferRef)}</td>
       <td class="px-4 py-3">${r.receipt_url === "trial_activation" ? '<span class="text-emerald-600 font-semibold text-xs">تفعيل تجريبي</span>' : (r.receipt_url || "").startsWith("ref_") ? `<span class="text-slate-600 font-mono text-xs">رقم حوالة: ${r.receipt_url.replace("ref_", "")}</span>` : `<a href="javascript:void(0)" onclick="viewReceipt('${r.id}')" class="text-blue-500 hover:underline">عرض الإيصال</a>`}</td>
       <td class="px-4 py-3 text-xs text-slate-500">${fd(r.createdAt)}</td>
       <td class="px-4 py-3"><span class="${r.status === "approved" ? "bg-emerald-100 text-emerald-700" : r.status === "rejected" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"} text-xs font-semibold px-2.5 py-1 rounded-full">${r.status === "approved" ? "مفعل" : r.status === "rejected" ? "مرفوض" : "قيد المراجعة"}</span></td>
@@ -1004,6 +1038,11 @@ async function openPharmacyDetail(id) {
     document.getElementById("dbPlan").value =
       currentDetPh.subscriptionType || "monthly";
     document.getElementById("dbPaid").value = currentDetPh.totalPaid || 0;
+    const pm = currentDetPh.payment_method;
+    const pmText = (pm === "bank" || pm === "bop") ? "بنك فلسطين" : pm === "palpay" ? "PalPay" : (pm === "jawwal" || pm === "jawwalpay") ? "Jawwal Pay" : (pm || "—");
+    const pmDetails = [pmText, currentDetPh.transferName ? `بواسطة: ${currentDetPh.transferName}` : '', currentDetPh.transferRef ? `مرجع: ${currentDetPh.transferRef}` : ''].filter(Boolean).join(" | ");
+    const dbPayMethodEl = document.getElementById("dbPayMethod");
+    if (dbPayMethodEl) dbPayMethodEl.value = pmDetails || "—";
     document.getElementById("dbEmail").value = currentDetPh.email || "";
     document.getElementById("dbPassword").value = currentDetPh.password || "";
 

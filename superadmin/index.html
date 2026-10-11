@@ -229,13 +229,14 @@
                     <th class="text-right px-6 py-3">الصيدلية</th>
                     <th class="text-right px-4 py-3">المالك</th>
                     <th class="text-right px-4 py-3">الاشتراك</th>
+                    <th class="text-right px-4 py-3">طريقة التحويل</th>
                     <th class="text-right px-4 py-3">التسجيل</th>
                     <th class="text-right px-4 py-3">الحالة</th>
                   </tr>
                 </thead>
                 <tbody id="dashTbl" class="divide-y divide-slate-50 text-slate-700">
                   <tr>
-                    <td colspan="5" class="text-center py-8 text-slate-400">جاري التحميل...</td>
+                    <td colspan="6" class="text-center py-8 text-slate-400">جاري التحميل...</td>
                   </tr>
                 </tbody>
               </table>
@@ -268,6 +269,7 @@
                     <th class="text-right px-4 py-3">المالك</th>
                     <th class="text-right px-4 py-3">الجوال</th>
                     <th class="text-right px-4 py-3">الاشتراك</th>
+                    <th class="text-right px-4 py-3">طريقة التحويل</th>
                     <th class="text-right px-4 py-3">البداية</th>
                     <th class="text-right px-4 py-3">الانتهاء</th>
                     <th class="text-right px-4 py-3">المدفوع</th>
@@ -277,7 +279,7 @@
                 </thead>
                 <tbody id="pharmTbl" class="divide-y divide-slate-50 text-slate-700">
                   <tr>
-                    <td colspan="9" class="text-center py-8 text-slate-400">جاري التحميل...</td>
+                    <td colspan="10" class="text-center py-8 text-slate-400">جاري التحميل...</td>
                   </tr>
                 </tbody>
               </table>
@@ -341,6 +343,10 @@
                         <option value="lifetime">مدى الحياة</option>
                         <option value="trial">تجريبي</option>
                       </select>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-500 mb-1.5">طريقة التحويل والاشتراك</label>
+                      <input id="dbPayMethod" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 text-slate-700 outline-none" readonly />
                     </div>
                     <div><label class="block text-xs font-semibold text-slate-500 mb-1.5">المبلغ المدفوع (₪)</label><input id="dbPaid" type="number" class="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none" /></div>
                   </div>
@@ -416,7 +422,7 @@
                         </tr>
                       </thead>
                       <tbody id="detInvoicesTbl" class="divide-y divide-slate-100">
-                        <tr><td colspan="7" class="text-center py-8 text-slate-400">جاري التحميل...</td></tr>
+                        <tr><td colspan="8" class="text-center py-8 text-slate-400">جاري التحميل...</td></tr>
                       </tbody>
                     </table>
                   </div>
@@ -649,6 +655,7 @@
                     <th class="text-right px-6 py-3">الصيدلية</th>
                     <th class="text-right px-4 py-3">الخطة</th>
                     <th class="text-right px-4 py-3">طريقة التحويل</th>
+                    <th class="text-right px-4 py-3">بيانات التحويل</th>
                     <th class="text-right px-4 py-3">الإيصال</th>
                     <th class="text-right px-4 py-3">التاريخ</th>
                     <th class="text-right px-4 py-3">الحالة</th>
