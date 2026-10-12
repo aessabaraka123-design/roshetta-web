@@ -382,7 +382,6 @@ export default function SuppliersPage() {
                   className="w-full p-3 border border-mint-line rounded-xl focus:ring-2 focus:ring-teal/20 focus:border-teal outline-none transition-all font-semibold bg-white"
                 >
                   <option value="كاش">{language === 'en' ? 'Cash (from drawer)' : "كاش (نقداً من الدرج)"}</option>
-                  <option value="شيك">{language === 'en' ? 'Cheque' : "شيك"}</option>
                   <option value="حوالة بنكية">{language === 'en' ? 'Bank Transfer' : "حوالة بنكية"}</option>
                   <option value="جوال باي">{language === 'en' ? 'Jawwal Pay' : "جوال باي"}</option>
                   <option value="بال باي">{language === 'en' ? 'PalPay' : "بال باي"}</option>

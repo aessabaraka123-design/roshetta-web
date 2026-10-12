@@ -462,7 +462,6 @@ export default function Customers() {
                   <option value="بنكي">{language === 'en' ? 'Bank Transfer' : 'حوالة بنكية'}</option>
                   <option value="جوال باي">{language === 'en' ? 'Jawwal Pay' : 'جوال باي (تطبيق)'}</option>
                   <option value="بال باي">{language === 'en' ? 'PalPay' : 'بال باي (تطبيق)'}</option>
-                  <option value="شيك">{language === 'en' ? 'Cheque' : 'شيك'}</option>
                   <option value="أخرى">{language === 'en' ? 'Other' : 'أخرى'}</option>
                 </select>
               </div>
