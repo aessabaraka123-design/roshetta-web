@@ -138,6 +138,63 @@ export default function Inventory() {
 
   const [editingItem, setEditingItem] = useState<Med | null>(null);
   const [itemToDelete, setItemToDelete] = useState<Med | null>(null);
+  const [batchModalItem, setBatchModalItem] = useState<any>(null);
+  const [newBatchData, setNewBatchData] = useState({
+    qty: "",
+    cost: "",
+    price: "",
+    expiry: "",
+    batch_number: "",
+  });
+  const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
+
+  useEffect(() => {
+    if (batchModalItem) {
+      setNewBatchData({
+        qty: "",
+        cost: batchModalItem.cost !== undefined ? String(batchModalItem.cost) : "",
+        price: batchModalItem.price !== undefined ? String(batchModalItem.price) : "",
+        expiry: batchModalItem.expiry || batchModalItem.expiry_date || "",
+        batch_number: "",
+      });
+    }
+  }, [batchModalItem]);
+
+  const handleCreateNewBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!batchModalItem || !newBatchData.qty || Number(newBatchData.qty) <= 0) {
+      toast.error(language === 'en' ? "Please enter a valid quantity" : "يرجى إدخال كمية صحيحة");
+      return;
+    }
+    setIsSubmittingBatch(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/inventory/${batchModalItem.id}/new-batch`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newBatchData),
+        }
+      );
+      const data = await res.json();
+      if (data.success) {
+        toast.success(
+          language === 'en'
+            ? "New batch added successfully! Previous stock tagged as (Old) and new stock as (New)."
+            : "تمت إضافة الدفعة بنجاح! تم تمييز السابق بـ (القديم) والدفعة الحالية بـ (الجديد)."
+        );
+        setBatchModalItem(null);
+        setNewBatchData({ qty: "", cost: "", price: "", expiry: "", batch_number: "" });
+        mutate();
+      } else {
+        toast.error(data.error || (language === 'en' ? "Failed to add batch" : "فشل إضافة الدفعة"));
+      }
+    } catch {
+      toast.error(language === 'en' ? "Connection error" : "خطأ في الاتصال بالخادم");
+    } finally {
+      setIsSubmittingBatch(false);
+    }
+  };
 
 // Auto-calculate sub-unit prices
   useEffect(() => {
@@ -366,12 +423,24 @@ export default function Inventory() {
             >
               <div className="flex justify-between items-start mb-2.5">
                 <div className="max-w-[70%] flex flex-col items-start text-start">
-                  <h3
-                    className="text-[16px] font-bold text-ink truncate max-w-full"
-                    dir="auto"
-                  >
-                    {med.name}
-                  </h3>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h3
+                      className="text-[16px] font-bold text-ink truncate max-w-full"
+                      dir="auto"
+                    >
+                      {med.name}
+                    </h3>
+                    {med.name?.includes("(القديم)") && (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 shrink-0">
+                        🏷️ {language === 'en' ? 'Old Batch' : 'القديم'}
+                      </span>
+                    )}
+                    {med.name?.includes("(الجديد)") && (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-300 shrink-0">
+                        ✨ {language === 'en' ? 'New Batch' : 'الجديد'}
+                      </span>
+                    )}
+                  </div>
                   <p
                     className="text-[14px] text-ink-soft mt-0.5 truncate max-w-full"
                     dir="auto"
@@ -399,6 +468,12 @@ export default function Inventory() {
                 </span>
               </div>
               <div className="flex items-center gap-2 border-t border-mint-line pt-3 mt-auto">
+                <button
+                  onClick={() => setBatchModalItem(med)}
+                  className="flex-1 text-[12px] font-bold text-primary bg-primary-pale/50 hover:bg-primary hover:text-white py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1"
+                >
+                  <span>+</span> {language === 'en' ? 'New Batch' : 'دفعة جديدة'}
+                </button>
                 <button
                   onClick={() => {
                     let hp = false;
@@ -451,13 +526,13 @@ export default function Inventory() {
                       stock_part2: s_p2,
                     });
                   }}
-                  className="flex-1 text-[13px] font-bold text-teal bg-teal-pale/50 hover:bg-teal hover:text-white py-1.5 rounded-lg transition-colors"
+                  className="flex-1 text-[12px] font-bold text-teal bg-teal-pale/50 hover:bg-teal hover:text-white py-1.5 rounded-lg transition-colors"
                 >
                   {language === 'en' ? 'Edit' : 'تعديل'}
                 </button>
                 <button
                   onClick={() => setItemToDelete(med)}
-                  className="flex-1 text-[13px] font-bold text-coral bg-coral-pale/50 hover:bg-coral hover:text-white py-1.5 rounded-lg transition-colors"
+                  className="text-[12px] font-bold text-coral bg-coral-pale/50 hover:bg-coral hover:text-white px-3 py-1.5 rounded-lg transition-colors"
                 >
                   {language === 'en' ? 'Delete' : 'حذف'}
                 </button>
@@ -888,6 +963,133 @@ export default function Inventory() {
                 {language === 'en' ? 'Yes, delete item' : 'نعم، احذف الصنف'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Batch Modal */}
+      {batchModalItem && (
+        <div className="fixed inset-0 bg-ink/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-mint-line flex flex-col">
+            <div className="p-5 border-b border-mint-line flex justify-between items-center bg-bg/50">
+              <div className="flex items-center gap-2">
+                <span className="text-[20px]">✨</span>
+                <div>
+                  <h3 className="font-black text-[17px] text-primary">
+                    {language === 'en' ? 'Add New Batch' : 'إضافة دفعة جديدة'}
+                  </h3>
+                  <p className="text-[12px] text-ink-soft truncate max-w-[260px]">
+                    {batchModalItem.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setBatchModalItem(null)}
+                className="w-8 h-8 rounded-full bg-white border border-mint-line flex items-center justify-center text-ink-soft hover:text-coral transition-colors font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateNewBatch} className="p-5 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-[13px] text-amber-900 leading-relaxed">
+                <span className="font-bold block mb-1">💡 {language === 'en' ? 'How does this solve price conflict?' : 'كيف تحل هذه الميزة مشكلة الأسعار؟'}</span>
+                {language === 'en'
+                  ? `The current stock (${formatQty(batchModalItem.qty, batchModalItem.units, language)}) will remain at its current price (${batchModalItem.price} ₪) and will be tagged as "(Old)". This new batch will be added with the new price and tagged as "(New)" to prevent pricing conflicts.`
+                  : `الكمية الحالية المتوفرة (${formatQty(batchModalItem.qty, batchModalItem.units, language)}) ستبقى بسعرها الحالي (${batchModalItem.price} ₪) ويكتب عليها "(القديم)". وسيتم إضافة الدفعة الجديدة بالسعر المدخل أدناه ويكتب عليها "(الجديد)".`}
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-bold text-ink mb-1">
+                  {language === 'en' ? 'New Batch Quantity (Boxes) *' : 'كمية الدفعة الجديدة (علب) *'}
+                </label>
+                <input
+                  required
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={newBatchData.qty}
+                  onChange={(e) => setNewBatchData({ ...newBatchData, qty: e.target.value })}
+                  placeholder="0"
+                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 outline-none focus:border-teal font-mono font-bold text-[15px]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[13px] font-bold text-ink mb-1">
+                    {language === 'en' ? 'New Cost Price (₪)' : 'سعر الشراء / التكلفة (₪)'}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={newBatchData.cost}
+                    onChange={(e) => setNewBatchData({ ...newBatchData, cost: e.target.value })}
+                    placeholder="0.00"
+                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 outline-none focus:border-teal font-mono font-bold text-[15px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-bold text-ink mb-1">
+                    {language === 'en' ? 'New Selling Price (₪) *' : 'سعر البيع الجديد (₪) *'}
+                  </label>
+                  <input
+                    required
+                    type="number"
+                    step="0.01"
+                    value={newBatchData.price}
+                    onChange={(e) => setNewBatchData({ ...newBatchData, price: e.target.value })}
+                    placeholder="0.00"
+                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 outline-none focus:border-teal font-mono font-bold text-[15px] text-teal"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[13px] font-bold text-ink mb-1">
+                    {language === 'en' ? 'Expiry Date' : 'تاريخ الصلاحية'}
+                  </label>
+                  <input
+                    type="date"
+                    value={newBatchData.expiry}
+                    onChange={(e) => setNewBatchData({ ...newBatchData, expiry: e.target.value })}
+                    className="w-full bg-bg border border-mint-line rounded-xl px-3 py-2.5 outline-none focus:border-teal font-semibold text-[13px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-bold text-ink mb-1">
+                    {language === 'en' ? 'Batch Number' : 'رقم التشغيلة'}
+                  </label>
+                  <input
+                    type="text"
+                    value={newBatchData.batch_number}
+                    onChange={(e) => setNewBatchData({ ...newBatchData, batch_number: e.target.value })}
+                    placeholder="B-101"
+                    className="w-full bg-bg border border-mint-line rounded-xl px-3 py-2.5 outline-none focus:border-teal font-semibold text-[13px]"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBatchModalItem(null)}
+                  className="flex-1 py-3 border border-mint-line rounded-xl font-bold text-ink-soft hover:bg-bg transition-colors text-[14px]"
+                >
+                  {language === 'en' ? 'Cancel' : 'إلغاء'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingBatch}
+                  className="flex-1 py-3 bg-teal hover:bg-[#259775] text-white rounded-xl font-bold shadow-md shadow-teal/20 transition-all text-[14px] disabled:opacity-50"
+                >
+                  {isSubmittingBatch
+                    ? (language === 'en' ? 'Adding...' : 'جاري الإضافة...')
+                    : (language === 'en' ? 'Confirm New Batch' : 'تأكيد إضافة الدفعة')}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

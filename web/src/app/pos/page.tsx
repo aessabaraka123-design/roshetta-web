@@ -154,10 +154,18 @@ function POSContent() {
       !activeBranchId || !m.branch_id || m.branch_id === activeBranchId,
   );
   const filteredMeds = search.trim()
-    ? branchMeds.filter(
-        (m: Med) =>
-          m.name?.includes(search) || (m as any).barcode?.includes(search),
-      )
+    ? branchMeds
+        .filter(
+          (m: Med) =>
+            m.name?.includes(search) || (m as any).barcode?.includes(search),
+        )
+        .sort((a: any, b: any) => {
+          const aIsOld = a.name?.includes("(القديم)");
+          const bIsOld = b.name?.includes("(القديم)");
+          if (aIsOld && !bIsOld && (a.qty || 0) > 0) return -1;
+          if (!aIsOld && bIsOld && (b.qty || 0) > 0) return 1;
+          return 0;
+        })
     : [];
 
   const [unitModal, setUnitModal] = useState<{
@@ -379,9 +387,21 @@ function POSContent() {
                         className="p-3 border-b border-mint-line hover:bg-bg cursor-pointer flex justify-between items-center last:border-0"
                       >
                         <div>
-                          <span className="font-bold text-ink block text-[14px]">
-                            {med.name}
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-ink block text-[14px]">
+                              {med.name}
+                            </span>
+                            {med.name?.includes("(القديم)") && (
+                              <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold border border-amber-300">
+                                🏷️ {language === 'en' ? 'Old' : 'القديم'}
+                              </span>
+                            )}
+                            {med.name?.includes("(الجديد)") && (
+                              <span className="text-[10px] bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded font-bold border border-teal-300">
+                                ✨ {language === 'en' ? 'New' : 'الجديد'}
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[12px] text-ink-soft mt-0.5 flex gap-1">
                             {language === 'en' ? "Available:" : "متوفر:"}{" "}
                             <span className="font-mono font-bold text-teal">

@@ -278,7 +278,19 @@ export default function BatchesPage() {
                       className={`${s.row} hover:brightness-95 transition-all`}
                     >
                       <td className="px-4 py-3 font-bold text-[14px] text-ink">
-                        {batch.drug_name}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{batch.drug_name}</span>
+                          {batch.drug_name?.includes("(القديم)") && (
+                            <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold border border-amber-300">
+                              {language === "en" ? "Old" : "القديم"}
+                            </span>
+                          )}
+                          {batch.drug_name?.includes("(الجديد)") && (
+                            <span className="text-[10px] bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded font-bold border border-teal-300">
+                              {language === "en" ? "New" : "الجديد"}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 font-mono text-[13px] text-ink-soft">
                         {batch.batch_number || "—"}
