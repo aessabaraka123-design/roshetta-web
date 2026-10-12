@@ -8,6 +8,7 @@ interface Med {
   qty: number;
   minQty: number;
   price: number;
+  cost?: number;
   expireDate: string;
   category: string;
   branch: { name: string };
@@ -19,6 +20,7 @@ interface PosCartItem extends Med {
   unitName: string;
   unitCount: number;
   unitPrice: number;
+  unitCost?: number;
   displayName: string;
 }
 
@@ -48,7 +50,7 @@ interface StoreState {
   setInventory: (meds: Med[]) => void;
   addToPosCart: (
     med: Med,
-    unit?: { name: string; count: number; price: number },
+    unit?: { name: string; count: number; price: number; cost?: number; ratio?: number },
   ) => void;
   updatePosCartQty: (cartItemId: string, delta: number) => void;
   clearPosCart: () => void;
@@ -72,7 +74,7 @@ export const useStore = create<StoreState>()(
 
       addToPosCart: (med, unit) =>
         set((state) => {
-          const u = unit || { name: "Box", count: 1, price: med.price };
+          const u = unit || { name: "Box", count: 1, price: med.price, cost: med.cost };
           const cartItemId = `${med.id}-${u.name}`;
 
           const existing = state.posCart.find(
@@ -88,8 +90,14 @@ export const useStore = create<StoreState>()(
             };
           }
 
+          const baseCost = med.cost != null ? Number(med.cost) : (Number(med.price || 0) * 0.7);
+          const itemUnitCost = u.cost !== undefined ? Number(u.cost) : (baseCost * (u.ratio || 1));
+
           const newItem: PosCartItem = {
             ...med,
+            price: u.price,
+            cost: itemUnitCost,
+            unitCost: itemUnitCost,
             cartQty: 1,
             cartItemId,
             unitName: u.name,

@@ -29,11 +29,22 @@ export default function Returns() {
   const allSales = salesData?.sales || [];
 
   const completedSales = useMemo(
-    () => allSales.filter((s: any) => s.status !== "refunded"),
+    () =>
+      allSales.filter(
+        (s: any) =>
+          s.status !== "refunded" &&
+          s.status !== "refund_proxy" &&
+          s.status !== "debt_payment" &&
+          s.paymentMethod !== "debt_payment" &&
+          s.paymentMethod !== "تسديد دين",
+      ),
     [allSales],
   );
   const refundedSales = useMemo(
-    () => allSales.filter((s: any) => s.status === "refunded"),
+    () =>
+      allSales.filter(
+        (s: any) => s.status === "refunded" && s.status !== "refund_proxy",
+      ),
     [allSales],
   );
 

@@ -59,7 +59,7 @@ export default function SalesLog() {
       : null,
     fetcher,
   );
-  const sales = data?.sales || [];
+  const sales = (data?.sales || []).filter((s: any) => s.status !== "refund_proxy");
 
   const handleRefund = async (id: string) => {
     if (refunding) return;
@@ -203,24 +203,28 @@ export default function SalesLog() {
                   <td className="py-4 px-5">
                     <span
                       className={`px-2 py-1 rounded-md text-[12px] font-bold ${
-                        sale.paymentMethod === "cash"
-                          ? "bg-teal-pale text-teal"
-                          : "bg-primary-pale text-primary"
+                        sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين"
+                          ? "bg-purple-100 text-purple-700"
+                          : sale.paymentMethod === "cash"
+                            ? "bg-teal-pale text-teal"
+                            : "bg-primary-pale text-primary"
                       }`}
                     >
-                      {sale.paymentMethod === "cash"
-                        ? (language === 'en' ? "Cash" : "نقدي")
-                        : sale.paymentMethod === "bank"
-                          ? (language === 'en' ? "Bank" : "بنكي")
-                          : sale.paymentMethod === "jawwal"
-                            ? (language === 'en' ? "Jawwal Pay" : "جوال باي")
-                            : sale.paymentMethod === "palpay"
-                              ? (language === 'en' ? "PalPay" : "بال باي")
-                              : sale.paymentMethod === "maalchat"
-                                ? (language === 'en' ? "MaalChat" : "مالتشات")
-                                : sale.paymentMethod === "credit"
-                                  ? (language === 'en' ? "Credit" : "ذمم") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
-                                  : sale.paymentMethod}
+                      {sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين"
+                        ? (language === 'en' ? "Debt Collection" : "سداد دين") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
+                        : sale.paymentMethod === "cash"
+                          ? (language === 'en' ? "Cash" : "نقدي")
+                          : sale.paymentMethod === "bank"
+                            ? (language === 'en' ? "Bank" : "بنكي")
+                            : sale.paymentMethod === "jawwal"
+                              ? (language === 'en' ? "Jawwal Pay" : "جوال باي")
+                              : sale.paymentMethod === "palpay"
+                                ? (language === 'en' ? "PalPay" : "بال باي")
+                                : sale.paymentMethod === "maalchat"
+                                  ? (language === 'en' ? "MaalChat" : "مالتشات")
+                                  : sale.paymentMethod === "credit"
+                                    ? (language === 'en' ? "Credit" : "ذمم") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
+                                    : sale.paymentMethod}
                     </span>
                   </td>
                   <td
@@ -236,7 +240,7 @@ export default function SalesLog() {
                       >
                         {language === 'en' ? 'View' : 'عرض'}
                       </button>
-                      {sale.status !== "refunded" && (
+                      {sale.status !== "refunded" && sale.status !== "debt_payment" && sale.paymentMethod !== "debt_payment" && sale.paymentMethod !== "تسديد دين" && (
                         <button
                           onClick={() => handleRefund(sale.id)}
                           className="px-3 py-1.5 text-[13px] font-bold text-coral border border-coral-pale rounded-lg hover:bg-coral hover:text-white transition-all"

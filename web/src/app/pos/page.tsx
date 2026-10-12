@@ -206,10 +206,16 @@ function POSContent() {
         const parsed = JSON.parse(med.units);
         if (parsed && parsed.length > 0) {
           const boxCount = parsed[0].count || 1;
-          const unitsWithPrices = parsed.map((u: any) => ({
-            ...u,
-            price: med.price * ((u.count || 1) / boxCount),
-          }));
+          const baseCost = med.cost != null ? Number(med.cost) : (Number(med.price || 0) * 0.7);
+          const unitsWithPrices = parsed.map((u: any) => {
+            const ratio = (u.count || 1) / boxCount;
+            return {
+              ...u,
+              ratio,
+              price: med.price * ratio,
+              cost: baseCost * ratio,
+            };
+          });
           setUnitModal({ visible: true, med, units: unitsWithPrices });
           setSearch("");
           return;
