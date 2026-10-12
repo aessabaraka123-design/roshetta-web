@@ -154,18 +154,30 @@ function POSContent() {
       !activeBranchId || !m.branch_id || m.branch_id === activeBranchId,
   );
   const filteredMeds = search.trim()
-    ? branchMeds
-        .filter(
-          (m: Med) =>
-            m.name?.includes(search) || (m as any).barcode?.includes(search),
-        )
-        .sort((a: any, b: any) => {
-          const aIsOld = a.name?.includes("(القديم)");
-          const bIsOld = b.name?.includes("(القديم)");
-          if (aIsOld && !bIsOld && (a.qty || 0) > 0) return -1;
-          if (!aIsOld && bIsOld && (b.qty || 0) > 0) return 1;
-          return 0;
-        })
+    ? (() => {
+        const matched = branchMeds
+          .filter(
+            (m: Med) =>
+              m.name?.includes(search) || (m as any).barcode?.includes(search),
+          )
+          .sort((a: any, b: any) => {
+            const aIsOld = a.name?.includes("(القديم)");
+            const bIsOld = b.name?.includes("(القديم)");
+            if (aIsOld && !bIsOld && (a.qty || 0) > 0) return -1;
+            if (!aIsOld && bIsOld && (b.qty || 0) > 0) return 1;
+            return 0;
+          });
+
+        // FIFO barcode auto-selection: if exact barcode scan returns old+new twins,
+        // keep only the القديم (if it has stock) so the cashier doesn't have to choose
+        const trimmed = search.trim();
+        const exactBarcode = branchMeds.some((m: any) => (m as any).barcode === trimmed);
+        if (exactBarcode) {
+          const oldBatch = matched.find((m: any) => m.name?.includes("(القديم)") && (m.qty || 0) > 0);
+          if (oldBatch) return [oldBatch];
+        }
+        return matched;
+      })()
     : [];
 
   const [unitModal, setUnitModal] = useState<{
@@ -242,6 +254,20 @@ function POSContent() {
   };
 
   const addToCart = (med: Med) => {
+    // FIFO: if this med has a (الجديد) tag and there's a (القديم) sibling with stock, add the old one first
+    const medAny = med as any;
+    if (medAny.name?.includes("(الجديد)")) {
+      const oldSibling = branchMeds.find(
+        (m: any) =>
+          m.name?.includes("(القديم)") &&
+          (m.barcode === medAny.barcode || m.name?.replace(/\s*\(القديم\)/g, "") === medAny.name?.replace(/\s*\(الجديد\)/g, "")) &&
+          (m.qty || 0) > 0
+      );
+      if (oldSibling) {
+        handleItemSelect(oldSibling as Med);
+        return;
+      }
+    }
     handleItemSelect(med);
   };
 
@@ -870,7 +896,7 @@ function POSContent() {
                     className="flex text-[12px] text-ink items-center"
                   >
                     <div className="flex-[2] text-start font-bold truncate pr-1">
-                      {item.displayName || item.name}
+                      {(item.displayName || item.name || "").replace(/\s*\(القديم\)|\s*\(الجديد\)|\s*\(دفعة قديمة\)|\s*\(دفعة جديدة\)/g, "").trim()}
                     </div>
                     <div className="w-[40px] text-center font-mono">
                       {item.cartQty || item.qty || 1}
