@@ -79,7 +79,17 @@ export default function SocketProvider({
             <div className="flex-1 w-0 p-4">
               <div className="flex items-start">
                 <div className="shrink-0 pt-0.5 text-2xl">
-                  {data.type === "system_alert" ? "📢" : "💡"}
+                  {data.type === "low_stock"
+                    ? "📦"
+                    : data.type === "expiring"
+                    ? "⏰"
+                    : data.type === "staff"
+                    ? "👤"
+                    : data.type === "credit_sale" || data.type === "debt"
+                    ? "💸"
+                    : data.type === "system_alert"
+                    ? "📢"
+                    : "💡"}
                 </div>
                 <div className={`ml-3 flex-1 ${language === "en" ? "ml-3" : "mr-3"}`}>
                   <p className="text-sm font-bold text-ink">
