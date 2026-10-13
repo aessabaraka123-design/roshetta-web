@@ -80,6 +80,7 @@ export default function PurchasesPage() {
   const [newItem, setNewItem] = useState({
     name: "",
     scientificName: "",
+    company: "",
     category: "",
     price_sell: "",
     price_buy: "",
@@ -150,6 +151,7 @@ export default function PurchasesPage() {
     ? uniqueInv.filter(
         (d: any) =>
           d.name.toLowerCase().includes(itemSearch.toLowerCase()) ||
+          (d.scientificName && d.scientificName.toLowerCase().includes(itemSearch.toLowerCase())) ||
           (d.barcode && d.barcode.includes(itemSearch)),
       )
     : uniqueInv.slice(0, 20);
@@ -315,26 +317,33 @@ export default function PurchasesPage() {
 
   const handleQuickAdd = async () => {
     if (!newItem.name || !newItem.price_sell) {
-      toast.error(language === "en" ? "Enter item name and price" : "أدخل اسم وسعر الصنف");
+      toast.error(language === "en" ? "Enter trade name and selling price" : "أدخل الاسم التجاري وسعر البيع للصنف");
       return;
     }
     setLoading(true);
     try {
+      const buyPrice = parseFloat(newItem.price_buy) || 0;
+      const sellPrice = parseFloat(newItem.price_sell) || 0;
+
       const res = await fetch(
         `${API}/api/pharmacies/${user?.pharmacy_id}/inventory`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: newItem.name,
-            scientificName: newItem.scientificName,
-            category: newItem.category || "General medicines",
-            price_sell: parseFloat(newItem.price_sell) || 0,
-            price_buy: parseFloat(newItem.price_buy) || 0,
-            cost: parseFloat(newItem.price_buy) || 0,
-            minQty: parseInt(newItem.minQty) || 0,
+            name: newItem.name.trim(),
+            trade_name: newItem.name.trim(),
+            scientificName: (newItem.scientificName || "").trim(),
+            category: (newItem.category || "").trim() || "General medicines",
+            company: (newItem.company || "").trim(),
+            manufacturer: (newItem.company || "").trim(),
+            price_sell: sellPrice,
+            price_buy: buyPrice,
+            cost: buyPrice,
+            minQty: parseInt(newItem.minQty) || 5,
             expiry: newItem.expiry || "",
-            barcode: newItem.barcode || "",
+            expiry_date: newItem.expiry || "",
+            barcode: (newItem.barcode || "").trim(),
             qty: 0,
             branch_id: form.branch_id === "all" ? null : form.branch_id,
           }),
@@ -342,15 +351,19 @@ export default function PurchasesPage() {
       );
       const r = await res.json();
       if (r.success) {
-        toast.success(language === "en" ? "Item added!" : "تم إضافة الصنف!");
+        toast.success(language === "en" ? "Item added to inventory & invoice!" : "تمت إضافة الصنف للمخزون وللفاتورة!");
         setCartItems((c) => [
           ...c,
           {
-            id: r.id,
-            name: newItem.name,
+            id: r.itemId || r.id || ("MED-" + Date.now()),
+            name: newItem.name.trim(),
+            scientificName: (newItem.scientificName || "").trim(),
             qty: 1,
-            purchase_price: 0,
-            sell_price: 0,
+            purchase_price: buyPrice,
+            sell_price: sellPrice,
+            expiry: newItem.expiry || "",
+            expiry_date: newItem.expiry || "",
+            barcode: (newItem.barcode || "").trim(),
             has_parts: false,
             part1_name: "شريط",
             part1_qty: 10,
@@ -365,6 +378,7 @@ export default function PurchasesPage() {
         setNewItem({
           name: "",
           scientificName: "",
+          company: "",
           category: "",
           price_sell: "",
           price_buy: "",
@@ -971,9 +985,16 @@ export default function PurchasesPage() {
                               onClick={() => addItemToCart(d)}
                               className="w-full flex items-center justify-between px-5 py-3 hover:bg-bg transition-colors text-start border-b border-mint-line last:border-0"
                             >
-                              <span className="text-[15px] font-bold text-ink">
-                                {d.name}
-                              </span>
+                              <div className="flex flex-col text-start">
+                                <span className="text-[15px] font-bold text-ink">
+                                  {d.name}
+                                </span>
+                                {d.scientificName && (
+                                  <span className="text-[12px] text-ink-soft font-mono">
+                                    {d.scientificName}
+                                  </span>
+                                )}
+                              </div>
                               <span className="text-[13px] font-mono text-ink-soft">
                                 {language === "en" ? "In Stock:" : "في المخزون:"} {formatQty(d.qty, d.units, language)}
                               </span>
@@ -1105,9 +1126,16 @@ export default function PurchasesPage() {
                               className="flex items-center justify-between mb-6"
                               dir="rtl"
                             >
-                              <span className="font-black text-[15px] text-ink">
-                                {item.name}
-                              </span>
+                              <div className="flex flex-col text-start">
+                                <span className="font-black text-[15px] text-ink">
+                                  {item.name}
+                                </span>
+                                {item.scientificName && (
+                                  <span className="text-[12px] text-ink-soft font-mono">
+                                    {item.scientificName}
+                                  </span>
+                                )}
+                              </div>
                               <button
                                 type="button"
                                 onClick={() =>
@@ -1528,10 +1556,11 @@ export default function PurchasesPage() {
               className="flex-1 overflow-y-auto px-6 py-5 space-y-4"
               dir="rtl"
             >
-              {/* اسم الصنف */}
+              {/* الاسم التجاري */}
               <div>
                 <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                  اسم الصنف <span className="text-coral">*</span>
+                  {language === "en" ? "Trade Name (Brand Name) *" : "الاسم التجاري *"}{" "}
+                  <span className="text-coral">*</span>
                 </label>
                 <input
                   type="text"
@@ -1541,7 +1570,23 @@ export default function PurchasesPage() {
                   }
                   autoFocus
                   className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[14px] font-bold outline-none focus:border-primary transition-colors text-start"
-                  placeholder="مثال: أموكسيل 500"
+                  placeholder={language === "en" ? "e.g. Panadol Extra / Augmentin 1g" : "مثال: أوجمنتين 1 جم / بنادول إكسترا"}
+                />
+              </div>
+
+              {/* الاسم العلمي */}
+              <div>
+                <label className="block text-[12px] font-black text-ink-soft mb-1.5">
+                  {language === "en" ? "Scientific / Generic Name" : "الاسم العلمي (المادة الفعالة)"}
+                </label>
+                <input
+                  type="text"
+                  value={newItem.scientificName}
+                  onChange={(e) =>
+                    setNewItem({ ...newItem, scientificName: e.target.value })
+                  }
+                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold outline-none focus:border-primary transition-colors text-start font-mono"
+                  placeholder={language === "en" ? "e.g. Amoxicillin + Clavulanic Acid" : "مثال: Amoxicillin + Clavulanic Acid / Paracetamol"}
                 />
               </div>
 
@@ -1549,21 +1594,21 @@ export default function PurchasesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                    الشركة المصنّعة
+                    {language === "en" ? "Manufacturer" : "الشركة المصنّعة"}
                   </label>
                   <input
                     type="text"
-                    value={newItem.scientificName}
+                    value={newItem.company}
                     onChange={(e) =>
-                      setNewItem({ ...newItem, scientificName: e.target.value })
+                      setNewItem({ ...newItem, company: e.target.value })
                     }
                     className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold outline-none focus:border-primary transition-colors text-start"
-                    placeholder="مثال: Pfizer"
+                    placeholder={language === "en" ? "e.g. Pfizer / Hikma / GSK" : "مثال: Pfizer / Hikma / GSK"}
                   />
                 </div>
                 <div>
                   <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                    الفئة العلاجية
+                    {language === "en" ? "Category" : "الفئة العلاجية"}
                   </label>
                   <input
                     type="text"
@@ -1572,7 +1617,7 @@ export default function PurchasesPage() {
                       setNewItem({ ...newItem, category: e.target.value })
                     }
                     className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold outline-none focus:border-primary transition-colors text-start"
-                    placeholder="مثال: مضاد حيوي"
+                    placeholder={language === "en" ? "e.g. Antibiotic" : "مثال: مضاد حيوي / مسكن"}
                   />
                 </div>
               </div>
