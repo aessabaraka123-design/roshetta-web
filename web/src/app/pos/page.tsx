@@ -153,6 +153,15 @@ function POSContent() {
     (m: Med) =>
       !activeBranchId || !m.branch_id || m.branch_id === activeBranchId,
   );
+  const getCartQtyForMed = (medId: string) => {
+    return cart.reduce((sum: number, ci: any) => {
+      if (ci.id === medId) {
+        return sum + (Number(ci.cartQty || 0) * Number(ci.unitCount || 1));
+      }
+      return sum;
+    }, 0);
+  };
+
   const filteredMeds = search.trim()
     ? (() => {
         const matched = branchMeds
@@ -168,13 +177,25 @@ function POSContent() {
             return 0;
           });
 
-        // FIFO barcode auto-selection: if exact barcode scan returns old+new twins,
-        // keep only the القديم (if it has stock) so the cashier doesn't have to choose
+        // FIFO barcode auto-selection: if exact barcode scan returns old+new twins:
+        // 1. Try finding (القديم) if it has unsold stock not yet booked in cart
         const trimmed = search.trim();
         const exactBarcode = branchMeds.some((m: any) => (m as any).barcode === trimmed);
         if (exactBarcode) {
-          const oldBatch = matched.find((m: any) => m.name?.includes("(القديم)") && (m.qty || 0) > 0);
+          const oldBatch = matched.find((m: any) => {
+            if (!m.name?.includes("(القديم)")) return false;
+            const inCart = getCartQtyForMed(m.id);
+            return (m.qty || 0) > inCart;
+          });
           if (oldBatch) return [oldBatch];
+
+          // 2. If (القديم) is depleted or fully in cart, auto-transition to (الجديد)
+          const newBatch = matched.find((m: any) => {
+            if (!m.name?.includes("(الجديد)")) return false;
+            const inCart = getCartQtyForMed(m.id);
+            return (m.qty || 0) > inCart;
+          });
+          if (newBatch) return [newBatch];
         }
         return matched;
       })()
@@ -254,24 +275,84 @@ function POSContent() {
   };
 
   const addToCart = (med: Med) => {
-    // FIFO: if this med has a (الجديد) tag and there's a (القديم) sibling with stock, add the old one first
     const medAny = med as any;
-    if (medAny.name?.includes("(الجديد)")) {
-      const oldSibling = branchMeds.find(
-        (m: any) =>
-          m.name?.includes("(القديم)") &&
-          (m.barcode === medAny.barcode || m.name?.replace(/\s*\(القديم\)/g, "") === medAny.name?.replace(/\s*\(الجديد\)/g, "")) &&
-          (m.qty || 0) > 0
-      );
-      if (oldSibling) {
+    const cleanBaseName = (medAny.name || "")
+      .replace(/\s*\(القديم\)|\s*\(الجديد\)|\s*\(دفعة قديمة\)|\s*\(دفعة جديدة\)/g, "")
+      .trim();
+
+    // Find siblings by barcode or clean name
+    const oldSibling = branchMeds.find(
+      (m: any) =>
+        m.name?.includes("(القديم)") &&
+        (m.barcode === medAny.barcode || (m.name || "").replace(/\s*\(القديم\)|\s*\(الجديد\)/g, "").trim() === cleanBaseName)
+    );
+    const newSibling = branchMeds.find(
+      (m: any) =>
+        m.name?.includes("(الجديد)") &&
+        (m.barcode === medAny.barcode || (m.name || "").replace(/\s*\(القديم\)|\s*\(الجديد\)/g, "").trim() === cleanBaseName)
+    );
+
+    // If there is an old batch:
+    if (oldSibling) {
+      const oldStock = Number(oldSibling.qty || 0);
+      const oldInCart = getCartQtyForMed(oldSibling.id);
+
+      // Sell from old batch first if there is stock remaining
+      if (oldStock > oldInCart) {
         handleItemSelect(oldSibling as Med);
         return;
       }
+
+      // If old batch is already full in the cart (or out of stock) and new batch exists:
+      if (newSibling) {
+        const newStock = Number(newSibling.qty || 0);
+        const newInCart = getCartQtyForMed(newSibling.id);
+        if (newStock > newInCart) {
+          toast(
+            language === 'en'
+              ? `Old batch depleted (${oldStock} max). Added 1 from new batch.`
+              : `تم استنفاد كامل رصيد الدفعة القديمة (${oldStock} علبة). تم التحويل تلقائياً للدفعة الجديدة بالسعر الجديد.`,
+            { icon: '✨', duration: 4000 }
+          );
+          handleItemSelect(newSibling as Med);
+          return;
+        }
+      }
     }
+
     handleItemSelect(med);
   };
 
   const changeQty = (cartItemId: string, delta: number) => {
+    if (delta > 0) {
+      const cartItem = cart.find((ci: any) => ci.cartItemId === cartItemId);
+      if (cartItem && cartItem.name?.includes("(القديم)")) {
+        const oldStock = Number(cartItem.qty || 0);
+        const inCart = Number(cartItem.cartQty || 0) * Number(cartItem.unitCount || 1);
+
+        if (inCart >= oldStock) {
+          const cleanBaseName = (cartItem.name || "")
+            .replace(/\s*\(القديم\)|\s*\(الجديد\)|\s*\(دفعة قديمة\)|\s*\(دفعة جديدة\)/g, "")
+            .trim();
+          const newSibling = branchMeds.find(
+            (m: any) =>
+              m.name?.includes("(الجديد)") &&
+              (m.barcode === cartItem.barcode || (m.name || "").replace(/\s*\(القديم\)|\s*\(الجديد\)/g, "").trim() === cleanBaseName)
+          );
+
+          if (newSibling) {
+            toast(
+              language === 'en'
+                ? `Old batch max reached (${oldStock} max). Added 1 from new batch.`
+                : `تم استنفاد رصيد الدفعة القديمة (${oldStock} علبة). تم إضافة علبة من الدفعة الجديدة بالسعر الجديد.`,
+              { icon: '✨', duration: 4000 }
+            );
+            handleItemSelect(newSibling as Med);
+            return;
+          }
+        }
+      }
+    }
     updatePosCartQty(cartItemId, delta);
   };
 
