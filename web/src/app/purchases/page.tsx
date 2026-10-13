@@ -206,6 +206,8 @@ export default function PurchasesPage() {
           qty: 1,
           purchase_price: drug.cost || 0,
           sell_price: drug.price || 0,
+          expiry: drug.expiry || "",
+          expiry_date: drug.expiry || "",
           has_parts: false,
           part1_name: "شريط",
           part1_qty: 10,
@@ -236,6 +238,8 @@ export default function PurchasesPage() {
           qty: needed,
           purchase_price: d.cost || 0,
           sell_price: d.price || 0,
+          expiry: d.expiry || "",
+          expiry_date: d.expiry || "",
           has_parts: false,
           part1_name: "شريط",
           part1_qty: 10,
@@ -273,6 +277,8 @@ export default function PurchasesPage() {
             ...form,
             items: cartItems.map((item: any) => ({
               ...item,
+              expiry: item.expiry || item.expiry_date || "",
+              expiry_date: item.expiry || item.expiry_date || "",
               unit_size: (() => {
                 if (item.units) {
                   try {
