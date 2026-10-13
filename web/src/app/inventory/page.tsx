@@ -598,7 +598,7 @@ export default function Inventory() {
                       }
                       className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary text-[14px]"
                       dir="auto"
-                      placeholder={language === 'en' ? 'e.g. Amoxicillin' : 'مثال: Amoxicillin'}
+                      placeholder={language === 'en' ? 'e.g. Amoxicillin' : 'مثال: أموكسيسيلين / باراسيتامول'}
                     />
                   </div>
                 </div>
@@ -617,6 +617,7 @@ export default function Inventory() {
                       }
                       className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary text-[14px]"
                       dir="auto"
+                      placeholder={language === 'en' ? 'e.g. Pfizer / Hikma' : 'مثال: فايزر / الحكمة / دار الدواء'}
                     />
                   </div>
                   <div className="flex-1">
@@ -633,6 +634,7 @@ export default function Inventory() {
                       }
                       className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary text-[14px]"
                       dir="auto"
+                      placeholder={language === 'en' ? 'e.g. Antibiotic' : 'مثال: مضاد حيوي / مسكن'}
                     />
                   </div>
                 </div>

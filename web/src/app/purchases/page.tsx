@@ -1570,7 +1570,7 @@ export default function PurchasesPage() {
                   }
                   autoFocus
                   className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[14px] font-bold outline-none focus:border-primary transition-colors text-start"
-                  placeholder={language === "en" ? "e.g. Panadol Extra / Augmentin 1g" : "مثال: أوجمنتين 1 جم / بنادول إكسترا"}
+                  placeholder={language === "en" ? "e.g. Augmentin 1g / Panadol Extra" : "مثال: أوجمنتين 1 جم / بنادول إكسترا"}
                 />
               </div>
 
@@ -1585,8 +1585,8 @@ export default function PurchasesPage() {
                   onChange={(e) =>
                     setNewItem({ ...newItem, scientificName: e.target.value })
                   }
-                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold outline-none focus:border-primary transition-colors text-start font-mono"
-                  placeholder={language === "en" ? "e.g. Amoxicillin + Clavulanic Acid" : "مثال: Amoxicillin + Clavulanic Acid / Paracetamol"}
+                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold outline-none focus:border-primary transition-colors text-start"
+                  placeholder={language === "en" ? "e.g. Amoxicillin / Paracetamol" : "مثال: أموكسيسيلين / باراسيتامول"}
                 />
               </div>
 
@@ -1603,7 +1603,7 @@ export default function PurchasesPage() {
                       setNewItem({ ...newItem, company: e.target.value })
                     }
                     className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold outline-none focus:border-primary transition-colors text-start"
-                    placeholder={language === "en" ? "e.g. Pfizer / Hikma / GSK" : "مثال: Pfizer / Hikma / GSK"}
+                    placeholder={language === "en" ? "e.g. Pfizer / Hikma / GSK" : "مثال: فايزر / الحكمة / دار الدواء"}
                   />
                 </div>
                 <div>
@@ -1626,7 +1626,7 @@ export default function PurchasesPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                    سعر الشراء (₪)
+                    {language === "en" ? "Purchase Price (₪)" : "سعر الشراء (₪)"}
                   </label>
                   <input
                     type="number"
@@ -1641,7 +1641,7 @@ export default function PurchasesPage() {
                 </div>
                 <div>
                   <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                    سعر البيع (₪) <span className="text-coral">*</span>
+                    {language === "en" ? "Selling Price (₪)" : "سعر البيع (₪)"} <span className="text-coral">*</span>
                   </label>
                   <input
                     type="number"
@@ -1656,7 +1656,7 @@ export default function PurchasesPage() {
                 </div>
                 <div>
                   <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                    الحد الأدنى
+                    {language === "en" ? "Min Qty" : "الحد الأدنى"}
                   </label>
                   <input
                     type="number"
@@ -1674,7 +1674,7 @@ export default function PurchasesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                    تاريخ الصلاحية
+                    {language === "en" ? "Expiry Date" : "تاريخ الصلاحية"}
                   </label>
                   <input
                     type="date"
@@ -1687,7 +1687,7 @@ export default function PurchasesPage() {
                 </div>
                 <div>
                   <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                    الباركود
+                    {language === "en" ? "Barcode" : "الباركود"}
                   </label>
                   <input
                     type="text"
@@ -1711,8 +1711,8 @@ export default function PurchasesPage() {
                 className="w-full bg-primary text-white font-black py-3 rounded-2xl hover:opacity-90 disabled:opacity-50 shadow-md shadow-primary/20 transition-all text-[15px]"
               >
                 {loading
-                  ? "جاري الإضافة..."
-                  : "✅ إضافة للمخزون وإدراج بالفاتورة"}
+                  ? (language === "en" ? "Adding..." : "جاري الإضافة...")
+                  : (language === "en" ? "✅ Add to Inventory & Invoice" : "✅ إضافة للمخزون وإدراج بالفاتورة")}
               </button>
             </div>
           </div>

@@ -179,7 +179,7 @@ export default function AddItem() {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                placeholder={language === 'en' ? 'Example: Augmentin 1g' : 'مثال: أوجمنتين ١g'}
+                placeholder={language === 'en' ? 'Example: Augmentin 1g' : 'مثال: أوجمنتين 1 جم'}
                 className="w-full bg-transparent border-none outline-none text-[16px] text-ink placeholder:text-[#A6B8AE]"
                 dir="auto"
               />
@@ -194,7 +194,7 @@ export default function AddItem() {
                 name="scientificName"
                 value={formData.scientificName}
                 onChange={handleChange}
-                placeholder={language === 'en' ? 'Example: Amoxicillin' : 'مثال: Amoxicillin'}
+                placeholder={language === 'en' ? 'Example: Amoxicillin' : 'مثال: أموكسيسيلين / باراسيتامول'}
                 className="w-full bg-transparent border-none outline-none text-[16px] text-ink placeholder:text-[#A6B8AE]"
                 dir="auto"
               />
@@ -212,7 +212,7 @@ export default function AddItem() {
                 name="manufacturer"
                 value={formData.manufacturer}
                 onChange={handleChange}
-                placeholder="GSK"
+                placeholder={language === 'en' ? 'Example: GSK / Pfizer' : 'مثال: فايزر / الحكمة / دار الدواء'}
                 className="w-full bg-transparent border-none outline-none text-[16px] text-ink placeholder:text-[#A6B8AE]"
                 dir="auto"
               />
@@ -227,7 +227,7 @@ export default function AddItem() {
                 name="category"
                 value={formData.category}
                 onChange={handleChange}
-                placeholder={language === 'en' ? 'Antibiotic' : 'مضاد حيوي'}
+                placeholder={language === 'en' ? 'Example: Antibiotic' : 'مثال: مضاد حيوي / مسكن'}
                 className="w-full bg-transparent border-none outline-none text-[16px] text-ink placeholder:text-[#A6B8AE]"
                 dir="auto"
               />
