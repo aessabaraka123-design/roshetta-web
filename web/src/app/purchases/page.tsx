@@ -674,6 +674,11 @@ export default function PurchasesPage() {
                         <p className="text-[22px] font-mono font-black text-ink leading-tight">
                           ₪{(inv.total_cost || 0).toFixed(2)}
                         </p>
+                        {Number(inv.credit_settled) > 0 && (
+                          <p className="text-[11px] font-bold text-teal text-start">
+                            {language === 'en' ? 'Credit offset: ' : 'تسوية من الرصيد: '}₪{Number(inv.credit_settled).toFixed(2)}
+                          </p>
+                        )}
                         {(inv.remaining || 0) > 0 && (
                           <p className="text-[12px] font-bold text-coral text-start">
                             {language === 'en' ? "Remaining" : "متبقي"} ₪{(inv.remaining || 0).toFixed(2)}
@@ -882,6 +887,30 @@ export default function PurchasesPage() {
                         </option>
                       ))}
                     </select>
+                    {(() => {
+                      const sel = suppliers.find((s: any) => s.id === form.supplier_id);
+                      if (sel && Number(sel.balance) < 0) {
+                        const credit = Math.abs(Number(sel.balance));
+                        return (
+                          <div className="mt-2.5 p-3 bg-teal-pale/40 border border-teal/30 rounded-xl text-start">
+                            <p className="text-xs font-bold text-teal flex items-center gap-1.5">
+                              <span>💡</span>
+                              <span>
+                                {language === "en" 
+                                  ? `You have ₪${credit.toFixed(2)} credit with this supplier.` 
+                                  : `لديك رصيد دائن مستحق عند هذا المورد: ₪${credit.toFixed(2)}.`}
+                              </span>
+                            </p>
+                            <p className="text-[11px] text-teal mt-1">
+                              {language === "en" 
+                                ? 'It will be automatically deducted to settle this invoice.' 
+                                : 'سيتم خصم قيمة الفاتورة تلقائياً من رصيدك الدائن عند هذا المورد.'}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
 
                   {/* Invoice Number */}
@@ -962,20 +991,41 @@ export default function PurchasesPage() {
                       ₪{cartTotal.toFixed(2)}
                     </span>
                   </div>
-                  {form.paid_amount && parseFloat(form.paid_amount) > 0 && (
-                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-dashed border-mint-line">
-                      <span className="text-[13px] font-bold text-ink-soft">
-                        {language === "en" ? "Remaining" : "المتبقي"} (دين)
-                      </span>
-                      <span className="text-[16px] font-mono font-black text-coral">
-                        ₪
-                        {Math.max(
-                          0,
-                          cartTotal - parseFloat(form.paid_amount),
-                        ).toFixed(2)}
-                      </span>
-                    </div>
-                  )}
+                  {(() => {
+                    const sel = suppliers.find((s: any) => s.id === form.supplier_id);
+                    const availCredit = sel && Number(sel.balance) < 0 ? Math.abs(Number(sel.balance)) : 0;
+                    const paid = parseFloat(form.paid_amount) || 0;
+                    const unpaidBeforeCredit = Math.max(0, cartTotal - paid);
+                    const creditOffset = Math.min(availCredit, unpaidBeforeCredit);
+                    const finalRemaining = unpaidBeforeCredit - creditOffset;
+
+                    return (
+                      <div className="space-y-1.5 mt-2 pt-2 border-t border-dashed border-mint-line">
+                        {paid > 0 && (
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-ink-soft">{language === "en" ? "Cash Paid" : "المدفوع نقداً"}</span>
+                            <span className="font-mono font-bold text-teal">₪{paid.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {creditOffset > 0 && (
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-bold text-teal">{language === "en" ? "Auto Credit Offset" : "خصم تلقائي من الرصيد"}</span>
+                            <span className="font-mono font-bold text-teal">- ₪{creditOffset.toFixed(2)} ✓</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center pt-1 border-t border-mint-line">
+                          <span className="text-[13px] font-bold text-ink-soft">
+                            {language === "en" ? "Remaining (Debt)" : "المتبقي (دين)"}
+                          </span>
+                          <span className={`text-[16px] font-mono font-black ${finalRemaining === 0 ? 'text-teal' : 'text-coral'}`}>
+                            {finalRemaining === 0 
+                              ? (language === "en" ? "₪0.00 (Fully Settled ✓)" : "₪0.00 (مسددة بالكامل ✓)")
+                              : `₪${finalRemaining.toFixed(2)}`}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -1908,13 +1958,32 @@ export default function PurchasesPage() {
                     </span>
                   </div>
                 )}
-                {(showPreview.remaining || 0) > 0 && (
+                {(showPreview.credit_settled || 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-[14px] font-bold text-teal">
+                      {language === "en" ? "Auto Credit Offset" : "مخصوم من رصيد المورد"}
+                    </span>
+                    <span className="text-[14px] font-mono font-bold text-teal">
+                      - ₪{(showPreview.credit_settled || 0).toFixed(2)} ✓
+                    </span>
+                  </div>
+                )}
+                {(showPreview.remaining || 0) > 0 ? (
                   <div className="flex justify-between">
                     <span className="text-[14px] font-bold text-ink-soft">
                       {language === "en" ? "Remaining" : "المتبقي"}
                     </span>
                     <span className="text-[14px] font-mono font-bold text-coral">
                       ₪{(showPreview.remaining || 0).toFixed(2)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center py-1 bg-mint-light/40 px-2 rounded-lg">
+                    <span className="text-[14px] font-bold text-teal">
+                      {language === "en" ? "Status" : "الحالة"}
+                    </span>
+                    <span className="text-[13px] font-black text-teal">
+                      {language === "en" ? "Fully Paid ✓" : "مدفوعة بالكامل ✓"}
                     </span>
                   </div>
                 )}
@@ -2322,7 +2391,37 @@ export default function PurchasesPage() {
                     </span>
                   </div>
                 )}
-                {((pdfInvoice || showPreview).remaining || 0) > 0 && (
+                {((pdfInvoice || showPreview).credit_settled || 0) > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <span style={{ fontSize: "15px", color: "#0d9488", fontWeight: "bold" }}>
+                      {language === "en" ? "Credit Settled:" : "مخصوم من رصيد المورد:"}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "16px",
+                        color: "#0d9488",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      <span
+                        dir="ltr"
+                        style={{ display: "inline-block", direction: "ltr" }}
+                      >
+                        - ₪{" "}
+                        {((pdfInvoice || showPreview).credit_settled || 0).toFixed(
+                          2,
+                        )} ✓
+                      </span>
+                    </span>
+                  </div>
+                )}
+                {((pdfInvoice || showPreview).remaining || 0) > 0 ? (
                   <div
                     style={{
                       display: "flex",
@@ -2356,6 +2455,34 @@ export default function PurchasesPage() {
                           2,
                         )}
                       </span>
+                    </span>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      paddingTop: "12px",
+                      borderTop: "1px solid #cbd5e1",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: "bold",
+                        color: "#0d9488",
+                      }}
+                    >
+                      {language === "en" ? "Status:" : "الحالة:"}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: "bold",
+                        color: "#0d9488",
+                      }}
+                    >
+                      {language === "en" ? "Fully Paid ✓" : "مدفوعة بالكامل ✓"}
                     </span>
                   </div>
                 )}

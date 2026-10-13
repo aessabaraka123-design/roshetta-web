@@ -45,10 +45,24 @@ export default function SuppliersPage() {
     notes: "",
   });
 
+  const [statementSupplier, setStatementSupplier] = useState<any>(null);
+  const { data: statementData } = useSWR(
+    pharmacyId && statementSupplier
+      ? `${API_BASE}/api/pharmacies/${pharmacyId}/suppliers/${statementSupplier.id}/transactions`
+      : null,
+    fetcher,
+  );
+  const transactions = statementData?.transactions || [];
+
   const totalSuppliers = suppliers?.length || 0;
-  const totalBalance =
+  const totalDebt =
     suppliers?.reduce(
-      (sum: number, s: any) => sum + (Number(s.balance) || 0),
+      (sum: number, s: any) => sum + (Number(s.balance) > 0 ? Number(s.balance) : 0),
+      0,
+    ) || 0;
+  const totalCredit =
+    suppliers?.reduce(
+      (sum: number, s: any) => sum + (Number(s.balance) < 0 ? Math.abs(Number(s.balance)) : 0),
       0,
     ) || 0;
 
@@ -175,17 +189,23 @@ export default function SuppliersPage() {
 
       <main className="p-4 max-w-7xl mx-auto space-y-6">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white p-4 rounded-xl border border-mint-line shadow-sm">
             <h3 className="text-ink-soft text-sm">{language === 'en' ? 'Number of Suppliers' : "عدد الموردين"}</h3>
-            <p className="text-2xl font-bold text-teal mt-1">
+            <p className="text-2xl font-bold text-primary mt-1">
               {totalSuppliers}
             </p>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-mint-line shadow-sm">
-            <h3 className="text-ink-soft text-sm">{language === 'en' ? 'Total Balance' : "إجمالي الرصيد"}</h3>
-            <p className="text-2xl font-bold text-coral mt-1">
-              {totalBalance.toFixed(2)}
+          <div className="bg-white p-4 rounded-xl border border-coral/20 bg-coral-pale/10 shadow-sm">
+            <h3 className="text-ink-soft text-sm font-semibold">{language === 'en' ? 'Debt Owed to Suppliers' : "ديون للموردين (مطلوب منا)"}</h3>
+            <p className="text-2xl font-bold font-mono text-coral mt-1">
+              ₪{totalDebt.toFixed(2)}
+            </p>
+          </div>
+          <div className="bg-white p-4 rounded-xl border border-teal/20 bg-teal-pale/10 shadow-sm">
+            <h3 className="text-ink-soft text-sm font-semibold">{language === 'en' ? 'Our Credit with Suppliers' : "رصيدنا عند الموردين (دائن)"}</h3>
+            <p className="text-2xl font-bold font-mono text-teal mt-1">
+              ₪{totalCredit.toFixed(2)}
             </p>
           </div>
         </div>
@@ -269,18 +289,25 @@ export default function SuppliersPage() {
                       {supplier.phone || "—"}
                     </td>
                     <td className="py-4 px-6 text-start">
-                      <span
-                        className={`font-bold font-mono text-[14px] px-2.5 py-1 rounded-lg ${
-                          Number(supplier.balance || 0) > 0
-                            ? "bg-coral-pale/30 text-coral"
-                            : "bg-teal-pale/30 text-teal"
-                        }`}
-                      >
-                        ₪{Number(supplier.balance || 0).toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </span>
+                      {Number(supplier.balance || 0) > 0 ? (
+                        <span className="inline-block font-black font-mono text-[13px] px-2.5 py-1 rounded-lg bg-coral-pale/40 text-coral border border-coral/30">
+                          {language === 'en' ? 'Owed: ' : 'مطلوب للمورد: '}₪{Number(supplier.balance || 0).toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                      ) : Number(supplier.balance || 0) < 0 ? (
+                        <span className="inline-block font-black font-mono text-[13px] px-2.5 py-1 rounded-lg bg-teal-pale/40 text-teal border border-teal/30">
+                          {language === 'en' ? 'Credit: ' : 'رصيد لك عنده: '}₪{Math.abs(Number(supplier.balance || 0)).toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                      ) : (
+                        <span className="inline-block font-bold font-mono text-[13px] px-2.5 py-1 rounded-lg bg-bg text-ink-soft border border-mint-line">
+                          {language === 'en' ? 'Settled: 0.00 ₪' : 'الرصيد خالص: 0.00 ₪'}
+                        </span>
+                      )}
                     </td>
                     <td className="py-4 px-6 text-start text-ink-soft text-[13px]">
                       {supplier.date_added
@@ -303,6 +330,19 @@ export default function SuppliersPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                           <span>{language === 'en' ? 'Pay' : "تسديد"}</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setStatementSupplier(supplier);
+                          }}
+                          className="px-2.5 py-1.5 text-xs font-bold text-ink-soft bg-bg hover:bg-ink hover:text-white rounded-lg transition-all flex items-center gap-1 shadow-sm border border-mint-line"
+                          title={language === 'en' ? 'Account Statement' : "كشف حساب وسجل حركات"}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                          <span>{language === 'en' ? 'Statement' : "كشف حساب"}</span>
                         </button>
                         <button
                           onClick={(e) => {
@@ -350,10 +390,28 @@ export default function SuppliersPage() {
             </div>
 
             <form onSubmit={handlePaymentSubmit} className="p-6 space-y-4 text-start">
-              <div className="bg-coral-pale/20 p-3 rounded-xl border border-coral/20 flex justify-between items-center">
-                <span className="text-sm text-ink-soft">{language === 'en' ? 'Current Debt / Balance:' : "الرصيد المستحق الحالي:"}</span>
-                <span className="font-bold font-mono text-coral text-base">₪{Number(payingSupplier.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
+              {Number(payingSupplier.balance || 0) > 0 ? (
+                <div className="bg-coral-pale/20 p-3 rounded-xl border border-coral/20 flex justify-between items-center">
+                  <span className="text-sm text-ink-soft font-semibold">{language === 'en' ? 'Current Debt Owed:' : "الرصيد المطلوب للمورد حالياً:"}</span>
+                  <span className="font-bold font-mono text-coral text-base">₪{Number(payingSupplier.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              ) : Number(payingSupplier.balance || 0) < 0 ? (
+                <div className="bg-teal-pale/20 p-3 rounded-xl border border-teal/20 flex justify-between items-center">
+                  <span className="text-sm text-ink-soft font-semibold">{language === 'en' ? 'Your Credit Balance:' : "رصيد لك عنده حالياً (دائن):"}</span>
+                  <span className="font-bold font-mono text-teal text-base">₪{Math.abs(Number(payingSupplier.balance || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              ) : (
+                <div className="bg-bg p-3 rounded-xl border border-mint-line flex justify-between items-center">
+                  <span className="text-sm text-ink-soft font-semibold">{language === 'en' ? 'Current Balance:' : "الرصيد الحالي:"}</span>
+                  <span className="font-bold font-mono text-ink-soft text-base">0.00 ₪ (خالص)</span>
+                </div>
+              )}
+
+              <p className="text-[12px] text-teal bg-teal-pale/20 p-2.5 rounded-xl border border-teal/20 leading-relaxed font-medium">
+                💡 {language === 'en'
+                  ? 'You can pay any amount. Any overpayment is automatically credited to your balance with this supplier and deducted from future purchase invoices.'
+                  : 'يمكنك دفع أي مبلغ. أي دفعة زائدة تُسجل كرصيد دائن لك عند المورد، وتُخصم تلقائياً من فواتير الشراء القادمة.'}
+              </p>
 
               <div>
                 <label className="block text-sm font-semibold text-ink mb-1.5">
@@ -840,13 +898,29 @@ export default function SuppliersPage() {
                     ₪{(viewingInvoiceDetails.paid_amount || 0).toFixed(2)}
                   </p>
                 </div>
+                {(viewingInvoiceDetails.credit_settled || 0) > 0 && (
+                  <div className={`text-center ${language === 'en' ? 'border-l pl-6' : 'border-r pr-6'} border-[#CBD5E1]`}>
+                    <p className="text-[12px] text-teal font-bold">
+                      {language === 'en' ? 'Credit Settled' : "مخصوم من الرصيد"}
+                    </p>
+                    <p className="text-[18px] font-bold text-teal" dir="ltr">
+                      - ₪{(viewingInvoiceDetails.credit_settled || 0).toFixed(2)} ✓
+                    </p>
+                  </div>
+                )}
                 <div className={`text-center ${language === 'en' ? 'border-l pl-6' : 'border-r pr-6'} border-[#CBD5E1]`}>
                   <p className="text-[12px] text-ink-soft font-bold">
                     {language === 'en' ? 'Remaining (Debt)' : "المتبقي (دين)"}
                   </p>
-                  <p className="text-[18px] font-bold text-coral" dir="ltr">
-                    ₪{(viewingInvoiceDetails.remaining || 0).toFixed(2)}
-                  </p>
+                  {(viewingInvoiceDetails.remaining || 0) > 0 ? (
+                    <p className="text-[18px] font-bold text-coral" dir="ltr">
+                      ₪{(viewingInvoiceDetails.remaining || 0).toFixed(2)}
+                    </p>
+                  ) : (
+                    <p className="text-[15px] font-black text-teal mt-0.5">
+                      {language === 'en' ? 'Fully Paid ✓' : "مدفوعة بالكامل ✓"}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -858,6 +932,133 @@ export default function SuppliersPage() {
                 className="bg-white hover:bg-bg border border-[#CBD5E1] text-ink px-8 py-2.5 rounded-xl transition-all font-bold text-[14px] shadow-sm hover:shadow"
               >
                 {language === 'en' ? 'Close' : "إغلاق"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Supplier Statement / Transactions Modal */}
+      {statementSupplier && (
+        <div className="fixed inset-0 bg-ink/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[88vh] border border-mint-line">
+            <div className="p-5 border-b border-mint-line flex justify-between items-center bg-bg/60">
+              <div>
+                <h3 className="font-bold text-[18px] text-primary flex items-center gap-2">
+                  <span>{language === 'en' ? 'Supplier Statement & Ledger: ' : "كشف حساب وسجل حركات المورد: "}</span>
+                  <span className="text-teal font-extrabold">{statementSupplier.name}</span>
+                </h3>
+                <div className="text-xs font-mono text-ink-soft mt-1 flex items-center gap-3">
+                  <span>{statementSupplier.company || ""}</span>
+                  {Number(statementSupplier.balance || 0) > 0 ? (
+                    <span className="text-coral font-bold">
+                      {language === 'en' ? 'Owed: ' : 'مطلوب للمورد: '}
+                      ₪{Number(statementSupplier.balance || 0).toFixed(2)}
+                    </span>
+                  ) : Number(statementSupplier.balance || 0) < 0 ? (
+                    <span className="text-teal font-bold">
+                      {language === 'en' ? 'Credit: ' : 'رصيد دائن لنا: '}
+                      ₪{Math.abs(Number(statementSupplier.balance || 0)).toFixed(2)}
+                    </span>
+                  ) : (
+                    <span className="text-ink-soft font-bold">
+                      {language === 'en' ? 'Settled (0.00 ₪)' : 'الرصيد خالص (0.00 ₪)'}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setStatementSupplier(null)}
+                className="text-ink-soft hover:text-coral transition-colors bg-white hover:bg-coral-pale/30 w-8 h-8 flex items-center justify-center rounded-lg border border-mint-line font-bold"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-6 overflow-auto flex-1 bg-white">
+              {transactions.length === 0 ? (
+                <div className="text-center py-12 text-ink-soft bg-bg/50 rounded-2xl border border-dashed border-mint-line">
+                  <p className="text-[15px] font-bold">
+                    {language === 'en' ? 'No transactions logged for this supplier yet.' : "لا يوجد حركات مسجلة في كشف حساب هذا المورد حتى الآن."}
+                  </p>
+                </div>
+              ) : (
+                <div className="border border-mint-line rounded-xl overflow-hidden shadow-sm">
+                  <table className="w-full text-start">
+                    <thead>
+                      <tr className="bg-bg border-b border-mint-line text-[13px] text-ink-soft font-bold">
+                        <th className="p-3 text-start">{language === 'en' ? 'Date & Time' : 'التاريخ والوقت'}</th>
+                        <th className="p-3 text-start">{language === 'en' ? 'Type' : 'نوع الحركة'}</th>
+                        <th className="p-3 text-start">{language === 'en' ? 'Invoice / Ref' : 'رقم المرجع / الفاتورة'}</th>
+                        <th className="p-3 text-start">{language === 'en' ? 'Amount' : 'المبلغ'}</th>
+                        <th className="p-3 text-start">{language === 'en' ? 'Balance Before' : 'الرصيد قبل'}</th>
+                        <th className="p-3 text-start">{language === 'en' ? 'Balance After' : 'الرصيد بعد'}</th>
+                        <th className="p-3 text-start">{language === 'en' ? 'Notes' : 'ملاحظات'}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-mint-line/40 text-[13px]">
+                      {transactions.map((tx: any) => {
+                        const isCreditOffset = tx.type === 'credit_settlement';
+                        const isPayment = tx.type === 'payment';
+                        const isReversal = tx.type === 'reversal';
+
+                        return (
+                          <tr key={tx.id} className="hover:bg-bg/40 transition-colors">
+                            <td className="p-3 font-mono text-ink-soft text-xs">
+                              {new Date(tx.date).toLocaleString(language === 'en' ? 'en-US' : 'ar-SA')}
+                            </td>
+                            <td className="p-3">
+                              <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${
+                                isCreditOffset
+                                  ? 'bg-teal-pale/40 text-teal border border-teal/20'
+                                  : isPayment
+                                  ? 'bg-primary-pale text-primary border border-primary/20'
+                                  : isReversal
+                                  ? 'bg-coral-pale/40 text-coral border border-coral/20'
+                                  : 'bg-bg text-ink border border-mint-line'
+                              }`}>
+                                {isCreditOffset
+                                  ? (language === 'en' ? 'Credit Offset' : 'خصم من الرصيد')
+                                  : isPayment
+                                  ? (language === 'en' ? 'Payment' : 'سداد دفعة')
+                                  : isReversal
+                                  ? (language === 'en' ? 'Reversal / Cancel' : 'إلغاء / استرجاع')
+                                  : (language === 'en' ? 'Purchase Invoice' : 'فاتورة شراء')}
+                              </span>
+                            </td>
+                            <td className="p-3 font-mono font-bold text-primary">
+                              {tx.invoice_number || tx.reference_id || '—'}
+                            </td>
+                            <td className="p-3 font-mono font-bold text-ink" dir="ltr">
+                              ₪{Number(tx.amount || 0).toFixed(2)}
+                            </td>
+                            <td className="p-3 font-mono text-ink-soft" dir="ltr">
+                              ₪{Number(tx.balance_before || 0).toFixed(2)}
+                            </td>
+                            <td className="p-3 font-mono font-bold text-ink" dir="ltr">
+                              <span className={Number(tx.balance_after || 0) > 0 ? 'text-coral' : Number(tx.balance_after || 0) < 0 ? 'text-teal' : 'text-ink'}>
+                                ₪{Number(tx.balance_after || 0).toFixed(2)}
+                              </span>
+                            </td>
+                            <td className="p-3 text-ink-soft text-xs max-w-[200px] truncate" title={tx.notes || ''}>
+                              {tx.notes || '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-mint-line bg-bg/50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setStatementSupplier(null)}
+                className="bg-white hover:bg-bg border border-mint-line text-ink px-8 py-2 rounded-xl transition-all font-bold text-sm shadow-sm"
+              >
+                {language === 'en' ? 'Close' : 'إغلاق'}
               </button>
             </div>
           </div>

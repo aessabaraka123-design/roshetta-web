@@ -205,6 +205,7 @@ export const exportInvoicePDF = async (
   },
   pharmacyName: string,
   invoiceNumber: string,
+  language: string = 'ar',
 ) => {
   const container = document.createElement("div");
   container.style.position = "absolute";
