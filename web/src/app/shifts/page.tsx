@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { useStore } from "@/store";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { io } from "socket.io-client";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -62,9 +63,18 @@ export default function ShiftsPage() {
   );
   const branchesList = branchesData?.branches || [];
 
-  // Fetch Active Open Shifts (for ALL employees and branches)
+  // Cashier identification query params for active shift
+  const currentShiftUrl = user
+    ? `${API_BASE}/api/pharmacies/${user.pharmacy_id}/shifts/current?cashier_email=${encodeURIComponent(
+        user.email || ""
+      )}&cashier_name=${encodeURIComponent(
+        user.managerName || user.name || user.username || ""
+      )}`
+    : null;
+
+  // Fetch Active Open Shifts (for ALL employees and branches, plus user's own shift)
   const { data: currentData, mutate: mutateCurrentShifts } = useSWR(
-    user ? `${API_BASE}/api/pharmacies/${user.pharmacy_id}/shifts/current` : null,
+    currentShiftUrl,
     fetcher,
     { refreshInterval: 15000 }
   );
@@ -75,6 +85,30 @@ export default function ShiftsPage() {
     fetcher,
     { refreshInterval: 20000 }
   );
+
+  // Real-time synchronization via Socket.IO
+  useEffect(() => {
+    if (!user?.pharmacy_id) return;
+    const socket = io(API_BASE, {
+      transports: ["websocket"],
+      autoConnect: true,
+    });
+
+    socket.on("connect", () => {
+      socket.emit("join_pharmacy", user.pharmacy_id);
+    });
+
+    socket.on("sync_update", (data: any) => {
+      if (data?.type === "shifts") {
+        mutateCurrentShifts();
+        mutateShifts();
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user?.pharmacy_id, API_BASE, mutateCurrentShifts, mutateShifts]);
 
   const shifts: any[] = shiftsData?.shifts || [];
 
@@ -136,11 +170,31 @@ export default function ShiftsPage() {
       );
       return;
     }
-    if (openingAmount === "" || isNaN(Number(openingAmount))) {
+
+    const cleanOpening = (openingAmount || "").toString().replace(/,/g, "").trim();
+    const parsedOpening = parseFloat(cleanOpening);
+
+    if (cleanOpening === "" || isNaN(parsedOpening) || parsedOpening < 0) {
       toast.error(
         language === "en"
-          ? "Please enter opening cash amount"
-          : "يرجى إدخال مبلغ العهدة النقدية"
+          ? "Please enter a valid opening cash amount"
+          : "يرجى إدخال مبلغ عهدة نقدية صحيح"
+      );
+      return;
+    }
+
+    // Client-side duplicate check: Prevent opening another shift for employee who already has one active
+    const hasActiveShift = activeShifts.some(
+      (ashift: any) =>
+        (selectedStaffEmail && ashift.cashier_email && ashift.cashier_email.toLowerCase() === selectedStaffEmail.toLowerCase()) ||
+        (selectedStaffName && ashift.cashier_name && ashift.cashier_name.trim().toLowerCase() === selectedStaffName.trim().toLowerCase())
+    );
+
+    if (hasActiveShift) {
+      toast.error(
+        language === "en"
+          ? `Employee (${selectedStaffName}) already has an active open shift!`
+          : `يوجد وردية مفتوحة بالفعل لهذا الموظف (${selectedStaffName})!`
       );
       return;
     }
@@ -156,7 +210,7 @@ export default function ShiftsPage() {
             cashier_name: selectedStaffName,
             cashier_email: selectedStaffEmail || "",
             branch_name: selectedBranchName || "الفرع الرئيسي",
-            opening_amount: parseFloat(openingAmount),
+            opening_amount: parsedOpening,
           }),
         }
       );
@@ -195,7 +249,11 @@ export default function ShiftsPage() {
   const handleCloseShift = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!shiftToClose) return;
-    if (closingAmount === "" || isNaN(Number(closingAmount))) {
+
+    const cleanClosing = (closingAmount || "").toString().replace(/,/g, "").trim();
+    const parsedClosing = parseFloat(cleanClosing);
+
+    if (cleanClosing === "" || isNaN(parsedClosing) || parsedClosing < 0) {
       toast.error(
         language === "en"
           ? "Please enter actual cash in register"
@@ -212,31 +270,50 @@ export default function ShiftsPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            closing_amount: parseFloat(closingAmount),
+            closing_amount: parsedClosing,
             notes: closeNotes,
           }),
         }
       );
       const r = await res.json();
+
+      // Point 5: Idempotent handling if shift was already closed on mobile or another session
+      if (r.alreadyClosed) {
+        toast(
+          language === "en"
+            ? "This shift has already been closed on another device ✓"
+            : "تم إغلاق هذه الوردية بالفعل من جهاز آخر ✓",
+          { icon: "ℹ️" }
+        );
+        setShowCloseModal(false);
+        setShiftToClose(null);
+        setClosingAmount("");
+        setCloseNotes("");
+        mutateCurrentShifts();
+        mutateShifts();
+        return;
+      }
+
       if (r.success) {
-        const diff = parseFloat(closingAmount) - (r.expected_amount ?? 0);
-        if (diff > 0) {
+        const expectedFinal = r.expected_amount !== undefined ? r.expected_amount : expectedForClose;
+        const diff = parsedClosing - expectedFinal;
+        if (Math.abs(diff) < 0.01) {
+          toast.success(
+            language === "en"
+              ? "Shift closed — Register matches perfectly ✓"
+              : "تم إغلاق الوردية — الصندوق مطابق تماماً ✓"
+          );
+        } else if (diff > 0) {
           toast.success(
             language === "en"
               ? `Shift closed — Surplus: ₪${diff.toFixed(2)}`
               : `تم إغلاق الوردية — فائض في الصندوق: ₪${diff.toFixed(2)}`
           );
-        } else if (diff < 0) {
+        } else {
           toast.error(
             language === "en"
               ? `Shift closed — Deficit: ₪${Math.abs(diff).toFixed(2)}`
               : `تم إغلاق الوردية — عجز في الصندوق: ₪${Math.abs(diff).toFixed(2)}`
-          );
-        } else {
-          toast.success(
-            language === "en"
-              ? "Shift closed — Register matches perfectly ✓"
-              : "تم إغلاق الوردية — الصندوق مطابق تماماً ✓"
           );
         }
         setShowCloseModal(false);
@@ -255,20 +332,22 @@ export default function ShiftsPage() {
     }
   };
 
-  // Calculation for Close Modal
+  // Calculation for Close Modal (Points 2 & 3: Uses live_expected_amount directly & accounts for expenses)
   const expectedForClose = useMemo(() => {
     if (!shiftToClose) return 0;
-    if (shiftToClose.live_expected_amount !== undefined) {
+    if (shiftToClose.live_expected_amount !== undefined && shiftToClose.live_expected_amount !== null) {
       return Number(shiftToClose.live_expected_amount);
     }
     const opening = Number(shiftToClose.opening_amount || 0);
     const liveCash = Number(shiftToClose.live_cash_sales || shiftToClose.cash_sales || 0);
-    return opening + liveCash;
+    const liveExp = Number(shiftToClose.live_expenses || 0);
+    return opening + liveCash - liveExp;
   }, [shiftToClose]);
 
   const closeDifference = useMemo(() => {
-    if (closingAmount === "" || isNaN(Number(closingAmount))) return null;
-    return parseFloat(closingAmount) - expectedForClose;
+    const cleanClosing = (closingAmount || "").toString().replace(/,/g, "").trim();
+    if (cleanClosing === "" || isNaN(Number(cleanClosing))) return null;
+    return parseFloat(cleanClosing) - expectedForClose;
   }, [closingAmount, expectedForClose]);
 
   return (
@@ -309,6 +388,39 @@ export default function ShiftsPage() {
 
         {/* ─── SECTION 1: ALL ACTIVE / OPEN SHIFTS ─────────────────────────── */}
         <div className="space-y-4">
+          {/* User's Own Shift Alert Banner if no shift is currently open for them */}
+          {currentData && !currentData.shift && (
+            <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🏪⚠️</span>
+                <div>
+                  <h4 className="text-[14px] font-black text-amber-900">
+                    {language === "en"
+                      ? "You do not have an active open shift right now"
+                      : "ليس لديك وردية مفتوحة باسمك حالياً"}
+                  </h4>
+                  <p className="text-[12px] text-amber-800 font-medium">
+                    {language === "en"
+                      ? "To register sales and reconcile drawer cash, open a shift for yourself."
+                      : "لتسجيل فواتير البيع وضبط مبيعاتك النقدية وحركة الصندوق، يرجى فتح وردية جديدة باسمك."}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedStaffName(user?.managerName || user?.name || user?.username || "");
+                  setSelectedStaffEmail(user?.email || "");
+                  setOpeningAmount("");
+                  setShowOpenModal(true);
+                }}
+                className="bg-amber-600 hover:bg-amber-700 text-white text-[13px] font-black px-4 py-2.5 rounded-xl transition-all shadow-sm shrink-0 flex items-center gap-1.5"
+              >
+                <span>+</span>
+                <span>{language === "en" ? "Open My Shift" : "فتح وردية لي الآن"}</span>
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <h2 className="text-[18px] font-black text-ink">
@@ -335,16 +447,21 @@ export default function ShiftsPage() {
                     ? shift.live_cash_sales
                     : shift.cash_sales || 0
                 );
+                const liveExpenses = parseFloat(shift.live_expenses || 0);
                 const liveExpected = parseFloat(
                   shift.live_expected_amount !== undefined
                     ? shift.live_expected_amount
-                    : (opening + liveCash).toFixed(2)
+                    : (opening + liveCash - liveExpenses).toFixed(2)
                 );
+
+                const isMyShift =
+                  Boolean(user?.email && shift.cashier_email && shift.cashier_email.toLowerCase() === user.email.toLowerCase()) ||
+                  Boolean(shift.cashier_name && shift.cashier_name.trim().toLowerCase() === (user?.managerName || user?.name || user?.username || "").trim().toLowerCase());
 
                 return (
                   <div
                     key={shift.id}
-                    className="bg-white rounded-3xl p-6 border-2 border-teal/30 shadow-md hover:shadow-lg transition-all flex flex-col justify-between relative overflow-hidden group"
+                    className={`bg-white rounded-3xl p-6 border-2 ${isMyShift ? "border-teal shadow-lg shadow-teal/10" : "border-teal/30 shadow-md"} hover:shadow-lg transition-all flex flex-col justify-between relative overflow-hidden group`}
                   >
                     {/* Top status bar */}
                     <div className="flex items-center justify-between mb-4">
@@ -356,6 +473,11 @@ export default function ShiftsPage() {
                         <span className="font-bold text-[12px] text-teal uppercase tracking-wider">
                           {language === "en" ? "Open Shift" : "وردية نشطة"}
                         </span>
+                        {isMyShift && (
+                          <span className="bg-teal text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm">
+                            {language === "en" ? "★ My Shift" : "★ ورديتي"}
+                          </span>
+                        )}
                       </div>
                       <span className="text-[11px] font-bold bg-bg text-ink-soft px-3 py-1 rounded-full border border-mint-line">
                         🏪 {shift.branch_name || "الفرع الرئيسي"}
@@ -397,13 +519,13 @@ export default function ShiftsPage() {
                       </div>
                     </div>
 
-                    {/* Financial Metrics */}
-                    <div className="grid grid-cols-3 gap-2 py-3 border-t border-b border-mint-line mb-4 text-center">
+                    {/* Financial Metrics (Incorporates drawer expenses into expected amount) */}
+                    <div className={`grid ${liveExpenses > 0 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"} gap-2 py-3 border-t border-b border-mint-line mb-4 text-center`}>
                       <div className="bg-bg/60 p-2 rounded-xl">
                         <div className="text-[11px] text-ink-soft font-bold mb-0.5">
                           {language === "en" ? "Opening" : "العهدة"}
                         </div>
-                        <div className="font-mono font-bold text-[14px] text-ink">
+                        <div className="font-mono font-bold text-[13px] text-ink">
                           {opening.toFixed(2)} ₪
                         </div>
                       </div>
@@ -412,16 +534,27 @@ export default function ShiftsPage() {
                         <div className="text-[11px] text-ink-soft font-bold mb-0.5">
                           {language === "en" ? "Live Cash" : "مبيعات نقدي"}
                         </div>
-                        <div className="font-mono font-bold text-[14px] text-teal">
+                        <div className="font-mono font-bold text-[13px] text-teal">
                           +{liveCash.toFixed(2)} ₪
                         </div>
                       </div>
 
+                      {liveExpenses > 0 && (
+                        <div className="bg-coral-pale/50 p-2 rounded-xl border border-coral/20">
+                          <div className="text-[11px] text-coral font-bold mb-0.5">
+                            {language === "en" ? "Expenses" : "مصروفات الدرج"}
+                          </div>
+                          <div className="font-mono font-bold text-[13px] text-coral">
+                            -{liveExpenses.toFixed(2)} ₪
+                          </div>
+                        </div>
+                      )}
+
                       <div className="bg-teal-pale/50 p-2 rounded-xl border border-teal/20">
                         <div className="text-[11px] text-teal font-black mb-0.5">
-                          {language === "en" ? "In Drawer" : "المتوقع بالدرج"}
+                          {language === "en" ? "In Drawer" : "الصافي بالدرج"}
                         </div>
-                        <div className="font-mono font-black text-[15px] text-teal">
+                        <div className="font-mono font-black text-[14px] text-teal">
                           {liveExpected.toFixed(2)} ₪
                         </div>
                       </div>
@@ -660,17 +793,27 @@ export default function ShiftsPage() {
                   required
                   className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 text-[14px] font-bold outline-none focus:border-teal"
                 >
-                  <option value="current_user">
-                    {user?.managerName || user?.name || "المدير الحالي"} (أنا - المدير)
-                  </option>
+                  {(() => {
+                    const isCurrentManagerOpen = activeShifts.some(
+                      (ashift: any) =>
+                        (user?.email && ashift.cashier_email && ashift.cashier_email.toLowerCase() === user.email.toLowerCase()) ||
+                        (ashift.cashier_name && ashift.cashier_name.trim().toLowerCase() === (user?.managerName || user?.name || user?.username || "").trim().toLowerCase())
+                    );
+                    return (
+                      <option value="current_user" disabled={isCurrentManagerOpen}>
+                        {user?.managerName || user?.name || "المدير الحالي"} (أنا - المدير) {isCurrentManagerOpen ? (language === "en" ? "[Has active shift]" : "[لديه وردية مفتوحة حالياً]") : ""}
+                      </option>
+                    );
+                  })()}
                   {staffList.map((s: any) => {
                     const isOpen = activeShifts.some(
                       (ashift: any) =>
-                        ashift.cashier_email === s.email || ashift.cashier_name === s.name
+                        (s.email && ashift.cashier_email && ashift.cashier_email.toLowerCase() === s.email.toLowerCase()) ||
+                        (s.name && ashift.cashier_name && ashift.cashier_name.trim().toLowerCase() === s.name.trim().toLowerCase())
                     );
                     return (
                       <option key={s.id || s.email} value={s.email || s.name} disabled={isOpen}>
-                        {s.name || s.username} ({s.role || "موظف"}) {isOpen ? `[لديه وردية مفتوحة حالياً]` : ""}
+                        {s.name || s.username} ({s.role || "موظف"}) {isOpen ? (language === "en" ? "[Has active shift]" : "[لديه وردية مفتوحة حالياً]") : ""}
                       </option>
                     );
                   })}
@@ -698,18 +841,19 @@ export default function ShiftsPage() {
                 </select>
               </div>
 
-              {/* Opening Cash Amount */}
+              {/* Opening Cash Amount (Comma-resilient inputMode) */}
               <div>
                 <label className="block text-[13px] font-bold text-ink-soft mb-1">
                   {language === "en" ? "Opening Cash in Drawer (₪) *" : "مبلغ العهدة المستلم بالصندوق (₪) *"}
                 </label>
                 <input
-                  type="number"
-                  min="0"
-                  step="any"
+                  type="text"
+                  inputMode="decimal"
                   placeholder="0.00"
                   value={openingAmount}
                   onChange={(e) => setOpeningAmount(e.target.value)}
+                  onFocus={(e) => e.target.select()}
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
                   required
                   className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 font-mono text-[18px] font-bold text-center outline-none focus:border-teal"
                 />
@@ -779,7 +923,7 @@ export default function ShiftsPage() {
               </button>
             </div>
 
-            {/* Shift Context Card */}
+            {/* Shift Context Card (Includes expenses and accurate net expected drawer balance) */}
             <div className="bg-bg rounded-2xl p-4 border border-mint-line mb-4 space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-[13px] font-bold text-ink">
@@ -794,7 +938,7 @@ export default function ShiftsPage() {
                 <span className="font-bold text-ink">{getDuration(shiftToClose.open_time)}</span>
               </div>
               <div className="flex justify-between text-[12px] text-ink-soft">
-                <span>💵 {language === "en" ? "Opening Amount:" : "مبلغ العهدة:"}</span>
+                <span>💵 {language === "en" ? "Opening Amount:" : "مبلغ العهدة المستلم:"}</span>
                 <span className="font-bold text-ink">
                   {parseFloat(shiftToClose.opening_amount || 0).toFixed(2)} ₪
                 </span>
@@ -802,11 +946,19 @@ export default function ShiftsPage() {
               <div className="flex justify-between text-[12px] text-teal font-bold pt-1 border-t border-mint-line">
                 <span>📊 {language === "en" ? "Cash Sales in Shift:" : "مبيعات الكاش:"}</span>
                 <span className="font-mono">
-                  +{(Number(shiftToClose.live_cash_sales) || 0).toFixed(2)} ₪
+                  +{(Number(shiftToClose.live_cash_sales !== undefined ? shiftToClose.live_cash_sales : shiftToClose.cash_sales) || 0).toFixed(2)} ₪
                 </span>
               </div>
-              <div className="flex justify-between text-[14px] text-primary font-black pt-1">
-                <span>💰 {language === "en" ? "Expected in Drawer:" : "المتوقع بالصندوق:"}</span>
+              {Number(shiftToClose.live_expenses || 0) > 0 && (
+                <div className="flex justify-between text-[12px] text-coral font-bold">
+                  <span>💸 {language === "en" ? "Expenses Paid from Drawer:" : "مصروفات مدفوعة من الدرج:"}</span>
+                  <span className="font-mono">
+                    -{Number(shiftToClose.live_expenses).toFixed(2)} ₪
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between text-[14px] text-primary font-black pt-1 border-t border-mint-line">
+                <span>💰 {language === "en" ? "Net Expected in Drawer:" : "المتوقع الصافي بالصندوق:"}</span>
                 <span className="font-mono text-[16px]">
                   {expectedForClose.toFixed(2)} ₪
                 </span>
@@ -814,7 +966,7 @@ export default function ShiftsPage() {
             </div>
 
             <form onSubmit={handleCloseShift} className="space-y-4">
-              {/* Actual Cash Input */}
+              {/* Actual Cash Input (Comma-resilient inputMode) */}
               <div>
                 <label className="block text-[13px] font-bold text-ink-soft mb-1">
                   {language === "en"
@@ -822,11 +974,13 @@ export default function ShiftsPage() {
                     : "الكاش الفعلي المعدود في الصندوق (₪) *"}
                 </label>
                 <input
-                  type="number"
-                  step="any"
+                  type="text"
+                  inputMode="decimal"
                   placeholder="0.00"
                   value={closingAmount}
                   onChange={(e) => setClosingAmount(e.target.value)}
+                  onFocus={(e) => e.target.select()}
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
                   required
                   autoFocus
                   className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 font-mono text-[20px] font-black text-center outline-none focus:border-teal"

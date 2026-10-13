@@ -34,12 +34,21 @@ export default function SocketProvider({
     });
 
     newSocket.on("sync_update", (data) => {
-
-      mutate(
-        (key) => typeof key === "string" && key.includes("/api/pharmacies"),
-        undefined,
-        { revalidate: true },
-      );
+      if (data?.type === "shifts") {
+        mutate(
+          (key) =>
+            typeof key === "string" &&
+            (key.includes("/shifts") || key.includes("/api/pharmacies")),
+          undefined,
+          { revalidate: true }
+        );
+      } else {
+        mutate(
+          (key) => typeof key === "string" && key.includes("/api/pharmacies"),
+          undefined,
+          { revalidate: true },
+        );
+      }
     });
 
     // 🔔 Listen for subscription approval
