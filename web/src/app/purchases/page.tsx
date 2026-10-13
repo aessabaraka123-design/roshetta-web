@@ -16,7 +16,12 @@ export default function PurchasesPage() {
   const router = useRouter();
   const pdfRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!user) router.push("/login");
+    if (!user) {
+      const hasStored = typeof window !== "undefined" && (localStorage.getItem("roshetta_user") || localStorage.getItem("roshetta-web-storage"));
+      if (!hasStored) {
+        router.push("/login");
+      }
+    }
   }, [user, router]);
 
   // --- State ---

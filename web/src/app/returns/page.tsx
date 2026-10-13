@@ -14,8 +14,16 @@ export default function Returns() {
   const language = useStore((state: any) => state.language);
   const router = useRouter();
 
+  useEffect(() => {
+    if (!user) {
+      const hasStored = typeof window !== "undefined" && (localStorage.getItem("roshetta_user") || localStorage.getItem("roshetta-web-storage"));
+      if (!hasStored) {
+        router.push("/login");
+      }
+    }
+  }, [user, router]);
+
   if (!user) {
-    if (typeof window !== "undefined") router.push("/login");
     return null;
   }
 

@@ -31,7 +31,10 @@ export default function More() {
     setMounted(true);
     const currentUser = useStore.getState().user;
     if (!currentUser) {
-      router.push("/login");
+      const hasStored = typeof window !== "undefined" && (localStorage.getItem("roshetta_user") || localStorage.getItem("roshetta-web-storage"));
+      if (!hasStored) {
+        router.push("/login");
+      }
     } else if (currentUser.role !== "manager") {
       router.push("/");
     }
@@ -225,6 +228,7 @@ export default function More() {
 
         <div
           onClick={() => {
+            useStore.getState().logout();
             router.push("/login");
           }}
           className="flex items-center gap-3 bg-card border border-mint-line rounded-[14px] px-3.5 py-3 cursor-pointer shadow-sm mt-1"

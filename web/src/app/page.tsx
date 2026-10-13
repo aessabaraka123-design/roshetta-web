@@ -22,7 +22,12 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (mounted && !user) router.push("/login");
+    if (mounted && !user) {
+      const hasStored = typeof window !== "undefined" && (localStorage.getItem("roshetta_user") || localStorage.getItem("roshetta-web-storage"));
+      if (!hasStored) {
+        router.push("/login");
+      }
+    }
   }, [user, router, mounted]);
 
   const [activeBranch, setActiveBranch] = useState("all");

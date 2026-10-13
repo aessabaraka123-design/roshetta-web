@@ -16,7 +16,12 @@ export default function PharmacyManager() {
   const language = useStore((state: any) => state.language);
 
   useEffect(() => {
-    if (!user) router.push("/login");
+    if (!user) {
+      const hasStored = typeof window !== "undefined" && (localStorage.getItem("roshetta_user") || localStorage.getItem("roshetta-web-storage"));
+      if (!hasStored) {
+        router.push("/login");
+      }
+    }
     else if ((user as any)?.role !== "manager") {
       toast.error(language === "en" ? "You do not have permission to access this page" : "ليس لديك الصلاحية للوصول إلى هذه الصفحة");
       router.push("/");

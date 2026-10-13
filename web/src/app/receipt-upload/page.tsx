@@ -38,7 +38,10 @@ export default function ReceiptUpload() {
 
   useEffect(() => {
     if (!user) {
-      router.push("/login");
+      const hasStored = typeof window !== "undefined" && (localStorage.getItem("roshetta_user") || localStorage.getItem("roshetta-web-storage"));
+      if (!hasStored) {
+        router.push("/login");
+      }
       return;
     }
 

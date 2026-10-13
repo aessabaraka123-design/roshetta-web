@@ -17,7 +17,12 @@ export default function BranchesAndStaff() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!user) router.push("/login");
+    if (!user) {
+      const hasStored = typeof window !== "undefined" && (localStorage.getItem("roshetta_user") || localStorage.getItem("roshetta-web-storage"));
+      if (!hasStored) {
+        router.push("/login");
+      }
+    }
     else if (user.role !== "manager") {
       toast.error(language === 'en' ? 'You do not have permission to access this page' : "ليس لديك الصلاحية للوصول إلى هذه الصفحة");
       router.push("/");

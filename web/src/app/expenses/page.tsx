@@ -35,7 +35,12 @@ export default function ExpensesPage() {
   const language = useStore((state: any) => state.language);
   const router = useRouter();
   useEffect(() => {
-    if (!user) router.push("/login");
+    if (!user) {
+      const hasStored = typeof window !== "undefined" && (localStorage.getItem("roshetta_user") || localStorage.getItem("roshetta-web-storage"));
+      if (!hasStored) {
+        router.push("/login");
+      }
+    }
   }, [user, router]);
 
   const today = new Date().toISOString().split("T")[0];

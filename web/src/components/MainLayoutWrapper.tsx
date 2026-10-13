@@ -28,6 +28,17 @@ export default function MainLayoutWrapper({
 
   
   useEffect(() => {
+    // Sync stored session if store was not hydrated yet
+    if (typeof window !== "undefined") {
+      const storedUser = localStorage.getItem("roshetta_user");
+      const storedToken = localStorage.getItem("roshetta_token");
+      if (storedUser && !useStore.getState().user) {
+        try {
+          useStore.getState().login(JSON.parse(storedUser), storedToken || undefined);
+        } catch (e) {}
+      }
+    }
+
     const originalFetch = window.fetch;
     window.fetch = async (input, init) => {
       const url = typeof input === 'string' ? input : (input instanceof URL ? input.toString() : input.url);
@@ -35,7 +46,10 @@ export default function MainLayoutWrapper({
       if (url && url.includes('/api/') && !url.includes('/api/auth/') && !url.includes('/api/admin/')) {
         init = init || {};
         const headers = new Headers(init.headers);
-        headers.set('Authorization', `Bearer ${useStore.getState().token}`);
+        const token = useStore.getState().token || (typeof window !== 'undefined' ? localStorage.getItem('roshetta_token') : '');
+        if (token) {
+          headers.set('Authorization', `Bearer ${token}`);
+        }
         
         if (init.method && ['POST', 'PUT', 'PATCH'].includes(init.method.toUpperCase()) && !(init.body instanceof FormData)) {
           if (!headers.has('Content-Type')) {

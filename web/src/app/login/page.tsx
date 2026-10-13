@@ -23,7 +23,12 @@ export default function Login() {
       setEmail(savedEmail);
       setRememberMe(true);
     }
-  }, []);
+
+    const currentUser = useStore.getState().user || (typeof window !== "undefined" && localStorage.getItem("roshetta_user"));
+    if (currentUser) {
+      router.replace("/");
+    }
+  }, [router]);
 
   const customStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap');

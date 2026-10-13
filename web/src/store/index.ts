@@ -36,6 +36,7 @@ interface User {
   isReadOnly?: boolean;
   username?: string;
   cashierName?: string;
+  name?: string;
 }
 
 interface StoreState {
@@ -57,15 +58,76 @@ interface StoreState {
   checkout: () => void;
 }
 
+// ─── Synchronous Session Restorers (Prevents logouts on F5 Refresh) ─────────
+const getInitialUser = (): User | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const directUser = localStorage.getItem("roshetta_user");
+    if (directUser) {
+      return JSON.parse(directUser);
+    }
+    const zustandData = localStorage.getItem("roshetta-web-storage");
+    if (zustandData) {
+      const parsed = JSON.parse(zustandData);
+      if (parsed?.state?.user) return parsed.state.user;
+    }
+  } catch (e) {
+    console.error("Failed to read stored user session:", e);
+  }
+  return null;
+};
+
+const getInitialToken = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const directToken = localStorage.getItem("roshetta_token");
+    if (directToken) return directToken;
+
+    const zustandData = localStorage.getItem("roshetta-web-storage");
+    if (zustandData) {
+      const parsed = JSON.parse(zustandData);
+      if (parsed?.state?.token) return parsed.state.token;
+    }
+  } catch (e) {
+    console.error("Failed to read stored token:", e);
+  }
+  return null;
+};
+
 export const useStore = create<StoreState>()(
   persist(
     (set) => ({
       language: 'ar',
       setLanguage: (lang) => set({ language: lang }),
-      user: null,
-      token: null,
-      login: (user, token) => set({ user, token }),
-      logout: () => set({ user: null, token: null, posCart: [] }),
+      user: getInitialUser(),
+      token: getInitialToken(),
+      login: (user, token) => {
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("roshetta_user", JSON.stringify(user));
+            if (token) {
+              localStorage.setItem("roshetta_token", token);
+              document.cookie = `roshetta_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
+            }
+          } catch (e) {
+            console.error("Failed to persist user session to storage:", e);
+          }
+        }
+        set({ user, token: token || null });
+      },
+      logout: () => {
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.removeItem("roshetta_user");
+            localStorage.removeItem("roshetta_token");
+            localStorage.removeItem("roshetta-web-storage");
+            document.cookie = "roshetta_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          } catch (e) {
+            console.error("Failed to remove stored session:", e);
+          }
+        }
+        set({ user: null, token: null, posCart: [] });
+      },
 
       inventory: [],
       posCart: [],
@@ -145,10 +207,28 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: "roshetta-web-storage",
-       
-      storage: createJSONStorage(() =>
-        typeof window !== "undefined" ? window.localStorage : ({} as any),
-      ),
+      storage: createJSONStorage(() => {
+        if (typeof window !== "undefined") {
+          return window.localStorage;
+        }
+        return {
+          getItem: () => null,
+          setItem: () => {},
+          removeItem: () => {},
+        };
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (typeof window !== "undefined" && state) {
+          const u = getInitialUser();
+          const t = getInitialToken();
+          if (u && !state.user) {
+            state.user = u;
+          }
+          if (t && !state.token) {
+            state.token = t;
+          }
+        }
+      },
     },
   ),
 );

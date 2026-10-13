@@ -15,7 +15,12 @@ export default function BranchManager() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!user) router.push("/login");
+    if (!user) {
+      const hasStored = typeof window !== "undefined" && (localStorage.getItem("roshetta_user") || localStorage.getItem("roshetta-web-storage"));
+      if (!hasStored) {
+        router.push("/login");
+      }
+    }
   }, [user, router]);
 
   const [activeTab, setActiveTab] = useState<
