@@ -208,8 +208,8 @@ export default function PurchasesPage() {
           qty: 1,
           purchase_price: drug.cost || 0,
           sell_price: drug.price || 0,
-          expiry: drug.expiry || "",
-          expiry_date: drug.expiry || "",
+          expiry: drug.expiry || drug.expiry_date || "",
+          expiry_date: drug.expiry || drug.expiry_date || "",
           has_parts: false,
           part1_name: "شريط",
           part1_qty: 10,
@@ -240,8 +240,8 @@ export default function PurchasesPage() {
           qty: needed,
           purchase_price: d.cost || 0,
           sell_price: d.price || 0,
-          expiry: d.expiry || "",
-          expiry_date: d.expiry || "",
+          expiry: d.expiry || d.expiry_date || "",
+          expiry_date: d.expiry || d.expiry_date || "",
           has_parts: false,
           part1_name: "شريط",
           part1_qty: 10,
@@ -1090,6 +1090,10 @@ export default function PurchasesPage() {
                             c.map((i, j) => {
                               if (j !== idx) return i;
                               const n = { ...i, [field]: val };
+                              if (field === "expiry" || field === "expiry_date") {
+                                n.expiry = val;
+                                n.expiry_date = val;
+                              }
                               if (
                                 [
                                   "sell_price",
@@ -1161,9 +1165,9 @@ export default function PurchasesPage() {
                               </button>
                             </div>
 
-                            {/* Base Qty & Price */}
+                            {/* Base Qty & Price & Expiry */}
                             <div
-                              className="grid grid-cols-4 gap-4 items-end mb-5"
+                              className="grid grid-cols-2 sm:grid-cols-5 gap-3 items-end mb-5"
                               dir="rtl"
                             >
                               {/* الكمية */}
@@ -1246,6 +1250,20 @@ export default function PurchasesPage() {
                                     ₪
                                   </span>
                                 </div>
+                              </div>
+                              {/* تاريخ الصلاحية */}
+                              <div>
+                                <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
+                                  {language === "en" ? "Expiry Date" : "تاريخ الصلاحية"}
+                                </label>
+                                <input
+                                  type="date"
+                                  value={item.expiry || item.expiry_date || ""}
+                                  onChange={(e) =>
+                                    upd("expiry", e.target.value)
+                                  }
+                                  className="w-full bg-white border border-[#CBD5E1] rounded-xl px-2 py-2 text-[12px] font-bold text-ink outline-none focus:border-primary text-center h-[42px] transition-colors"
+                                />
                               </div>
                               {/* الإجمالي */}
                               <div>
@@ -1806,7 +1824,13 @@ export default function PurchasesPage() {
                     (item: any, idx: number) => (
                       <tr key={idx}>
                         <td className="py-3 text-[14px] font-bold text-ink">
-                          {item.name}
+                          <div>{item.name}</div>
+                          {(item.expiry || item.expiry_date) && (
+                            <div className="text-[11px] font-mono font-semibold text-ink-soft mt-0.5">
+                              {language === "en" ? "Exp: " : "الصلاحية: "}
+                              {item.expiry || item.expiry_date}
+                            </div>
+                          )}
                         </td>
                         <td className="py-3 text-[14px] font-mono text-center text-ink">
                           {item.qty}
