@@ -63,7 +63,8 @@ export default function Sidebar() {
     {
       title: t.sidebar.security_backup,
       items: [
-        { name: t.sidebar.staff_branches, href: "/manager", icon: ManagerIcon },
+        { name: language === 'en' ? "Branch Operations & Scrap" : "إدارة الفرع والتوالف", href: "/manager", icon: ManagerIcon },
+        { name: t.sidebar.staff_branches, href: "/branches", icon: ManagerIcon },
         { name: t.sidebar.security_backup, href: "/admin", icon: AdminIcon },
         { name: t.sidebar.print_settings, href: "/more", icon: MoreIcon },
       ],
