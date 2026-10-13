@@ -267,11 +267,11 @@ export default function Inventory() {
             name: editingItem.name,
             manufacturer: editingItem.manufacturer,
             category: editingItem.category,
-            price_sell: editingItem.price,
-            price_buy: editingItem.cost,
+            price_sell: parseFloat(editingItem.price) || 0,
+            price_buy: parseFloat(editingItem.cost) || 0,
             isControlled: editingItem.isControlled ? 1 : 0,
             qty: (() => {
-              const sb = editingItem.stock_boxes || 0;
+              const sb = parseFloat(editingItem.stock_boxes) || 0;
               const sp1 = editingItem.stock_part1 || 0;
               const sp2 = editingItem.stock_part2 || 0;
               if (!editingItem.has_parts) return sb;
@@ -646,13 +646,16 @@ export default function Inventory() {
                     <input
                       type="number"
                       required
-                      value={editingItem.stock_boxes ?? 0}
+                      value={editingItem.stock_boxes ?? ""}
                       onChange={(e) =>
                         setEditingItem({
                           ...editingItem,
-                          stock_boxes: Number(e.target.value),
+                          stock_boxes: e.target.value,
                         })
                       }
+                      onFocus={(e) => e.target.select()}
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                      placeholder="0"
                       className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary font-mono text-center text-[14px]"
                       style={{ direction: "ltr" }}
                     />
@@ -665,13 +668,16 @@ export default function Inventory() {
                       type="number"
                       step="0.01"
                       required
-                      value={editingItem.cost || 0}
+                      value={editingItem.cost ?? ""}
                       onChange={(e) =>
                         setEditingItem({
                           ...editingItem,
-                          cost: Number(e.target.value),
+                          cost: e.target.value,
                         })
                       }
+                      onFocus={(e) => e.target.select()}
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                      placeholder="0.00"
                       className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary font-mono text-center text-[14px]"
                       style={{ direction: "ltr" }}
                     />
@@ -684,13 +690,16 @@ export default function Inventory() {
                       type="number"
                       step="0.01"
                       required
-                      value={editingItem.price}
+                      value={editingItem.price ?? ""}
                       onChange={(e) =>
                         setEditingItem({
                           ...editingItem,
-                          price: Number(e.target.value),
+                          price: e.target.value,
                         })
                       }
+                      onFocus={(e) => e.target.select()}
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                      placeholder="0.00"
                       className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary font-mono text-center text-[14px]"
                       style={{ direction: "ltr" }}
                     />

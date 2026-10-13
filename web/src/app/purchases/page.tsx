@@ -118,7 +118,7 @@ export default function PurchasesPage() {
 
   // --- Computed ---
   const cartTotal = cartItems.reduce(
-    (s, i) => s + (i.qty || 0) * (i.purchase_price || 0),
+    (s, i) => s + (parseFloat(i.qty) || 0) * (parseFloat(i.purchase_price) || 0),
     0,
   );
   const totalCost = invoices.reduce(
@@ -188,7 +188,27 @@ export default function PurchasesPage() {
       typeof inv.items === "string"
         ? JSON.parse(inv.items || "[]")
         : inv.items || [];
-    setCartItems(items);
+    setCartItems(
+      items.map((i: any) => ({
+        ...i,
+        purchase_price:
+          i.purchase_price === 0 || i.purchase_price === "0"
+            ? ""
+            : i.purchase_price ?? "",
+        sell_price:
+          i.sell_price === 0 || i.sell_price === "0"
+            ? ""
+            : i.sell_price ?? "",
+        part1_price:
+          i.part1_price === 0 || i.part1_price === "0"
+            ? ""
+            : i.part1_price ?? "",
+        part2_price:
+          i.part2_price === 0 || i.part2_price === "0"
+            ? ""
+            : i.part2_price ?? "",
+      })),
+    );
     setItemSearch("");
     setShowAdd(true);
   };
@@ -197,7 +217,11 @@ export default function PurchasesPage() {
     const existing = cartItems.find((i) => i.id === drug.id);
     if (existing)
       setCartItems((c) =>
-        c.map((i) => (i.id === drug.id ? { ...i, qty: i.qty + 1 } : i)),
+        c.map((i) =>
+          i.id === drug.id
+            ? { ...i, qty: (parseFloat(i.qty) || 0) + 1 }
+            : i,
+        ),
       );
     else
       setCartItems((c) => [
@@ -205,19 +229,20 @@ export default function PurchasesPage() {
         {
           id: drug.id,
           name: drug.name,
+          scientificName: drug.scientificName || drug.scientific_name || "",
           qty: 1,
-          purchase_price: drug.cost || 0,
-          sell_price: drug.price || 0,
+          purchase_price: drug.cost && drug.cost > 0 ? drug.cost : "",
+          sell_price: drug.price && drug.price > 0 ? drug.price : "",
           expiry: drug.expiry || drug.expiry_date || "",
           expiry_date: drug.expiry || drug.expiry_date || "",
           has_parts: false,
           part1_name: "شريط",
           part1_qty: 10,
-          part1_price: 0,
+          part1_price: "",
           has_subparts: false,
           part2_name: "حبة",
           part2_qty: 10,
-          part2_price: 0,
+          part2_price: "",
         },
       ]);
     setItemSearch("");
@@ -237,19 +262,20 @@ export default function PurchasesPage() {
         newCart.push({
           id: d.id,
           name: d.name,
+          scientificName: d.scientificName || d.scientific_name || "",
           qty: needed,
-          purchase_price: d.cost || 0,
-          sell_price: d.price || 0,
+          purchase_price: d.cost && d.cost > 0 ? d.cost : "",
+          sell_price: d.price && d.price > 0 ? d.price : "",
           expiry: d.expiry || d.expiry_date || "",
           expiry_date: d.expiry || d.expiry_date || "",
           has_parts: false,
           part1_name: "شريط",
           part1_qty: 10,
-          part1_price: 0,
+          part1_price: "",
           has_subparts: false,
           part2_name: "حبة",
           part2_qty: 10,
-          part2_price: 0,
+          part2_price: "",
         });
       }
     });
@@ -279,6 +305,13 @@ export default function PurchasesPage() {
             ...form,
             items: cartItems.map((item: any) => ({
               ...item,
+              qty: parseFloat(item.qty) || 1,
+              purchase_price: parseFloat(item.purchase_price) || 0,
+              sell_price: parseFloat(item.sell_price) || 0,
+              part1_qty: parseInt(item.part1_qty) || 1,
+              part1_price: parseFloat(item.part1_price) || 0,
+              part2_qty: parseInt(item.part2_qty) || 1,
+              part2_price: parseFloat(item.part2_price) || 0,
               expiry: item.expiry || item.expiry_date || "",
               expiry_date: item.expiry || item.expiry_date || "",
               unit_size: (() => {
@@ -359,19 +392,19 @@ export default function PurchasesPage() {
             name: newItem.name.trim(),
             scientificName: (newItem.scientificName || "").trim(),
             qty: 1,
-            purchase_price: buyPrice,
-            sell_price: sellPrice,
+            purchase_price: buyPrice && buyPrice > 0 ? buyPrice : "",
+            sell_price: sellPrice && sellPrice > 0 ? sellPrice : "",
             expiry: newItem.expiry || "",
             expiry_date: newItem.expiry || "",
             barcode: (newItem.barcode || "").trim(),
             has_parts: false,
             part1_name: "شريط",
             part1_qty: 10,
-            part1_price: 0,
+            part1_price: "",
             has_subparts: false,
             part2_name: "حبة",
             part2_qty: 10,
-            part2_price: 0,
+            part2_price: "",
           },
         ]);
         setShowQuickAdd(false);
@@ -910,6 +943,8 @@ export default function PurchasesPage() {
                         onChange={(e) =>
                           setForm({ ...form, paid_amount: e.target.value })
                         }
+                        onFocus={(e) => e.target.select()}
+                        onClick={(e) => (e.target as HTMLInputElement).select()}
                         placeholder="0.00"
                         className="w-full bg-white border border-mint-line rounded-xl px-4 py-3 text-[15px] font-mono font-black text-teal outline-none focus:border-teal focus:ring-2 focus:ring-teal/20 transition-all"
                       />
@@ -1103,16 +1138,22 @@ export default function PurchasesPage() {
                                   "has_subparts",
                                 ].includes(field)
                               ) {
-                                if (n.has_parts && n.part1_qty > 0) {
-                                  n.part1_price = Number(
-                                    ((n.sell_price || 0) / n.part1_qty).toFixed(
-                                      2,
-                                    ),
-                                  );
-                                  if (n.has_subparts && n.part2_qty > 0) {
-                                    n.part2_price = Number(
-                                      (n.part1_price / n.part2_qty).toFixed(2),
+                                if (n.has_parts && (parseInt(n.part1_qty) || 0) > 0) {
+                                  const sp = parseFloat(n.sell_price);
+                                  const p1q = parseInt(n.part1_qty) || 1;
+                                  if (!isNaN(sp) && sp > 0) {
+                                    n.part1_price = Number(
+                                      (sp / p1q).toFixed(2),
                                     );
+                                    if (n.has_subparts && (parseInt(n.part2_qty) || 0) > 0) {
+                                      const p2q = parseInt(n.part2_qty) || 1;
+                                      n.part2_price = Number(
+                                        (n.part1_price / p2q).toFixed(2),
+                                      );
+                                    }
+                                  } else {
+                                    n.part1_price = "";
+                                    if (n.has_subparts) n.part2_price = "";
                                   }
                                 }
                               }
@@ -1178,7 +1219,7 @@ export default function PurchasesPage() {
                                 <div className="flex items-center bg-white rounded-xl border border-[#CBD5E1] overflow-hidden w-full h-[42px]">
                                   <button
                                     type="button"
-                                    onClick={() => upd("qty", item.qty + 1)}
+                                    onClick={() => upd("qty", (parseFloat(item.qty) || 0) + 1)}
                                     className="w-10 h-full flex items-center justify-center text-ink-soft hover:bg-bg font-light text-[18px] transition-colors"
                                   >
                                     +
@@ -1187,17 +1228,16 @@ export default function PurchasesPage() {
                                     type="number"
                                     value={item.qty ?? ""}
                                     onChange={(e) =>
-                                      upd(
-                                        "qty",
-                                        parseFloat(e.target.value) || 0,
-                                      )
+                                      upd("qty", e.target.value)
                                     }
+                                    onFocus={(e) => e.target.select()}
+                                    onClick={(e) => (e.target as HTMLInputElement).select()}
                                     className="flex-1 w-full text-center font-mono font-black text-[14px] text-ink outline-none border-x border-[#CBD5E1] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   />
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      upd("qty", Math.max(1, item.qty - 1))
+                                      upd("qty", Math.max(1, (parseFloat(item.qty) || 1) - 1))
                                     }
                                     className="w-10 h-full flex items-center justify-center text-ink-soft hover:bg-bg font-light text-[18px] transition-colors"
                                   >
@@ -1216,11 +1256,11 @@ export default function PurchasesPage() {
                                     step="0.01"
                                     value={item.purchase_price ?? ""}
                                     onChange={(e) =>
-                                      upd(
-                                        "purchase_price",
-                                        parseFloat(e.target.value) || 0,
-                                      )
+                                      upd("purchase_price", e.target.value)
                                     }
+                                    onFocus={(e) => e.target.select()}
+                                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                                    placeholder="0.00"
                                     className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[14px] font-mono font-bold outline-none focus:border-primary text-center h-[42px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   />
                                   <span className="absolute left-3 top-3 text-[12px] text-ink-soft font-bold">
@@ -1239,11 +1279,11 @@ export default function PurchasesPage() {
                                     step="0.01"
                                     value={item.sell_price ?? ""}
                                     onChange={(e) =>
-                                      upd(
-                                        "sell_price",
-                                        parseFloat(e.target.value) || 0,
-                                      )
+                                      upd("sell_price", e.target.value)
                                     }
+                                    onFocus={(e) => e.target.select()}
+                                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                                    placeholder="0.00"
                                     className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[14px] font-mono font-bold outline-none focus:border-primary text-center h-[42px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   />
                                   <span className="absolute left-3 top-3 text-[12px] text-ink-soft font-bold">
@@ -1273,7 +1313,7 @@ export default function PurchasesPage() {
                                 <div className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl px-3 text-[15px] font-mono font-black text-primary text-center h-[42px] flex items-center justify-center">
                                   ₪
                                   {(
-                                    item.qty * (item.purchase_price || 0)
+                                    (parseFloat(item.qty) || 0) * (parseFloat(item.purchase_price) || 0)
                                   ).toFixed(2)}
                                 </div>
                               </div>
@@ -1349,11 +1389,11 @@ export default function PurchasesPage() {
                                         min="1"
                                         value={item.part1_qty ?? ""}
                                         onChange={(e) =>
-                                          upd(
-                                            "part1_qty",
-                                            parseInt(e.target.value) || 1,
-                                          )
+                                          upd("part1_qty", e.target.value)
                                         }
+                                        onFocus={(e) => e.target.select()}
+                                        onClick={(e) => (e.target as HTMLInputElement).select()}
+                                        placeholder="10"
                                         className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[14px] font-mono outline-none focus:border-primary text-center h-[40px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                       />
                                     </div>
@@ -1367,11 +1407,11 @@ export default function PurchasesPage() {
                                           step="0.01"
                                           value={item.part1_price ?? ""}
                                           onChange={(e) =>
-                                            upd(
-                                              "part1_price",
-                                              parseFloat(e.target.value) || 0,
-                                            )
+                                            upd("part1_price", e.target.value)
                                           }
+                                          onFocus={(e) => e.target.select()}
+                                          onClick={(e) => (e.target as HTMLInputElement).select()}
+                                          placeholder="0.00"
                                           className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[14px] font-mono outline-none focus:border-primary text-center h-[40px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         />
                                         <span className="absolute left-3 top-2.5 text-[11px] text-ink-soft font-bold">
@@ -1439,11 +1479,11 @@ export default function PurchasesPage() {
                                           min="1"
                                           value={item.part2_qty ?? ""}
                                           onChange={(e) =>
-                                            upd(
-                                              "part2_qty",
-                                              parseInt(e.target.value) || 1,
-                                            )
+                                            upd("part2_qty", e.target.value)
                                           }
+                                          onFocus={(e) => e.target.select()}
+                                          onClick={(e) => (e.target as HTMLInputElement).select()}
+                                          placeholder="10"
                                           className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[14px] font-mono outline-none focus:border-primary text-center h-[40px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         />
                                       </div>
@@ -1457,11 +1497,11 @@ export default function PurchasesPage() {
                                             step="0.01"
                                             value={item.part2_price ?? ""}
                                             onChange={(e) =>
-                                              upd(
-                                                "part2_price",
-                                                parseFloat(e.target.value) || 0,
-                                              )
+                                              upd("part2_price", e.target.value)
                                             }
+                                            onFocus={(e) => e.target.select()}
+                                            onClick={(e) => (e.target as HTMLInputElement).select()}
+                                            placeholder="0.00"
                                             className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[14px] font-mono outline-none focus:border-primary text-center h-[40px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                           />
                                           <span className="absolute left-3 top-2.5 text-[11px] text-ink-soft font-bold">
@@ -1653,6 +1693,8 @@ export default function PurchasesPage() {
                     onChange={(e) =>
                       setNewItem({ ...newItem, price_buy: e.target.value })
                     }
+                    onFocus={(e) => e.target.select()}
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
                     className="w-full bg-bg border border-mint-line rounded-xl px-3 py-2.5 text-[13px] font-mono font-bold outline-none focus:border-primary transition-colors text-center"
                     placeholder="0.00"
                   />
@@ -1668,6 +1710,8 @@ export default function PurchasesPage() {
                     onChange={(e) =>
                       setNewItem({ ...newItem, price_sell: e.target.value })
                     }
+                    onFocus={(e) => e.target.select()}
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
                     className="w-full bg-bg border border-mint-line rounded-xl px-3 py-2.5 text-[13px] font-mono font-bold outline-none focus:border-primary transition-colors text-center"
                     placeholder="0.00"
                   />
@@ -1682,6 +1726,8 @@ export default function PurchasesPage() {
                     onChange={(e) =>
                       setNewItem({ ...newItem, minQty: e.target.value })
                     }
+                    onFocus={(e) => e.target.select()}
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
                     className="w-full bg-bg border border-mint-line rounded-xl px-3 py-2.5 text-[13px] font-mono font-bold outline-none focus:border-primary transition-colors text-center"
                     placeholder="5"
                   />
