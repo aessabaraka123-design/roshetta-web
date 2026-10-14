@@ -94,6 +94,8 @@ export default function SocketProvider({
                     ? "⏰"
                     : data.type === "staff"
                     ? "👤"
+                    : data.type === "debt_payment"
+                    ? "💰"
                     : data.type === "credit_sale" || data.type === "debt"
                     ? "💸"
                     : data.type === "system_alert"

@@ -147,7 +147,13 @@ export default function Customers() {
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ payment: Number(paymentAmount), paymentMethod: debtPaymentMethod }),
+          body: JSON.stringify({
+            payment: Number(paymentAmount),
+            paymentMethod: debtPaymentMethod,
+            cashierName: user?.name || "مدير الصيدلية",
+            branchName: user?.branch || "الفرع الرئيسي",
+            customerName: selectedCustomer?.name,
+          }),
         },
       );
       const result = await res.json();

@@ -83,6 +83,8 @@ export default function AppBar({
         return { icon: "⏰", border: "border-r-coral", bg: "bg-coral/10 text-coral" };
       case "staff":
         return { icon: "👤", border: "border-r-teal", bg: "bg-teal/10 text-teal" };
+      case "debt_payment":
+        return { icon: "💰", border: "border-r-emerald-500", bg: "bg-emerald-500/10 text-emerald-700" };
       case "credit_sale":
       case "debt":
       case "high_debt":

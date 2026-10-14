@@ -1062,10 +1062,15 @@ export default function PharmacyManager() {
                           body: JSON.stringify({ ...editingStaff }),
                         },
                       );
-                      if ((await res.json()).success) {
+                      const data = await res.json();
+                      if (data.success) {
                         mutateStaff();
                         toast.success(language === "en" ? "Staff data updated successfully!" : "تم تحديث بيانات الموظف بنجاح!");
-                      } else toast.error(language === "en" ? "Error during update" : "حدث خطأ أثناء التحديث");
+                        setShowAddStaffModal(false);
+                        setEditingStaff(null);
+                      } else {
+                        toast.error(data.error || (language === "en" ? "Error during update" : "حدث خطأ أثناء التحديث"));
+                      }
                     } catch (e) {
                       toast.error(language === "en" ? "Could not connect to server" : "تعذر الاتصال بالخادم");
                     }
@@ -1079,17 +1084,19 @@ export default function PharmacyManager() {
                           body: JSON.stringify({ ...editingStaff }),
                         },
                       );
-                      if ((await res.json()).success) {
+                      const data = await res.json();
+                      if (data.success) {
                         mutateStaff();
                         toast.success(language === "en" ? "New staff added successfully!" : "تم إضافة الموظف الجديد بنجاح!");
-                      } else toast.error(language === "en" ? "Error during addition" : "حدث خطأ أثناء الإضافة");
+                        setShowAddStaffModal(false);
+                        setEditingStaff(null);
+                      } else {
+                        toast.error(data.error || (language === "en" ? "Error during addition" : "حدث خطأ أثناء الإضافة"));
+                      }
                     } catch (e) {
                       toast.error(language === "en" ? "Could not connect to server" : "تعذر الاتصال بالخادم");
                     }
                   }
-                  setShowAddStaffModal(false);
-                  setEditingStaff(null);
-                  setEditingStaff(null);
                 }}
                 className="flex-1 py-3 bg-primary text-white font-bold rounded-xl hover:bg-teal transition-all"
               >
