@@ -126,7 +126,7 @@ export default function BranchesAndStaff() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: newStaff.name,
-          email: newStaff.phone, // storing phone in email for now
+          email: (newStaff.email || newStaff.phone || "").trim().toLowerCase(),
           password: newStaff.password,
           role: newStaff.role,
           branch: newStaff.branch,

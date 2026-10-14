@@ -217,7 +217,7 @@ function RegisterPageContent() {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: formData.email }),
+            body: JSON.stringify({ email: (formData.email || '').trim().toLowerCase() }),
           }
         );
         const data = await res.json();
@@ -278,6 +278,7 @@ function RegisterPageContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ...formData,
+            email: (formData.email || '').trim().toLowerCase(),
             subscriptionType: plan,
             receiptImage: receiptImage,
             paymentMethod: payMethod,
