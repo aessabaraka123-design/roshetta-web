@@ -38,7 +38,7 @@ export function formatQty(qty: number, unitsJson?: string | null, language: stri
 
         return parts.join(tAnd);
       }
-    } catch (e) {}
+    } catch {}
   }
   return `${q} ${tBox}`;
 }

@@ -189,7 +189,7 @@ export const exportComprehensivePDF = async (
 
     pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
     pdf.save(filename + ".pdf");
-  } catch (err) {
+  } catch {
   } finally {
     document.body.removeChild(container);
   }
@@ -328,7 +328,7 @@ export const exportInvoicePDF = async (
 
     pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
     pdf.save("Invoice_" + invoiceNumber + ".pdf");
-  } catch (err) {
+  } catch {
   } finally {
     document.body.removeChild(container);
   }

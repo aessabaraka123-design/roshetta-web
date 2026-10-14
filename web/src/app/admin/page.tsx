@@ -14,6 +14,7 @@ export default function PharmacyManager() {
   const router = useRouter();
   const user = useStore((state: any) => state.user);
   const language = useStore((state: any) => state.language);
+  const login = useStore((state: any) => state.login);
 
   useEffect(() => {
     if (!user) {
@@ -22,7 +23,7 @@ export default function PharmacyManager() {
         router.push("/login");
       }
     }
-    else if ((user as any)?.role !== "manager") {
+    else if ((user as any)?.role !== "manager" && (user as any)?.role !== "owner" && (user as any)?.role !== "admin") {
       toast.error(language === "en" ? "You do not have permission to access this page" : "ليس لديك الصلاحية للوصول إلى هذه الصفحة");
       router.push("/");
     }
@@ -48,9 +49,44 @@ export default function PharmacyManager() {
   const [newBranch, setNewBranch] = useState({
     name: "",
     manager: "",
-    status: "preparing",
+    status: "active",
   });
+  const [editingBranch, setEditingBranch] = useState<any>(null);
+  const [branchToDelete, setBranchToDelete] = useState<any>(null);
   const [showAdminPasswords, setShowAdminPasswords] = useState(false);
+  const [adminForm, setAdminForm] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    currentPassword: "",
+    newPassword: "",
+    confirmNewPassword: "",
+  });
+  const [systemSettings, setSystemSettings] = useState({
+    cashierMaxDiscount: "3",
+    managerMaxDiscount: "15",
+    returnDays: "14",
+    stockAlertsEnabled: true,
+  });
+
+  useEffect(() => {
+    if (user) {
+      setAdminForm((prev) => ({
+        ...prev,
+        name: (user as any)?.name || (user as any)?.managerName || "",
+        phone: (user as any)?.phone || "",
+        email: user?.email || "",
+      }));
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem(`roshetta_settings_${user?.pharmacy_id}`);
+        if (saved) {
+          try {
+            setSystemSettings(JSON.parse(saved));
+          } catch (e) {}
+        }
+      }
+    }
+  }, [user]);
 
   const { data: bData, mutate: mutateBranches } = useSWR(
     user
@@ -67,6 +103,28 @@ export default function PharmacyManager() {
     fetcher,
   );
   const staff = sData?.staff || [];
+
+  // Search filtering
+  const filteredBranches = branches.filter((br: any) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase().trim();
+    return (
+      (br.name && br.name.toLowerCase().includes(q)) ||
+      (br.addr && br.addr.toLowerCase().includes(q))
+    );
+  });
+
+  const filteredStaff = staff.filter((st: any) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase().trim();
+    return (
+      (st.name && st.name.toLowerCase().includes(q)) ||
+      (st.role && st.role.toLowerCase().includes(q)) ||
+      (st.branch && st.branch.toLowerCase().includes(q)) ||
+      (st.email && st.email.toLowerCase().includes(q)) ||
+      (st.phone && st.phone.toLowerCase().includes(q))
+    );
+  });
 
   const { data: dashboardData } = useSWR(
     user
@@ -201,6 +259,7 @@ export default function PharmacyManager() {
           <div className="font-mono text-[38px] font-bold text-primary flex items-baseline gap-2 relative z-10">
             {branches.length}
             <span className="text-[15px] font-sans font-bold text-ink-soft">
+              {branches.filter((b: any) => b.status === "active" || b.status === "نشط").length}{" "}
               {language === "en" ? "Active Branches" : "فروع نشطة"}
             </span>
           </div>
@@ -232,7 +291,8 @@ export default function PharmacyManager() {
           <div className="font-mono text-[38px] font-bold text-teal flex items-baseline gap-2 relative z-10">
             {staff.length}
             <span className="text-[15px] font-sans font-bold text-ink-soft">
-              {language === "en" ? "Pharmacists" : "صيادلة"}
+              {staff.filter((s: any) => s.status === "active" || s.active === 1).length}{" "}
+              {language === "en" ? "Active Staff" : "على رأس العمل"}
             </span>
           </div>
         </div>
@@ -261,7 +321,7 @@ export default function PharmacyManager() {
             </div>
           </div>
           <div className="font-mono text-[38px] font-bold text-coral flex items-baseline gap-2 relative z-10">
-            {totalDebt}
+            {Number(totalDebt).toLocaleString()}
             <span className="text-[15px] font-sans font-bold text-ink-soft">
               {language === "en" ? "₪ for Suppliers" : "₪ للموردين"}
             </span>
@@ -345,39 +405,150 @@ export default function PharmacyManager() {
                   <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Manager in Charge" : "المدير المسؤول"}</th>
                   <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Number of Staff" : "عدد الموظفين"}</th>
                   <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Status" : "الحالة"}</th>
+                  <th className="py-3 px-5 font-semibold text-start">{language === "en" ? "Actions" : "إجراءات"}</th>
                 </tr>
               </thead>
               <tbody>
-                {branches.map((br: any, index: number) => (
-                  <tr
-                    key={br.id}
-                    className="border-b border-mint-line/50 hover:bg-bg/50 transition-all"
-                  >
-                    <td className="py-4 px-5 font-mono text-[14px] font-bold text-ink">
-                      BR-{String(index + 1).padStart(3, "0")}
-                    </td>
-                    <td className="py-4 px-5 text-[15px] font-bold text-primary">
-                      {br.name}
-                    </td>
-                    <td className="py-4 px-5 text-[14px] text-ink-soft">
-                      {br.manager}
-                    </td>
-                    <td className="py-4 px-5 text-[14px]">
-                      {br.staffCount} {language === "en" ? "Pharmacists" : "صيادلة"}
-                    </td>
-                    <td className="py-4 px-5">
-                      <span
-                        className={`px-2 py-1 rounded-md text-[12px] font-bold ${
-                          br.status === "active"
-                            ? "bg-teal-pale text-teal"
-                            : "bg-amber-pale text-amber"
-                        }`}
-                      >
-                        {br.status === "active" ? (language === "en" ? "Active" : "يعمل") : (language === "en" ? "Preparing" : "قيد التجهيز")}
-                      </span>
+                {filteredBranches.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-ink-soft text-[15px]">
+                      {language === "en" ? "No branches found" : "لا توجد فروع مطابقة للبحث"}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredBranches.map((br: any, index: number) => {
+                    const isMainBranch = br.name === "الفرع الرئيسي" || br.name === "Main Branch" || br.name?.toLowerCase().includes("main");
+                    const branchStaff = staff.filter((s: any) => s.branch === br.name || s.branch === br.id || (isMainBranch && (!s.branch || s.branch === "الرئيسي")));
+                    const staffCount = branchStaff.length;
+                    const branchMgr = branchStaff.find((s: any) =>
+                      s.role === "manager" ||
+                      s.role === "branchManager" ||
+                      s.role === "مدير فرع" ||
+                      s.role === "مدير"
+                    ) || (br.addr && br.addr !== "المقر الرئيسي" && br.addr !== "الفرع الرئيسي" ? { name: br.addr } : null);
+                    const managerName = branchMgr?.name
+                      ? branchMgr.name
+                      : isMainBranch
+                        ? (user?.name || user?.managerName || (language === "en" ? "General Manager" : "المدير العام"))
+                        : (language === "en" ? "Unassigned" : "غير محدد");
+                    const isActive = br.status === "active" || br.status === "نشط";
+
+                    return (
+                      <tr
+                        key={br.id}
+                        className="border-b border-mint-line/50 hover:bg-bg/50 transition-all"
+                      >
+                        <td className="py-4 px-5 font-mono text-[14px] font-bold text-ink">
+                          BR-{String(index + 1).padStart(3, "0")}
+                        </td>
+                        <td className="py-4 px-5 text-[15px] font-bold text-primary">
+                          {br.name}
+                        </td>
+                        <td className="py-4 px-5 text-[14px]">
+                          <span className={managerName === "غير محدد" || managerName === "Unassigned" ? "text-ink-soft/60 italic" : "font-bold text-ink"}>
+                            {managerName}
+                          </span>
+                        </td>
+                        <td className="py-4 px-5 text-[14px] font-bold text-ink">
+                          {language === "en" ? (
+                            staffCount === 0 ? (
+                              <span className="text-ink-soft/60 italic font-normal">0 Staff</span>
+                            ) : (
+                              <span>{staffCount} Staff</span>
+                            )
+                          ) : (
+                            staffCount === 0 ? (
+                              <span className="text-ink-soft/60 italic font-normal">لا يوجد موظفون</span>
+                            ) : staffCount === 1 ? (
+                              <span>صيدلي واحد</span>
+                            ) : staffCount === 2 ? (
+                              <span>صيدليان</span>
+                            ) : staffCount <= 10 ? (
+                              <span>{staffCount} صيادلة</span>
+                            ) : (
+                              <span>{staffCount} صيدلياً</span>
+                            )
+                          )}
+                        </td>
+                        <td className="py-4 px-5">
+                          <span
+                            className={`px-2.5 py-1 rounded-md text-[12px] font-bold ${
+                              isActive
+                                ? "bg-teal-pale text-teal"
+                                : "bg-amber-pale text-amber"
+                            }`}
+                          >
+                            {isActive ? (language === "en" ? "Active" : "يعمل (نشط)") : (language === "en" ? "Preparing" : "قيد التجهيز")}
+                          </span>
+                        </td>
+                        <td className="py-4 px-5">
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => {
+                                setEditingBranch({
+                                  id: br.id,
+                                  name: br.name,
+                                  manager: branchMgr?.name || (br.addr !== "المقر الرئيسي" && br.addr !== "الفرع الرئيسي" ? br.addr : ""),
+                                  status: isActive ? "active" : "preparing",
+                                });
+                              }}
+                              className="text-[13px] font-bold text-primary hover:underline hover:text-teal transition-colors"
+                            >
+                              {language === "en" ? "Edit" : "تعديل"}
+                            </button>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const newStatus = isActive ? "قيد التجهيز" : "نشط";
+                                  const res = await fetch(
+                                    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/branches/${br.id}`,
+                                    {
+                                      method: "PUT",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        name: br.name,
+                                        addr: br.addr,
+                                        status: newStatus,
+                                      }),
+                                    }
+                                  );
+                                  const data = await res.json();
+                                  if (data.success) {
+                                    mutateBranches();
+                                    toast.success(
+                                      newStatus === "نشط"
+                                        ? (language === "en" ? "Branch activated successfully!" : "تم تفعيل الفرع بنجاح!")
+                                        : (language === "en" ? "Branch status changed to preparing" : "تم تحويل حالة الفرع إلى قيد التجهيز")
+                                    );
+                                  } else {
+                                    toast.error(data.error || "Failed");
+                                  }
+                                } catch {
+                                  toast.error("Error");
+                                }
+                              }}
+                              className={`text-[13px] font-bold hover:underline transition-colors ${
+                                isActive ? "text-amber" : "text-teal"
+                              }`}
+                            >
+                              {isActive
+                                ? (language === "en" ? "Deactivate" : "إيقاف مؤقت")
+                                : (language === "en" ? "Activate" : "تفعيل")}
+                            </button>
+                            {!isMainBranch && (
+                              <button
+                                onClick={() => setBranchToDelete(br)}
+                                className="text-[13px] font-bold text-coral hover:underline transition-colors"
+                              >
+                                {language === "en" ? "Delete" : "حذف"}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           )}
@@ -396,94 +567,109 @@ export default function PharmacyManager() {
                 </tr>
               </thead>
               <tbody>
-                {staff.map((st: any, index: number) => (
-                  <tr
-                    key={st.id}
-                    className="border-b border-mint-line/50 hover:bg-bg/50 transition-all"
-                  >
-                    <td className="py-4 px-5 font-mono text-[14px] font-bold text-ink">
-                      EMP-{String(index + 1).padStart(3, "0")}
-                    </td>
-                    <td className="py-4 px-5 text-[15px] font-bold text-primary">
-                      {st.name}
-                    </td>
-                    <td className="py-4 px-5 text-[14px] text-ink-soft">
-                      {st.role}
-                    </td>
-                    <td className="py-4 px-5 text-[14px]">{st.branch}</td>
-                    <td className="py-4 px-5 text-[14px] font-bold text-coral">
-                      {st.salary}
-                    </td>
-                    <td className="py-4 px-5">
-                      <span
-                        className={`px-2 py-1 rounded-md text-[12px] font-bold ${
-                          st.status === "active"
-                            ? "bg-teal-pale text-teal"
-                            : st.status === "suspended"
-                              ? "bg-coral-pale text-coral"
-                              : "bg-amber-pale text-amber"
-                        }`}
-                      >
-                        {st.status === "active"
-                          ? (language === "en" ? "On Duty" : "على رأس العمل")
-                          : st.status === "suspended"
-                            ? (language === "en" ? "Suspended" : "موقوف")
-                            : (language === "en" ? "On Leave" : "إجازة")}
-                      </span>
-                    </td>
-                    <td className="py-4 px-5">
-                      <div className="flex gap-3">
-                        <button
-                          onClick={async () => {
-                            setEditingStaff(st);
-                            setShowAddStaffModal(true);
-                          }}
-                          className="text-[13px] font-bold text-primary hover:underline hover:text-teal transition-colors"
-                        >
-                          {language === "en" ? "Edit" : "تعديل"}
-                        </button>
-                        <button
-                          onClick={async () => {
-                            try {
-                              const newStatus =
-                                st.status === "active" ? "suspended" : "active";
-                              const res = await fetch(
-                                `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${st.id}`,
-                                {
-                                  method: "PUT",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({
-                                    ...st,
-                                    status: newStatus,
-                                  }),
-                                },
-                              );
-                              if ((await res.json()).success) {
-                                mutateStaff();
-                                toast.success(
-                                  newStatus === "suspended"
-                                    ? language === "en" ? "Staff member temporarily suspended" : "تم إيقاف الموظف مؤقتاً"
-                                    : language === "en" ? "Staff member reinstated" : "تم إعادة الموظف للعمل",
-                                );
-                              }
-                            } catch (e) {}
-                          }}
-                          className={`text-[13px] font-bold hover:underline transition-colors ${st.status === "active" ? "text-amber" : "text-teal"}`}
-                        >
-                          {st.status === "active" ? (language === "en" ? "Suspend" : "توقيف") : (language === "en" ? "Activate" : "تفعيل")}
-                        </button>
-                        <button
-                          onClick={() => setStaffToFire(st)}
-                          className="text-[13px] font-bold text-coral hover:underline transition-colors"
-                        >
-                          فصل
-                        </button>
-                      </div>
+                {filteredStaff.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-ink-soft text-[15px]">
+                      {language === "en" ? "No staff found" : "لا يوجد موظفون مطابقون للبحث"}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredStaff.map((st: any, index: number) => {
+                    const isActive = st.status === "active" || st.active === 1;
+                    const salaryFormatted = st.salary
+                      ? `${Number(String(st.salary).replace(/\D/g, "") || 0).toLocaleString()} ₪`
+                      : "0 ₪";
+
+                    return (
+                      <tr
+                        key={st.id}
+                        className="border-b border-mint-line/50 hover:bg-bg/50 transition-all"
+                      >
+                        <td className="py-4 px-5 font-mono text-[14px] font-bold text-ink">
+                          EMP-{String(index + 1).padStart(3, "0")}
+                        </td>
+                        <td className="py-4 px-5 text-[15px] font-bold text-primary">
+                          {st.name}
+                        </td>
+                        <td className="py-4 px-5 text-[14px] text-ink-soft">
+                          {st.role}
+                        </td>
+                        <td className="py-4 px-5 text-[14px]">{st.branch || (language === "en" ? "Main Branch" : "الفرع الرئيسي")}</td>
+                        <td className="py-4 px-5 text-[14px] font-bold text-coral font-mono">
+                          {salaryFormatted}
+                        </td>
+                        <td className="py-4 px-5">
+                          <span
+                            className={`px-2.5 py-1 rounded-md text-[12px] font-bold ${
+                              isActive
+                                ? "bg-teal-pale text-teal"
+                                : st.status === "suspended"
+                                  ? "bg-coral-pale text-coral"
+                                  : "bg-amber-pale text-amber"
+                            }`}
+                          >
+                            {isActive
+                              ? (language === "en" ? "On Duty" : "على رأس العمل")
+                              : st.status === "suspended"
+                                ? (language === "en" ? "Suspended" : "موقوف")
+                                : (language === "en" ? "On Leave" : "إجازة")}
+                          </span>
+                        </td>
+                        <td className="py-4 px-5">
+                          <div className="flex gap-3">
+                            <button
+                              onClick={async () => {
+                                setEditingStaff(st);
+                                setShowAddStaffModal(true);
+                              }}
+                              className="text-[13px] font-bold text-primary hover:underline hover:text-teal transition-colors"
+                            >
+                              {language === "en" ? "Edit" : "تعديل"}
+                            </button>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const newStatus = isActive ? "suspended" : "active";
+                                  const res = await fetch(
+                                    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${st.id}`,
+                                    {
+                                      method: "PUT",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                      },
+                                      body: JSON.stringify({
+                                        ...st,
+                                        status: newStatus,
+                                        active: newStatus === "active" ? 1 : 0,
+                                      }),
+                                    },
+                                  );
+                                  if ((await res.json()).success) {
+                                    mutateStaff();
+                                    toast.success(
+                                      newStatus === "suspended"
+                                        ? language === "en" ? "Staff member temporarily suspended" : "تم إيقاف الموظف مؤقتاً"
+                                        : language === "en" ? "Staff member reinstated" : "تم إعادة الموظف للعمل",
+                                    );
+                                  }
+                                } catch (e) {}
+                              }}
+                              className={`text-[13px] font-bold hover:underline transition-colors ${isActive ? "text-amber" : "text-teal"}`}
+                            >
+                              {isActive ? (language === "en" ? "Suspend" : "توقيف") : (language === "en" ? "Activate" : "تفعيل")}
+                            </button>
+                            <button
+                              onClick={() => setStaffToFire(st)}
+                              className="text-[13px] font-bold text-coral hover:underline transition-colors"
+                            >
+                              {language === "en" ? "Terminate" : "فصل"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           )}
@@ -493,15 +679,15 @@ export default function PharmacyManager() {
               <div className="flex justify-between items-center bg-white p-5 rounded-2xl border border-mint-line shadow-sm">
                 <div>
                   <h3 className="font-bold text-[18px] text-primary mb-1">
-                    التقارير المالية والأرباح
+                    {language === "en" ? "Financial Reports & Profits" : "التقارير المالية والأرباح"}
                   </h3>
                   <p className="text-[13px] text-ink-soft">
-                    تحكم في المعادلات المالية واطّلع على صافي الأرباح اليومية.
+                    {language === "en" ? "Control financial formulas and view daily net profit." : "تحكم في المعادلات المالية واطّلع على صافي الأرباح اليومية."}
                   </p>
                 </div>
                 <div className="flex items-center gap-3 bg-mint-bg p-2 px-4 rounded-xl border border-mint-line">
                   <span className="text-[14px] font-bold text-ink">
-                    تضمين رواتب الموظفين في حساب المصروفات؟
+                    {language === "en" ? "Include staff salaries in expenses?" : "تضمين رواتب الموظفين في حساب المصروفات؟"}
                   </span>
                   <button
                     onClick={() => setIncludeSalaries(!includeSalaries)}
@@ -517,7 +703,7 @@ export default function PharmacyManager() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white p-5 rounded-2xl border border-mint-line shadow-sm">
                   <div className="text-[13px] text-ink-soft font-bold mb-2">
-                    المبيعات اليومية 🟢
+                    {language === "en" ? "Daily Sales 🟢" : "المبيعات اليومية 🟢"}
                   </div>
                   <div className="text-[24px] font-black font-mono text-teal">
                     {finances.dailyRevenue.toLocaleString()} ₪
@@ -525,7 +711,7 @@ export default function PharmacyManager() {
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-mint-line shadow-sm">
                   <div className="text-[13px] text-ink-soft font-bold mb-2">
-                    تكلفة البضاعة المباعة 🔴
+                    {language === "en" ? "Cost of Goods Sold 🔴" : "تكلفة البضاعة المباعة 🔴"}
                   </div>
                   <div className="text-[24px] font-black font-mono text-coral">
                     {finances.dailyCogs.toLocaleString()} ₪
@@ -533,7 +719,7 @@ export default function PharmacyManager() {
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-mint-line shadow-sm relative">
                   <div className="text-[13px] text-ink-soft font-bold mb-2">
-                    مصروفات أخرى 🔴
+                    {language === "en" ? "Other Expenses 🔴" : "مصروفات أخرى 🔴"}
                   </div>
                   <div className="flex justify-between items-end">
                     <div className="text-[24px] font-black font-mono text-coral">
@@ -543,14 +729,14 @@ export default function PharmacyManager() {
                       onClick={() => setShowExpenseModal(true)}
                       className="text-[12px] font-bold text-coral bg-coral-pale px-3 py-1 rounded-lg hover:bg-coral hover:text-white transition-colors"
                     >
-                      + إضافة مصروف
+                      {language === "en" ? "+ Add Expense" : "+ إضافة مصروف"}
                     </button>
                   </div>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-mint-line shadow-sm">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-[13px] text-ink-soft font-bold">
-                      الرواتب (يومي) {includeSalaries ? "🔴" : "⚪"}
+                      {language === "en" ? "Salaries (Daily)" : "الرواتب (يومي)"} {includeSalaries ? "🔴" : "⚪"}
                     </span>
                   </div>
                   <div
@@ -573,7 +759,7 @@ export default function PharmacyManager() {
                       : language === "en" ? "Gross Profit" : "الربح التشغيلي (Gross Profit)"}
                   </div>
                   <div className="text-[13px] text-ink-soft font-bold">
-                    معادلة الحساب: المبيعات - تكلفة البضاعة - المصروفات{" "}
+                    {language === "en" ? "Formula: Sales - Cost of Goods - Expenses" : "معادلة الحساب: المبيعات - تكلفة البضاعة - المصروفات"}{" "}
                     {includeSalaries ? language === "en" ? " - Salaries" : "- الرواتب" : ""}
                   </div>
                 </div>
@@ -591,29 +777,39 @@ export default function PharmacyManager() {
             <div className="p-6 bg-bg h-full flex flex-col gap-6 overflow-y-auto">
               <div className="bg-white p-6 rounded-2xl border border-mint-line shadow-sm">
                 <h3 className="font-bold text-[18px] text-primary mb-4 border-b border-mint-line pb-3">
-                  السياسات المالية والصلاحيات (تطبق على جميع الفروع)
+                  {language === "en" ? "Financial Policies & Permissions (Applies to all branches)" : "السياسات المالية والصلاحيات (تطبق على جميع الفروع)"}
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <div>
                       <label className="block text-[14px] font-bold text-ink mb-2">
-                        الحد الأقصى للخصم للكاشير (%)
+                        {language === "en" ? "Max Cashier Discount (%)" : "الحد الأقصى للخصم للكاشير (%)"}
                       </label>
                       <input
                         type="number"
-                        defaultValue="3"
-                        className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
+                        value={systemSettings.cashierMaxDiscount}
+                        onFocus={(e) => {
+                          if (e.target.value === "0") e.target.select();
+                        }}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, cashierMaxDiscount: e.target.value })}
+                        className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary font-mono text-[15px]"
+                        dir="ltr"
                       />
                     </div>
                     <div>
                       <label className="block text-[14px] font-bold text-ink mb-2">
-                        الحد الأقصى للخصم لمدير الفرع (%)
+                        {language === "en" ? "Max Branch Manager Discount (%)" : "الحد الأقصى للخصم لمدير الفرع (%)"}
                       </label>
                       <input
                         type="number"
-                        defaultValue="15"
-                        className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
+                        value={systemSettings.managerMaxDiscount}
+                        onFocus={(e) => {
+                          if (e.target.value === "0") e.target.select();
+                        }}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, managerMaxDiscount: e.target.value })}
+                        className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary font-mono text-[15px]"
+                        dir="ltr"
                       />
                     </div>
                   </div>
@@ -621,28 +817,47 @@ export default function PharmacyManager() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-[14px] font-bold text-ink mb-2">
-                        المدة المسموحة للإرجاع (بالأيام)
+                        {language === "en" ? "Return Policy Window (Days)" : "المدة المسموحة للإرجاع (بالأيام)"}
                       </label>
                       <input
                         type="number"
-                        defaultValue="14"
-                        className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
+                        value={systemSettings.returnDays}
+                        onFocus={(e) => {
+                          if (e.target.value === "0") e.target.select();
+                        }}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, returnDays: e.target.value })}
+                        className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary font-mono text-[15px]"
+                        dir="ltr"
                       />
                     </div>
                     <div className="flex items-center justify-between p-3 bg-mint-bg rounded-xl border border-mint-line mt-2">
                       <span className="text-[14px] font-bold text-ink">
-                        تفعيل تنبيهات نواقص المخزون المركزية
+                        {language === "en" ? "Enable Central Stock Alerts" : "تفعيل تنبيهات نواقص المخزون المركزية"}
                       </span>
-                      <button className="w-12 h-6 rounded-full relative transition-colors bg-primary">
-                        <div className="w-4 h-4 bg-white rounded-full absolute top-1 right-1 transition-all"></div>
+                      <button
+                        type="button"
+                        onClick={() => setSystemSettings({ ...systemSettings, stockAlertsEnabled: !systemSettings.stockAlertsEnabled })}
+                        className={`w-12 h-6 rounded-full relative transition-colors ${systemSettings.stockAlertsEnabled ? "bg-primary" : "bg-[#E1E9E3]"}`}
+                      >
+                        <div
+                          className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${systemSettings.stockAlertsEnabled ? "right-1" : "right-7"}`}
+                        ></div>
                       </button>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-6 flex justify-end">
-                  <button className="bg-primary text-white px-6 py-2 rounded-xl font-bold hover:bg-teal transition-colors">
-                    حفظ الإعدادات
+                  <button
+                    onClick={() => {
+                      if (typeof window !== "undefined" && user?.pharmacy_id) {
+                        localStorage.setItem(`roshetta_settings_${user.pharmacy_id}`, JSON.stringify(systemSettings));
+                      }
+                      toast.success(language === "en" ? "System settings saved successfully!" : "تم حفظ إعدادات النظام بنجاح!");
+                    }}
+                    className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold hover:bg-teal transition-colors shadow-sm"
+                  >
+                    {language === "en" ? "Save Settings" : "حفظ الإعدادات"}
                   </button>
                 </div>
               </div>
@@ -656,10 +871,16 @@ export default function PharmacyManager() {
                 <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
                   <div>
                     <h3 className="font-black text-[22px] mb-1">
-                      {language === "en" ? "Annual Subscription (Premium)" : "الاشتراك السنوي (Premium)"}
+                      {((user as any)?.subscriptionType === "annual" || (user as any)?.subscriptionType === "سنوي")
+                        ? (language === "en" ? "Annual Subscription (Premium)" : "الاشتراك السنوي (Premium)")
+                        : ((user as any)?.subscriptionType === "lifetime" || (user as any)?.subscriptionType === "مدى الحياة")
+                          ? (language === "en" ? "Lifetime License (Unlimited)" : "ترخيص مدى الحياة (غير محدود)")
+                          : ((user as any)?.subscriptionType === "monthly" || (user as any)?.subscriptionType === "شهري")
+                            ? (language === "en" ? "Monthly Subscription" : "الاشتراك الشهري")
+                            : (language === "en" ? "Free Trial (14 Days)" : "الاشتراك التجريبي (14 يوماً)")}
                     </h3>
                     <p className="text-white/80 font-bold mb-4">
-                      {language === "en" ? "Allows you to manage up to 5 branches with advanced reports." : "يسمح لك بإدارة حتى 5 فروع مع تقارير متقدمة."}
+                      {language === "en" ? "Allows you to manage branches, inventory, and staff with real-time sync." : "يسمح لك بإدارة الفروع والمخزون والموظفين مع المزامنة السحابية اللحظية."}
                     </p>
 
                     <div className="flex gap-4">
@@ -668,15 +889,17 @@ export default function PharmacyManager() {
                           {language === "en" ? "Branches Used" : "الفروع المستخدمة"}
                         </div>
                         <div className="font-bold font-mono text-[18px]" dir="ltr">
-                            3 / 5
-                          </div>
+                          {branches.length} / {((user as any)?.subscriptionType === "lifetime" ? "∞" : (user as any)?.subscriptionType === "annual" ? 10 : (user as any)?.subscriptionType === "monthly" ? 3 : 2)}
+                        </div>
                       </div>
                       <div className="bg-white/20 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/20">
                         <div className="text-[12px] text-white/80">
-                          {language === "en" ? "Next Renewal Date" : "تاريخ التجديد القادم"}
+                          {language === "en" ? "Subscription Expiry" : "تاريخ انتهاء الاشتراك"}
                         </div>
                         <div className="font-bold font-mono text-[18px]">
-                          2027/05/10
+                          {(user as any)?.subscriptionExpiry
+                            ? new Date((user as any).subscriptionExpiry).toLocaleDateString(language === "en" ? "en-US" : "ar-EG")
+                            : (language === "en" ? "Active" : "ساري")}
                         </div>
                       </div>
                     </div>
@@ -689,9 +912,12 @@ export default function PharmacyManager() {
                     >
                       {language === "en" ? "Upgrade Plan (More Branches)" : "ترقية الباقة (فروع أكثر)"}
                     </a>
-                    <button className="bg-transparent border-2 border-white/30 text-white px-6 py-3 rounded-xl font-bold hover:bg-white/10 transition-colors">
-                      {language === "en" ? "Download Invoices" : "تحميل فواتير الاشتراك"}
-                    </button>
+                    <a
+                      href="/my-subscription"
+                      className="bg-transparent border-2 border-white/30 text-white text-center px-6 py-3 rounded-xl font-bold hover:bg-white/10 transition-colors"
+                    >
+                      {language === "en" ? "Subscription Details" : "تفاصيل الاشتراك"}
+                    </a>
                   </div>
                 </div>
               </div>
@@ -719,33 +945,41 @@ export default function PharmacyManager() {
             </tr>
           </thead>
           <tbody>
-            {staff.map((st: any, i: number) => (
-              <tr
-                key={st.id}
-                className="border-b border-mint-line/30 hover:bg-bg/30 transition-all"
-              >
-                <td className="py-4 px-5 font-bold text-[14px] text-primary">
-                  {st.name}
-                </td>
-                <td
-                  className="py-4 px-5 font-mono text-[14px] text-ink bg-mint-line/20 rounded-md w-fit inline-block my-2 mx-5 px-3 py-1 border border-mint-line"
-                  dir="ltr"
-                >
-                  ••••••••
-                </td>
-                <td className="py-4 px-5">
-                  <button
-                    onClick={async () => {
-                      setEditingStaff(st);
-                      setShowAddStaffModal(true);
-                    }}
-                    className="text-[13px] font-bold text-primary hover:underline hover:text-teal transition-colors"
-                  >
-                    تعديل البيانات
-                  </button>
+            {filteredStaff.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="py-8 text-center text-ink-soft text-[14px]">
+                  {language === "en" ? "No staff found" : "لا يوجد موظفون مطابقون للبحث"}
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredStaff.map((st: any, i: number) => (
+                <tr
+                  key={st.id}
+                  className="border-b border-mint-line/30 hover:bg-bg/30 transition-all"
+                >
+                  <td className="py-4 px-5 font-bold text-[14px] text-primary">
+                    {st.name}
+                  </td>
+                  <td
+                    className="py-4 px-5 font-mono text-[14px] text-ink bg-mint-line/20 rounded-md w-fit inline-block my-2 mx-5 px-3 py-1 border border-mint-line"
+                    dir="ltr"
+                  >
+                    ••••••••
+                  </td>
+                  <td className="py-4 px-5">
+                    <button
+                      onClick={async () => {
+                        setEditingStaff(st);
+                        setShowAddStaffModal(true);
+                      }}
+                      className="text-[13px] font-bold text-primary hover:underline hover:text-teal transition-colors"
+                    >
+                      {language === "en" ? "Edit Credentials" : "تعديل البيانات"}
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -756,7 +990,7 @@ export default function PharmacyManager() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-mint-line overflow-hidden">
             <div className="p-5 border-b border-mint-line flex justify-between items-center bg-bg">
               <h3 className="font-bold text-[18px] text-primary">
-                إضافة مصروف جديد
+                {language === "en" ? "Add New Expense" : "إضافة مصروف جديد"}
               </h3>
               <button
                 onClick={() => setShowExpenseModal(false)}
@@ -768,7 +1002,7 @@ export default function PharmacyManager() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-[14px] font-bold text-ink mb-2">
-                  نوع المصروف
+                  {language === "en" ? "Expense Type" : "نوع المصروف"}
                 </label>
                 <select
                   value={expenseData.type}
@@ -785,7 +1019,7 @@ export default function PharmacyManager() {
               </div>
               <div>
                 <label className="block text-[14px] font-bold text-ink mb-2">
-                  وصف المصروف
+                  {language === "en" ? "Expense Description" : "وصف المصروف"}
                 </label>
                 <input
                   type="text"
@@ -800,11 +1034,14 @@ export default function PharmacyManager() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[14px] font-bold text-ink mb-2">
-                    المبلغ (₪)
+                    {language === "en" ? "Amount (₪)" : "المبلغ (₪)"}
                   </label>
                   <input
                     type="number"
                     value={expenseData.amount}
+                    onFocus={(e) => {
+                      if (e.target.value === "0" || e.target.value === "0.00") e.target.select();
+                    }}
                     onChange={(e) =>
                       setExpenseData({ ...expenseData, amount: e.target.value })
                     }
@@ -815,7 +1052,7 @@ export default function PharmacyManager() {
                 </div>
                 <div>
                   <label className="block text-[14px] font-bold text-ink mb-2">
-                    التاريخ
+                    {language === "en" ? "Date" : "التاريخ"}
                   </label>
                   <input
                     type="date"
@@ -870,7 +1107,7 @@ export default function PharmacyManager() {
                 }}
                 className="px-6 py-2 rounded-xl font-bold text-white bg-primary hover:bg-teal transition-colors shadow-md shadow-primary/20"
               >
-                حفظ المصروف
+                {language === "en" ? "Save Expense" : "حفظ المصروف"}
               </button>
             </div>
           </div>
@@ -887,7 +1124,7 @@ export default function PharmacyManager() {
             <div className="space-y-4">
               <div>
                 <label className="block text-[14px] font-bold text-ink mb-2">
-                  اسم الموظف
+                  {language === "en" ? "Employee Name" : "اسم الموظف"}
                 </label>
                 <input
                   type="text"
@@ -901,10 +1138,10 @@ export default function PharmacyManager() {
               </div>
               <div>
                 <label className="block text-[14px] font-bold text-ink mb-2">
-                  المسمى الوظيفي
+                  {language === "en" ? "Job Title" : "المسمى الوظيفي"}
                 </label>
                 <select
-                  value={editingStaff?.role || language === "en" ? "Pharmacist / Cashier" : "صيدلي / كاشير"}
+                  value={editingStaff?.role || (language === "en" ? "Pharmacist / Cashier" : "صيدلي / كاشير")}
                   onChange={(e) =>
                     setEditingStaff({ ...editingStaff, role: e.target.value })
                   }
@@ -918,7 +1155,7 @@ export default function PharmacyManager() {
               </div>
               <div>
                 <label className="block text-[14px] font-bold text-ink mb-2">
-                  الفرع التابع له
+                  {language === "en" ? "Assigned Branch" : "الفرع التابع له"}
                 </label>
                 <select
                   value={editingStaff?.branch || ""}
@@ -938,11 +1175,14 @@ export default function PharmacyManager() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[14px] font-bold text-ink mb-2">
-                    الراتب الأساسي
+                    {language === "en" ? "Basic Salary" : "الراتب الأساسي"}
                   </label>
                   <input
                     type="text"
                     value={editingStaff?.salary || ""}
+                    onFocus={(e) => {
+                      if (e.target.value === "0") e.target.select();
+                    }}
                     onChange={(e) =>
                       setEditingStaff({
                         ...editingStaff,
@@ -955,12 +1195,20 @@ export default function PharmacyManager() {
                 </div>
                 <div>
                   <label className="block text-[14px] font-bold text-ink mb-2">
-                    رقم الجوال
+                    {language === "en" ? "Phone Number" : "رقم الجوال"}
                   </label>
                   <input
                     type="text"
+                    value={editingStaff?.phone || ""}
+                    onChange={(e) =>
+                      setEditingStaff({
+                        ...editingStaff,
+                        phone: e.target.value,
+                      })
+                    }
                     className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
                     placeholder="059xxxxxxx"
+                    dir="ltr"
                   />
                 </div>
               </div>
@@ -968,25 +1216,26 @@ export default function PharmacyManager() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[14px] font-bold text-ink mb-2">
-                    اسم المستخدم (للدخول)
+                    {language === "en" ? "Email / Username" : "البريد الإلكتروني للدخول"}
                   </label>
                   <input
                     type="text"
-                    value={editingStaff?.username || ""}
+                    value={editingStaff?.email || editingStaff?.username || ""}
                     onChange={(e) =>
                       setEditingStaff({
                         ...editingStaff,
+                        email: e.target.value,
                         username: e.target.value,
                       })
                     }
-                    className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-start"
-                    placeholder="user123"
+                    className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-start font-mono text-[14px]"
+                    placeholder="staff@example.com"
                     dir="ltr"
                   />
                 </div>
                 <div className="relative">
                   <label className="block text-[14px] font-bold text-ink mb-2">
-                    كلمة المرور
+                    {editingStaff?.id ? (language === "en" ? "New Password (Optional)" : "كلمة المرور (اتركه فارغاً للإبقاء)") : (language === "en" ? "Password" : "كلمة المرور")}
                   </label>
                   <div className="relative">
                     <input
@@ -998,7 +1247,7 @@ export default function PharmacyManager() {
                           password: e.target.value,
                         })
                       }
-                      className="w-full border border-mint-line rounded-xl p-3 pl-10 focus:outline-none focus:border-primary text-start"
+                      className="w-full border border-mint-line rounded-xl p-3 pl-10 focus:outline-none focus:border-primary text-start font-mono"
                       placeholder="••••••••"
                       dir="ltr"
                     />
@@ -1052,6 +1301,30 @@ export default function PharmacyManager() {
             <div className="mt-8 flex gap-3">
               <button
                 onClick={async () => {
+                  const staffName = (editingStaff?.name || "").trim();
+                  const staffEmail = (editingStaff?.email || editingStaff?.username || "").trim();
+
+                  if (!staffName) {
+                    toast.error(language === "en" ? "Please enter employee name" : "يرجى كتابة اسم الموظف");
+                    return;
+                  }
+
+                  if (!editingStaff?.id && (!staffEmail || !editingStaff?.password)) {
+                    toast.error(language === "en" ? "Email and password are required" : "البريد الإلكتروني وكلمة المرور مطلوبان لإنشاء حساب الموظف");
+                    return;
+                  }
+
+                  const staffPayload = {
+                    ...editingStaff,
+                    name: staffName,
+                    email: staffEmail,
+                    username: staffEmail,
+                    phone: (editingStaff?.phone || "").trim(),
+                    salary: editingStaff?.salary || 0,
+                    role: editingStaff?.role || (language === "en" ? "Pharmacist / Cashier" : "صيدلي / كاشير"),
+                    branch: editingStaff?.branch || branches[0]?.name || (language === "en" ? "Main Branch" : "الفرع الرئيسي"),
+                  };
+
                   if (editingStaff?.id) {
                     try {
                       const res = await fetch(
@@ -1059,7 +1332,7 @@ export default function PharmacyManager() {
                         {
                           method: "PUT",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ ...editingStaff }),
+                          body: JSON.stringify(staffPayload),
                         },
                       );
                       const data = await res.json();
@@ -1081,7 +1354,7 @@ export default function PharmacyManager() {
                         {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ ...editingStaff }),
+                          body: JSON.stringify(staffPayload),
                         },
                       );
                       const data = await res.json();
@@ -1136,12 +1409,12 @@ export default function PharmacyManager() {
               </svg>
             </div>
             <h3 className="text-[20px] font-bold text-ink mb-2">
-              تأكيد فصل الموظف
+              {language === "en" ? "Confirm Staff Termination" : "تأكيد فصل الموظف"}
             </h3>
             <p className="text-[15px] text-ink-soft mb-8">
-              هل أنت متأكد من رغبتك في فصل الموظف{" "}
+              {language === "en" ? "Are you sure you want to permanently terminate employee " : "هل أنت متأكد من رغبتك في فصل الموظف "}
               <span className="font-bold text-ink">{staffToFire.name}</span>{" "}
-              نهائياً من النظام؟
+              {language === "en" ? "from the system?" : "نهائياً من النظام؟"}
             </p>
 
             <div className="flex gap-3">
@@ -1166,13 +1439,13 @@ export default function PharmacyManager() {
                 }}
                 className="flex-1 py-3 bg-coral text-white font-bold rounded-xl hover:bg-coral/90 transition-all shadow-[0_4px_12px_rgba(235,93,80,0.3)]"
               >
-                نعم، تأكيد الفصل
+                {language === "en" ? "Yes, Confirm Termination" : "نعم، تأكيد الفصل"}
               </button>
               <button
                 onClick={() => setStaffToFire(null)}
                 className="flex-1 py-3 bg-bg text-ink-soft font-bold rounded-xl hover:bg-mint-line transition-all"
               >
-                تراجع
+                {language === "en" ? "Cancel" : "تراجع"}
               </button>
             </div>
           </div>
@@ -1197,28 +1470,34 @@ export default function PharmacyManager() {
                   d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
                 />
               </svg>
-              تعديل الملف الشخصي للإدارة
+              {language === "en" ? "Edit Admin Profile" : "تعديل الملف الشخصي للإدارة"}
             </h3>
 
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[14px] font-bold text-ink mb-2">
-                    الاسم بالكامل
+                    {language === "en" ? "Full Name" : "الاسم بالكامل"}
                   </label>
                   <input
                     type="text"
-                    defaultValue="د. سامر سلمان"
+                    value={adminForm.name}
+                    onChange={(e) =>
+                      setAdminForm({ ...adminForm, name: e.target.value })
+                    }
                     className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-start font-bold"
                   />
                 </div>
                 <div>
                   <label className="block text-[14px] font-bold text-ink mb-2">
-                    رقم الجوال
+                    {language === "en" ? "Phone Number" : "رقم الجوال"}
                   </label>
                   <input
                     type="text"
-                    defaultValue="0591234567"
+                    value={adminForm.phone}
+                    onChange={(e) =>
+                      setAdminForm({ ...adminForm, phone: e.target.value })
+                    }
                     className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-start"
                     dir="ltr"
                   />
@@ -1227,14 +1506,21 @@ export default function PharmacyManager() {
 
               <div>
                 <label className="block text-[14px] font-bold text-ink mb-2">
-                  البريد الإلكتروني (اسم المستخدم)
+                  {language === "en" ? "Email (Username)" : "البريد الإلكتروني (اسم المستخدم)"}
                 </label>
                 <input
                   type="email"
-                  defaultValue="admin@roshetta.com"
-                  className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-start"
+                  value={adminForm.email}
+                  disabled
+                  readOnly
+                  className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-start bg-bg/50 text-ink-soft cursor-not-allowed"
                   dir="ltr"
                 />
+                <span className="text-xs text-ink-soft mt-1 block">
+                  {language === "en"
+                    ? "To change system login email, please contact platform support."
+                    : "لتعديل البريد الإلكتروني لتسجيل الدخول، يرجى مراجعة الدعم الفني أو السوبر أدمن."}
+                </span>
               </div>
 
               <div className="pt-6 border-t border-mint-line/50 mt-6 relative">
@@ -1254,59 +1540,6 @@ export default function PharmacyManager() {
                   </svg>
                   {language === "en" ? "Change Password" : "تغيير كلمة المرور"}
                 </h4>
-                <div className="relative mb-4">
-                  <label className="block text-[14px] font-bold text-ink mb-2">
-                    {language === "en" ? "Current Password" : "كلمة المرور الحالية"}
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showAdminPasswords ? "text" : "password"}
-                      className="w-full border border-mint-line rounded-xl p-3 pl-10 focus:outline-none focus:border-primary text-start"
-                      placeholder="••••••••"
-                      dir="ltr"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowAdminPasswords(!showAdminPasswords)}
-                      className="absolute left-3 top-3.5 text-ink-soft hover:text-primary transition-colors z-10"
-                    >
-                      {showAdminPasswords ? (
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                          />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="relative">
                     <label className="block text-[14px] font-bold text-ink mb-2">
@@ -1315,6 +1548,10 @@ export default function PharmacyManager() {
                     <div className="relative">
                       <input
                         type={showAdminPasswords ? "text" : "password"}
+                        value={adminForm.newPassword}
+                        onChange={(e) =>
+                          setAdminForm({ ...adminForm, newPassword: e.target.value })
+                        }
                         className="w-full border border-mint-line rounded-xl p-3 pl-10 focus:outline-none focus:border-primary text-start"
                         placeholder="••••••••"
                         dir="ltr"
@@ -1370,6 +1607,10 @@ export default function PharmacyManager() {
                     <div className="relative">
                       <input
                         type={showAdminPasswords ? "text" : "password"}
+                        value={adminForm.confirmNewPassword}
+                        onChange={(e) =>
+                          setAdminForm({ ...adminForm, confirmNewPassword: e.target.value })
+                        }
                         className="w-full border border-mint-line rounded-xl p-3 pl-10 focus:outline-none focus:border-primary text-start"
                         placeholder="••••••••"
                         dir="ltr"
@@ -1425,18 +1666,97 @@ export default function PharmacyManager() {
             <div className="mt-8 flex gap-3">
               <button
                 onClick={async () => {
-                  toast.success(language === "en" ? "Profile changes saved successfully!" : "تم حفظ تعديلات الملف الشخصي بنجاح!");
-                  setShowChangePasswordModal(false);
+                  try {
+                    // Password update check
+                    if (adminForm.newPassword) {
+                      if (adminForm.newPassword.length < 6) {
+                        toast.error(
+                          language === "en"
+                            ? "Password must be at least 6 characters"
+                            : "كلمة المرور يجب أن لا تقل عن 6 أحرف"
+                        );
+                        return;
+                      }
+                      if (adminForm.newPassword !== adminForm.confirmNewPassword) {
+                        toast.error(
+                          language === "en"
+                            ? "Passwords do not match"
+                            : "كلمات المرور غير متطابقة"
+                        );
+                        return;
+                      }
+                      const res = await fetch(
+                        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/reset-password`,
+                        {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ newPassword: adminForm.newPassword }),
+                        }
+                      );
+                      const data = await res.json();
+                      if (!data.success) {
+                        toast.error(
+                          data.error ||
+                            (language === "en"
+                              ? "Failed to update password"
+                              : "فشل تغيير كلمة المرور")
+                        );
+                        return;
+                      }
+                    }
+
+                    // Name / Phone update check
+                    if (adminForm.name || adminForm.phone) {
+                      await fetch(
+                        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/settings`,
+                        {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            name: adminForm.name,
+                            phone: adminForm.phone,
+                          }),
+                        }
+                      );
+                      login({
+                        ...user,
+                        name: adminForm.name,
+                        managerName: adminForm.name,
+                        phone: adminForm.phone,
+                      });
+                    }
+
+                    toast.success(
+                      language === "en"
+                        ? "Profile changes saved successfully!"
+                        : "تم حفظ تعديلات الملف الشخصي بنجاح!"
+                    );
+                    setAdminForm((prev) => ({
+                      ...prev,
+                      newPassword: "",
+                      confirmNewPassword: "",
+                    }));
+                    setShowChangePasswordModal(false);
+                  } catch (e: any) {
+                    toast.error(e.message || "Error");
+                  }
                 }}
                 className="flex-1 py-3 bg-primary text-white font-bold rounded-xl hover:bg-teal transition-all shadow-md shadow-primary/20"
               >
-                حفظ التعديلات
+                {language === "en" ? "Save Changes" : "حفظ التعديلات"}
               </button>
               <button
-                onClick={() => setShowChangePasswordModal(false)}
+                onClick={() => {
+                  setAdminForm((prev) => ({
+                    ...prev,
+                    newPassword: "",
+                    confirmNewPassword: "",
+                  }));
+                  setShowChangePasswordModal(false);
+                }}
                 className="flex-1 py-3 bg-bg text-ink-soft font-bold rounded-xl hover:bg-mint-line transition-all"
               >
-                إلغاء
+                {language === "en" ? "Cancel" : "إلغاء"}
               </button>
             </div>
           </div>
@@ -1491,8 +1811,8 @@ export default function PharmacyManager() {
                   }
                   className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary bg-white"
                 >
+                  <option value="active">{language === "en" ? "Active" : "يعمل (نشط)"}</option>
                   <option value="preparing">{language === "en" ? "Preparing" : "قيد التجهيز"}</option>
-                  <option value="active">{language === "en" ? "Active" : "يعمل"}</option>
                 </select>
               </div>
             </div>
@@ -1514,6 +1834,7 @@ export default function PharmacyManager() {
                         body: JSON.stringify({
                           name: newBranch.name,
                           addr: newBranch.manager || "",
+                          status: newBranch.status === "active" ? "نشط" : "قيد التجهيز",
                         }),
                       },
                     );
@@ -1523,7 +1844,7 @@ export default function PharmacyManager() {
                       setNewBranch({
                         name: "",
                         manager: "",
-                        status: "preparing",
+                        status: "active",
                       });
                       setShowAddBranchModal(false);
                       toast.success(language === "en" ? "Done!" : "تم!");
@@ -1537,10 +1858,181 @@ export default function PharmacyManager() {
                 {language === "en" ? "Save & Add" : "حفظ وإضافة"}
               </button>
               <button
-                onClick={() => setShowAddBranchModal(false)}
+                onClick={() => {
+                  setNewBranch({
+                    name: "",
+                    manager: "",
+                    status: "active",
+                  });
+                  setShowAddBranchModal(false);
+                }}
                 className="flex-1 py-3 bg-bg text-ink-soft font-bold rounded-xl hover:bg-mint-line transition-all"
               >
-                إلغاء
+                {language === "en" ? "Cancel" : "إلغاء"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Branch Modal */}
+      {editingBranch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-mint-line relative animate-scale-up">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-[20px] font-bold text-primary">
+                {language === "en" ? "Edit Branch" : "تعديل بيانات الفرع"}
+              </h3>
+              <button
+                onClick={() => setEditingBranch(null)}
+                className="text-ink-soft hover:text-ink w-8 h-8 rounded-full bg-bg flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[14px] font-bold text-ink mb-1">
+                  {language === "en" ? "Branch Name" : "اسم الفرع"}
+                </label>
+                <input
+                  type="text"
+                  value={editingBranch.name}
+                  onChange={(e) =>
+                    setEditingBranch({ ...editingBranch, name: e.target.value })
+                  }
+                  className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
+                  placeholder={language === "en" ? "e.g. Al-Rimal Branch" : "مثال: فرع الرمال"}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[14px] font-bold text-ink mb-1">
+                  {language === "en" ? "Manager in Charge / Address" : "المدير المسؤول / العنوان"}
+                </label>
+                <input
+                  type="text"
+                  value={editingBranch.manager}
+                  onChange={(e) =>
+                    setEditingBranch({ ...editingBranch, manager: e.target.value })
+                  }
+                  className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
+                  placeholder={language === "en" ? "Manager name or location" : "اسم المدير أو الموقع"}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[14px] font-bold text-ink mb-1">
+                  {language === "en" ? "Status" : "حالة الفرع"}
+                </label>
+                <select
+                  value={editingBranch.status}
+                  onChange={(e) =>
+                    setEditingBranch({ ...editingBranch, status: e.target.value })
+                  }
+                  className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary bg-white"
+                >
+                  <option value="active">{language === "en" ? "Active" : "يعمل (نشط)"}</option>
+                  <option value="preparing">{language === "en" ? "Preparing" : "قيد التجهيز"}</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-8 flex gap-3">
+              <button
+                onClick={async () => {
+                  if (!editingBranch.name.trim()) {
+                    toast.error(language === "en" ? "Branch name is required" : "يرجى كتابة اسم الفرع");
+                    return;
+                  }
+                  try {
+                    const res = await fetch(
+                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/branches/${editingBranch.id}`,
+                      {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          name: editingBranch.name,
+                          addr: editingBranch.manager || "",
+                          status: editingBranch.status === "active" ? "نشط" : "قيد التجهيز",
+                        }),
+                      }
+                    );
+                    const data = await res.json();
+                    if (data.success) {
+                      mutateBranches();
+                      setEditingBranch(null);
+                      toast.success(language === "en" ? "Branch updated successfully!" : "تم تعديل بيانات الفرع بنجاح!");
+                    } else {
+                      toast.error(data.error || "Failed");
+                    }
+                  } catch {
+                    toast.error("Error");
+                  }
+                }}
+                className="flex-1 py-3 bg-primary text-white font-bold rounded-xl hover:bg-teal transition-all shadow-md shadow-primary/20"
+              >
+                {language === "en" ? "Save Changes" : "حفظ التعديلات"}
+              </button>
+              <button
+                onClick={() => setEditingBranch(null)}
+                className="flex-1 py-3 bg-bg text-ink-soft font-bold rounded-xl hover:bg-mint-line transition-all"
+              >
+                {language === "en" ? "Cancel" : "إلغاء"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Branch Confirmation Modal */}
+      {branchToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-mint-line relative animate-scale-up text-center">
+            <div className="w-16 h-16 bg-coral-pale text-coral rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+              ⚠️
+            </div>
+            <h3 className="text-[20px] font-bold text-ink mb-2">
+              {language === "en" ? "Delete Branch" : "حذف الفرع"}
+            </h3>
+            <p className="text-[14px] text-ink-soft mb-6">
+              {language === "en"
+                ? `Are you sure you want to delete branch "${branchToDelete.name}"?`
+                : `هل أنت متأكد من رغبتك في حذف فرع "${branchToDelete.name}"؟`}
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch(
+                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/branches/${branchToDelete.id}`,
+                      {
+                        method: "DELETE",
+                      }
+                    );
+                    const data = await res.json();
+                    if (data.success) {
+                      mutateBranches();
+                      setBranchToDelete(null);
+                      toast.success(language === "en" ? "Branch deleted successfully" : "تم حذف الفرع بنجاح");
+                    } else {
+                      toast.error(data.error || "Failed");
+                    }
+                  } catch {
+                    toast.error("Error");
+                  }
+                }}
+                className="flex-1 py-3 bg-coral text-white font-bold rounded-xl hover:bg-red-600 transition-all shadow-md shadow-coral/20"
+              >
+                {language === "en" ? "Yes, Delete" : "نعم، حذف"}
+              </button>
+              <button
+                onClick={() => setBranchToDelete(null)}
+                className="flex-1 py-3 bg-bg text-ink-soft font-bold rounded-xl hover:bg-mint-line transition-all"
+              >
+                {language === "en" ? "Cancel" : "إلغاء"}
               </button>
             </div>
           </div>

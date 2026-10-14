@@ -27,7 +27,6 @@ export default function Sidebar() {
   const user = useStore((state) => state.user);
   const logout = useStore((state) => state.logout);
   const language = useStore((state: any) => state.language);
-  const setLanguage = useStore((state: any) => state.setLanguage);
   
   const { t } = useTranslation();
 
