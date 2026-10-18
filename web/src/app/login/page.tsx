@@ -324,7 +324,7 @@ export default function Login() {
             </button>
           </div>
 
-          <form onSubmit={handleLogin}>
+          <form onSubmit={handleLogin} action="#" method="POST">
             <div className="field">
               <label>{language === "en" ? "Email" : "البريد الإلكتروني"}</label>
               <div className="input-wrap">
