@@ -20,7 +20,7 @@ import {
   Legend,
 } from "recharts";
 
-import { exportToExcel, exportComprehensivePDF } from "@/utils/export";
+import { exportToExcel, exportCorporateExcel, exportComprehensivePDF } from "@/utils/export";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -163,23 +163,17 @@ export default function Reports() {
           </div>
           <div className="flex gap-2 print:hidden">
             <button
-              onClick={() =>
-                {
-                  const now = new Date();
-                  const fileName = `Sales_Report_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
-                  exportToExcel(
-                    [
-                      {
-                        totalRevenue: report.totalRevenue,
-                        totalProfit: report.totalProfit,
-                        totalExpenses: report.totalExpenses,
-                        netProfit: report.netProfit,
-                      },
-                    ],
-                    fileName,
-                  )
-                }
-              }
+              onClick={() => {
+                const now = new Date();
+                const fileName = `Financial_Ledger_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+                exportCorporateExcel(
+                  report,
+                  user?.pharmacyName || (user as any)?.pharmacy_name || (language === "en" ? "Roshetta Pharmacy" : "صيدلية روشيتة"),
+                  `${from} ${language === "en" ? "to" : "إلى"} ${to}`,
+                  fileName,
+                  activeBranchId === "all" ? (language === "en" ? "All Branches" : "جميع الفروع") : (activeBranchId || "الفرع الرئيسي"),
+                );
+              }}
               className="bg-teal text-white px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-md"
             >
               Excel
