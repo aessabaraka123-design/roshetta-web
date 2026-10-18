@@ -198,15 +198,22 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(
-        (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
-          "/api/auth/login",
-        {
+      let res;
+      const primaryUrl = (process.env.NEXT_PUBLIC_API_URL || "https://aessaaessa.alwaysdata.net").replace(/\/$/, "");
+      try {
+        res = await fetch(`${primaryUrl}/api/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
-        },
-      );
+        });
+      } catch {
+        // Fallback: If direct cross-origin request was blocked by browser CORP/CORS, route through same-origin proxy
+        res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+      }
       const data = await res.json();
       if (data.success) {
         if (rememberMe) {
