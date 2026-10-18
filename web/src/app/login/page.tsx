@@ -205,7 +205,8 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const primaryUrl = `${API_BASE_URL}/api/auth/login`;
+      const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+      const primaryUrl = isLocal && API_BASE_URL ? `${API_BASE_URL}/api/auth/login` : "/api/auth/login";
       let res: Response;
       try {
         res = await fetch(primaryUrl, {
@@ -214,7 +215,7 @@ export default function Login() {
           body: JSON.stringify({ email: cleanEmail, password }),
         });
       } catch (proxyError) {
-        console.warn("Primary login URL failed, trying direct backend:", proxyError);
+        console.warn("Same-origin login failed, trying direct backend:", proxyError);
         res = await fetch("https://aessaaessa.alwaysdata.net/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
