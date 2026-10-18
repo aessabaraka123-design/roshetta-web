@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useEffect, useMemo } from "react";
 import AppBar from "@/components/AppBar";
 import toast from "react-hot-toast";
@@ -27,7 +28,7 @@ export default function BranchManager() {
     "shift" | "stock" | "approvals" | "drugs"
   >("shift");
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+  const API_BASE = API_BASE_URL;
 
   // ─── Shift Management State ───────────────────────────────────────────────
   const [cashInDrawer, setCashInDrawer] = useState("");

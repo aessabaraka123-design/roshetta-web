@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useEffect, useMemo } from "react";
 import AppBar from "@/components/AppBar";
 import { useStore } from "@/store";
@@ -86,7 +87,7 @@ export default function Reports() {
       if (!user?.pharmacy_id) return;
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/dashboard`,
+          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`,
         );
         const data = await res.json();
         if (data.success && data.branches?.length > 0) {
@@ -111,7 +112,7 @@ export default function Reports() {
   const shouldFetch = user && activeBranchId !== "PENDING";
   const { data, isLoading } = useSWR(
     shouldFetch
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/reports?from=${from}&to=${to}&branch=${activeBranchId}`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/reports?from=${from}&to=${to}&branch=${activeBranchId}`
       : null,
     fetcher,
   );

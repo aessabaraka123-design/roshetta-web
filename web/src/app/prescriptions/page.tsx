@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useRef } from "react";
 import AppBar from "@/components/AppBar";
 import SearchBar from "@/components/SearchBar";
@@ -33,7 +34,7 @@ export default function Prescriptions() {
 
   const { data, mutate } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/prescriptions`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/prescriptions`
       : null,
     fetcher,
   );
@@ -41,7 +42,7 @@ export default function Prescriptions() {
 
   const { data: inventoryData } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/inventory`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/inventory`
       : null,
     fetcher,
   );
@@ -52,7 +53,7 @@ export default function Prescriptions() {
     setIsLoading(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/prescriptions/${id}/dispense`,
+        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/prescriptions/${id}/dispense`,
         {
           method: "PUT",
         },
@@ -100,7 +101,7 @@ export default function Prescriptions() {
     setIsLoading(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/prescriptions`,
+        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/prescriptions`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

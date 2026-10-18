@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useRef, useEffect } from "react";
 import { LogoMark, BellIcon } from "./icons";
 import Link from "next/link";
@@ -45,7 +46,7 @@ export default function AppBar({
 
   const { data: notifsData, mutate: mutateNotifs } = useSWR(
     user && showNotifs
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/notifications`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/notifications`
       : null,
     fetcher,
     { refreshInterval: 30000 },
@@ -62,7 +63,7 @@ export default function AppBar({
     if (!user) return;
     try {
       await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/notifications/mark-read`,
+        `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/notifications/mark-read`,
         { method: "PUT" }
       );
     } catch (e) {}

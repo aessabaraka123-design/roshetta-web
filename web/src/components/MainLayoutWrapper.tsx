@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/store";
@@ -18,7 +19,7 @@ export default function MainLayoutWrapper({
   const fetcher = (url: string) => fetch(url).then((res) => res.json());
   const { data: subStatusData } = useSWR(
     user?.isReadOnly && user?.pharmacy_id
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/subscription-status`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/subscription-status`
       : null,
     fetcher,
     { refreshInterval: 10000 }

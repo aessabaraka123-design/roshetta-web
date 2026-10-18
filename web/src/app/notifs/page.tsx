@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import AppBar from "@/components/AppBar";
 import { useStore } from "@/store";
 import useSWR from "swr";
@@ -24,7 +25,7 @@ export default function Notifications() {
 
   const { data: notifsData, mutate } = useSWR(
     user && isClient
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/notifications`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/notifications`
       : null,
     fetcher,
     { refreshInterval: 30000 }
@@ -46,7 +47,7 @@ export default function Notifications() {
     if (!user) return;
     try {
       await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/notifications/mark-read`,
+        `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/notifications/mark-read`,
         { method: "PUT" }
       );
     } catch (e) {}

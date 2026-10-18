@@ -1,4 +1,5 @@
 "use client";
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useEffect, useRef } from "react";
 import AppBar from "@/components/AppBar";
 import useSWR from "swr";
@@ -8,7 +9,7 @@ import toast from "react-hot-toast";
 import { formatQty } from "@/utils/formatQty";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API = API_BASE_URL;
 
 export default function PurchasesPage() {
   const user = useStore((s: any) => s.user);

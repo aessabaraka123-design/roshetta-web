@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import AppBar from "@/components/AppBar";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
@@ -26,7 +27,7 @@ export default function PrintSettings() {
 
   const { data: pharmacyData, mutate } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user.pharmacy_id}`
+      ? `${API_BASE_URL}/api/admin/pharmacies/${user.pharmacy_id}`
       : null,
     fetcher,
   );
@@ -64,7 +65,7 @@ export default function PrintSettings() {
     setLoading(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/settings`,
+        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/settings`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

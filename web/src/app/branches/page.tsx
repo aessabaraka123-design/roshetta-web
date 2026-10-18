@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState } from "react";
 import AppBar from "@/components/AppBar";
 import toast from "react-hot-toast";
@@ -48,7 +49,7 @@ export default function BranchesAndStaff() {
 
   const { data: branchesData, mutate: mutateBranches } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user.pharmacy_id}/branches`
+      ? `${API_BASE_URL}/api/admin/pharmacies/${user.pharmacy_id}/branches`
       : null,
     fetcher,
   );
@@ -56,7 +57,7 @@ export default function BranchesAndStaff() {
 
   const { data: staffData, mutate: mutateStaff } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user.pharmacy_id}/staff`
+      ? `${API_BASE_URL}/api/admin/pharmacies/${user.pharmacy_id}/staff`
       : null,
     fetcher,
   );
@@ -87,7 +88,7 @@ export default function BranchesAndStaff() {
     setIsLoading(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/branches`,
+        `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/branches`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -119,8 +120,8 @@ export default function BranchesAndStaff() {
     setIsLoading(true);
     try {
       const url = editingStaffId
-        ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${editingStaffId}`
-        : `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff`;
+        ? `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${editingStaffId}`
+        : `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff`;
       const res = await fetch(url, {
         method: editingStaffId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -172,7 +173,7 @@ export default function BranchesAndStaff() {
   const executeDeleteStaff = async (id: string) => {
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${id}`,
+        `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${id}`,
         { method: "DELETE" },
       );
       if (res.ok) {

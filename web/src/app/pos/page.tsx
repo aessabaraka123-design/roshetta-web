@@ -2,6 +2,7 @@
 
 
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useEffect } from "react";
 import AppBar from "@/components/AppBar";
 import SearchBar from "@/components/SearchBar";
@@ -48,7 +49,7 @@ function POSContent() {
 
   const { data, mutate } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/inventory`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/inventory`
       : null,
     fetcher,
   );
@@ -56,7 +57,7 @@ function POSContent() {
 
   const { data: pharmacyData } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user.pharmacy_id}`
+      ? `${API_BASE_URL}/api/admin/pharmacies/${user.pharmacy_id}`
       : null,
     fetcher,
   );
@@ -73,7 +74,7 @@ function POSContent() {
 
   const { data: customersData } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/customers`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/customers`
       : null,
     fetcher,
   );
@@ -82,7 +83,7 @@ function POSContent() {
 
   const { data: branchesData } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user.pharmacy_id}/branches`
+      ? `${API_BASE_URL}/api/admin/pharmacies/${user.pharmacy_id}/branches`
       : null,
     fetcher,
   );
@@ -113,7 +114,7 @@ function POSContent() {
 
   const { data: prescriptionsData } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/prescriptions`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/prescriptions`
       : null,
     fetcher,
   );
@@ -378,7 +379,7 @@ function POSContent() {
       }));
 
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/sales`,
+        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/sales`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

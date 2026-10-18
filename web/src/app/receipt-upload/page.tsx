@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
@@ -47,7 +48,7 @@ export default function ReceiptUpload() {
 
     if (user?.pharmacy_id) {
       fetch(
-        (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
+        API_BASE_URL +
           `/api/pharmacies/${user.pharmacy_id}/subscription-status`,
       )
         .then((r) => r.json())
@@ -63,7 +64,7 @@ export default function ReceiptUpload() {
     }
 
     fetch(
-      (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
+      API_BASE_URL +
         "/api/admin/settings",
     )
       .then((r) => r.json())
@@ -72,7 +73,7 @@ export default function ReceiptUpload() {
       });
 
     fetch(
-      (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
+      API_BASE_URL +
         "/api/subscription-plans",
     )
       .then((r) => r.json())
@@ -114,7 +115,7 @@ export default function ReceiptUpload() {
     setIsLoading(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user!.pharmacy_id}/subscription-request`,
+        `${API_BASE_URL}/api/pharmacies/${user!.pharmacy_id}/subscription-request`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

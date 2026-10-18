@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
@@ -85,7 +86,7 @@ export default function Pricing() {
   const router = useRouter();
   const fetcher = (url: string) => fetch(url).then((r) => r.json());
   const { data: plansData, isLoading } = useSWR(
-    (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
+    API_BASE_URL +
       "/api/subscription-plans",
     fetcher,
   );

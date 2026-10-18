@@ -2,6 +2,7 @@
 
 
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -118,7 +119,7 @@ function RegisterPageContent() {
 
   useEffect(() => {
     fetch(
-      (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
+      API_BASE_URL +
         "/api/admin/settings",
     )
       .then((res) => res.json())
@@ -130,7 +131,7 @@ function RegisterPageContent() {
       .catch((err) => console.error("Error fetching settings", err));
 
     fetch(
-      (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
+      API_BASE_URL +
         "/api/subscription-plans",
     )
       .then((res) => res.json())
@@ -212,7 +213,7 @@ function RegisterPageContent() {
       setIsLoading(true);
       try {
         const res = await fetch(
-          (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
+          API_BASE_URL +
             "/api/auth/check-email",
           {
             method: "POST",
@@ -244,7 +245,7 @@ function RegisterPageContent() {
       // If already logged in & read-only → just update the existing subscription request
       if (storeUser?.isReadOnly && storeUser?.pharmacy_id) {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${storeUser.pharmacy_id}/subscription-request`,
+          `${API_BASE_URL}/api/pharmacies/${storeUser.pharmacy_id}/subscription-request`,
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -271,7 +272,7 @@ function RegisterPageContent() {
 
       // Normal registration flow
       const res = await fetch(
-        (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
+        API_BASE_URL +
           "/api/auth/register",
         {
           method: "POST",

@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState } from "react";
 import AppBar from "@/components/AppBar";
 import SearchBar from "@/components/SearchBar";
@@ -35,7 +36,7 @@ export default function SalesLog() {
       if (!user?.pharmacy_id) return;
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/dashboard`,
+          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`,
         );
         const data = await res.json();
         if (data.success && data.branches?.length > 0) {
@@ -60,7 +61,7 @@ export default function SalesLog() {
 
   const { data, mutate } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/sales?branchName=${queryBranch}`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales?branchName=${queryBranch}`
       : null,
     fetcher,
   );
@@ -71,7 +72,7 @@ export default function SalesLog() {
     setRefunding(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/sales/${id}/refund`,
+        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/sales/${id}/refund`,
         {
           method: "PUT",
         },

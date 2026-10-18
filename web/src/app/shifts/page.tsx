@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useEffect, useMemo } from "react";
 import AppBar from "@/components/AppBar";
 import useSWR from "swr";
@@ -27,7 +28,7 @@ export default function ShiftsPage() {
     }
   }, [user, router]);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+  const API_BASE = API_BASE_URL;
 
   // Modals state
   const [showOpenModal, setShowOpenModal] = useState(false);

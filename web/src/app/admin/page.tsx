@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import AppBar from "@/components/AppBar";
@@ -90,7 +91,7 @@ export default function PharmacyManager() {
 
   const { data: bData, mutate: mutateBranches } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/branches`
+      ? `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/branches`
       : null,
     fetcher,
   );
@@ -98,7 +99,7 @@ export default function PharmacyManager() {
 
   const { data: sData, mutate: mutateStaff } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff`
+      ? `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff`
       : null,
     fetcher,
   );
@@ -128,7 +129,7 @@ export default function PharmacyManager() {
 
   const { data: dashboardData } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/dashboard`
+      ? `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/dashboard`
       : null,
     fetcher,
   );
@@ -137,7 +138,7 @@ export default function PharmacyManager() {
   const todayStr = new Date().toISOString().split("T")[0];
   const { data: reportResp } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/reports?from=${todayStr}&to=${todayStr}`
+      ? `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/reports?from=${todayStr}&to=${todayStr}`
       : null,
     fetcher,
   );
@@ -501,7 +502,7 @@ export default function PharmacyManager() {
                                 try {
                                   const newStatus = isActive ? "قيد التجهيز" : "نشط";
                                   const res = await fetch(
-                                    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/branches/${br.id}`,
+                                    `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/branches/${br.id}`,
                                     {
                                       method: "PUT",
                                       headers: { "Content-Type": "application/json" },
@@ -631,7 +632,7 @@ export default function PharmacyManager() {
                                 try {
                                   const newStatus = isActive ? "suspended" : "active";
                                   const res = await fetch(
-                                    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${st.id}`,
+                                    `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${st.id}`,
                                     {
                                       method: "PUT",
                                       headers: {
@@ -1080,7 +1081,7 @@ export default function PharmacyManager() {
                   }
                   try {
                     const res = await fetch(
-                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/expenses`,
+                      `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/expenses`,
                       {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -1328,7 +1329,7 @@ export default function PharmacyManager() {
                   if (editingStaff?.id) {
                     try {
                       const res = await fetch(
-                        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${editingStaff.id}`,
+                        `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${editingStaff.id}`,
                         {
                           method: "PUT",
                           headers: { "Content-Type": "application/json" },
@@ -1350,7 +1351,7 @@ export default function PharmacyManager() {
                   } else {
                     try {
                       const res = await fetch(
-                        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff`,
+                        `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff`,
                         {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
@@ -1422,7 +1423,7 @@ export default function PharmacyManager() {
                 onClick={async () => {
                   try {
                     const res = await fetch(
-                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${staffToFire.id}`,
+                      `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${staffToFire.id}`,
                       {
                         method: "DELETE",
                       },
@@ -1686,7 +1687,7 @@ export default function PharmacyManager() {
                         return;
                       }
                       const res = await fetch(
-                        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/reset-password`,
+                        `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/reset-password`,
                         {
                           method: "PUT",
                           headers: { "Content-Type": "application/json" },
@@ -1708,7 +1709,7 @@ export default function PharmacyManager() {
                     // Name / Phone update check
                     if (adminForm.name || adminForm.phone) {
                       await fetch(
-                        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/settings`,
+                        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/settings`,
                         {
                           method: "PUT",
                           headers: { "Content-Type": "application/json" },
@@ -1827,7 +1828,7 @@ export default function PharmacyManager() {
 
                   try {
                     const res = await fetch(
-                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/branches`,
+                      `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/branches`,
                       {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -1948,7 +1949,7 @@ export default function PharmacyManager() {
                   }
                   try {
                     const res = await fetch(
-                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/branches/${editingBranch.id}`,
+                      `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/branches/${editingBranch.id}`,
                       {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
@@ -2007,7 +2008,7 @@ export default function PharmacyManager() {
                 onClick={async () => {
                   try {
                     const res = await fetch(
-                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/admin/pharmacies/${user?.pharmacy_id}/branches/${branchToDelete.id}`,
+                      `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/branches/${branchToDelete.id}`,
                       {
                         method: "DELETE",
                       }

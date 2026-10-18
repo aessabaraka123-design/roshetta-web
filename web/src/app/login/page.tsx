@@ -6,6 +6,7 @@ import RoshettaLogo from "@/components/RoshettaLogo";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useStore } from "@/store";
+import { API_BASE_URL } from "@/lib/config";
 
 export default function Login() {
   const router = useRouter();
@@ -196,44 +197,73 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanEmail = (email || "").trim().toLowerCase();
+    if (!cleanEmail || !password) {
+      toast.error(language === "en" ? "Please fill in all fields" : "يرجى تعبئة جميع الحقول");
+      return;
+    }
     setLoading(true);
+
     try {
-      let res;
-      const primaryUrl = (process.env.NEXT_PUBLIC_API_URL || "https://aessaaessa.alwaysdata.net").replace(/\/$/, "");
+      const primaryUrl = `${API_BASE_URL}/api/auth/login`;
+      let res: Response;
       try {
-        res = await fetch(`${primaryUrl}/api/auth/login`, {
+        res = await fetch(primaryUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email: cleanEmail, password }),
         });
-      } catch {
-        // Fallback: If direct cross-origin request was blocked by browser CORP/CORS, route through same-origin proxy
-        res = await fetch("/api/auth/login", {
+      } catch (proxyError) {
+        console.warn("Primary login URL failed, trying direct backend:", proxyError);
+        res = await fetch("https://aessaaessa.alwaysdata.net/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email: cleanEmail, password }),
         });
       }
-      const data = await res.json();
-      if (data.success) {
+
+      let data: any = null;
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch (parseError) {
+        console.error("Non-JSON response from server:", res.status, parseError);
+        toast.error(
+          language === "en"
+            ? `Server error (${res.status}). Please try again.`
+            : `خطأ من الخادم (${res.status}). يرجى المحاولة لاحقاً.`
+        );
+        return;
+      }
+
+      if (data && data.success) {
         if (rememberMe) {
-          localStorage.setItem("roshetta_remembered_email", email);
+          localStorage.setItem("roshetta_remembered_email", cleanEmail);
         } else {
           localStorage.removeItem("roshetta_remembered_email");
         }
 
         loginFn(data.user, data.token);
-        toast.success(language === "en" ? `Welcome, ${data.user.managerName || "Pharmacy Manager"}` : `أهلاً بك، ${data.user.managerName || "مدير الصيدلية"}`);
+        toast.success(
+          language === "en"
+            ? `Welcome, ${data.user.managerName || "Pharmacy Manager"}`
+            : `أهلاً بك، ${data.user.managerName || "مدير الصيدلية"}`
+        );
         if (data.user.role === "superadmin") {
           router.push("/super-admin");
         } else {
           router.push("/");
         }
       } else {
-        toast.error(data.error || (language === "en" ? "Login error" : "خطأ في تسجيل الدخول"));
+        toast.error(data?.error || (language === "en" ? "Login error" : "خطأ في تسجيل الدخول"));
       }
-    } catch (error) {
-      toast.error(language === "en" ? "Cannot connect to server" : "لا يمكن الاتصال بالخادم");
+    } catch (error: any) {
+      console.error("Login network error:", error);
+      toast.error(
+        language === "en"
+          ? `Cannot connect to server: ${error?.message || "Network Error"}`
+          : `لا يمكن الاتصال بالخادم: ${error?.message || "خطأ في الاتصال"}`
+      );
     } finally {
       setLoading(false);
     }

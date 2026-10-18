@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import AppBar from "@/components/AppBar";
 import SearchBar from "@/components/SearchBar";
 import { useState, useEffect } from "react";
@@ -26,14 +27,14 @@ export default function StockTake() {
 
   const [branchFilter, setBranchFilter] = useState("all");
   const { data: dashboardData } = useSWR(
-    user ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/dashboard` : null,
+    user ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard` : null,
     fetcher
   );
   const branches = dashboardData?.branches || [];
 
   const { data, mutate } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/inventory?branch_id=${branchFilter}`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/inventory?branch_id=${branchFilter}`
       : null,
     fetcher,
   );
@@ -73,7 +74,7 @@ export default function StockTake() {
       }
 
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/stock-take`,
+        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/stock-take`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

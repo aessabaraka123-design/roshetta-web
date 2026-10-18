@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState } from "react";
 import AppBar from "@/components/AppBar";
 import SearchBar from "@/components/SearchBar";
@@ -52,7 +53,7 @@ export default function Customers() {
       if (!user?.pharmacy_id) return;
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/dashboard`,
+          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`,
         );
         const data = await res.json();
         if (data.success && data.branches?.length > 0) {
@@ -71,7 +72,7 @@ export default function Customers() {
 
   const { data, mutate } = useSWR(
     user && activeBranchId !== "PENDING"
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/customers?branch_id=${activeBranchId}`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/customers?branch_id=${activeBranchId}`
       : null,
     fetcher,
   );
@@ -81,10 +82,10 @@ export default function Customers() {
     try {
       const [resSales, resPayments] = await Promise.all([
         fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/customers/${customerId}/sales`,
+          `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/customers/${customerId}/sales`,
         ),
         fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/customers/${customerId}/debt-payments`,
+          `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/customers/${customerId}/debt-payments`,
         ),
       ]);
       const dataSales = await resSales.json();
@@ -102,7 +103,7 @@ export default function Customers() {
     setIsLoading(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/customers`,
+        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/customers`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -143,7 +144,7 @@ export default function Customers() {
     setIsLoading(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/customers/${selectedCustomer.id}/debt`,
+        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/customers/${selectedCustomer.id}/debt`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

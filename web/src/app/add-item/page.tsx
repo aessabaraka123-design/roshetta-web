@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AppBar from "@/components/AppBar";
@@ -69,7 +70,7 @@ export default function AddItem() {
       if (!user?.pharmacy_id) return;
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/dashboard`,
+          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`,
         );
         const data = await res.json();
         if (data.success && data.branches?.length > 0) {
@@ -143,7 +144,7 @@ export default function AddItem() {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/inventory`,
+        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/inventory`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

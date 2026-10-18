@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useEffect } from "react";
 import AppBar from "@/components/AppBar";
 import Link from "next/link";
@@ -36,7 +37,7 @@ export default function Dashboard() {
 
   const { data, isLoading } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/dashboard?branch=${queryBranch}`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard?branch=${queryBranch}`
       : null,
     fetcher,
   );

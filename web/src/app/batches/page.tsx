@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useEffect } from "react";
 import AppBar from "@/components/AppBar";
 import useSWR from "swr";
@@ -81,13 +82,13 @@ export default function BatchesPage() {
 
   const { data: batchData, mutate } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/batches`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/batches`
       : null,
     fetcher,
   );
   const { data: inventoryData } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/inventory`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/inventory`
       : null,
     fetcher,
   );
@@ -126,7 +127,7 @@ export default function BatchesPage() {
     setIsLoading(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/batches`,
+        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/batches`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -164,7 +165,7 @@ export default function BatchesPage() {
   const handleDelete = async () => {
     if (!batchToDelete) return;
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/batches/${batchToDelete}`,
+      `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/batches/${batchToDelete}`,
       { method: "DELETE" },
     );
     const result = await res.json();

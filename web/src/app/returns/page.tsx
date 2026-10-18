@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useMemo, useEffect } from "react";
 import AppBar from "@/components/AppBar";
 import { useStore } from "@/store";
@@ -29,7 +30,7 @@ export default function Returns() {
 
   const { data: salesData, isLoading } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/sales`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales`
       : null,
     fetcher,
   );
@@ -120,14 +121,14 @@ export default function Returns() {
       let res;
       if (refundMode === "full") {
         res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/sales/${selectedInvoice.id}/refund`,
+          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales/${selectedInvoice.id}/refund`,
           {
             method: "PUT",
           },
         );
       } else {
         res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/sales/${selectedInvoice.id}/refund_partial`,
+          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales/${selectedInvoice.id}/refund_partial`,
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -147,13 +148,13 @@ export default function Returns() {
         setSelectedInvoice(null);
         setSearchQuery("");
         mutate(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/sales`,
+          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales`,
         );
         mutate(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/inventory`,
+          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/inventory`,
         );
         mutate(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/dashboard`,
+          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`,
         );
       } else {
         toast.error(result.error || (language === "en" ? "Failed to refund" : "فشل في الاسترجاع"));

@@ -5,6 +5,7 @@ import { io } from "socket.io-client";
 import { useStore } from "@/store";
 import { mutate } from "swr";
 import toast from "react-hot-toast";
+import { SOCKET_BASE_URL } from "@/lib/config";
 
 export default function SocketProvider({
   children,
@@ -28,7 +29,7 @@ export default function SocketProvider({
     if (!user?.pharmacy_id) return;
 
     const newSocket = io(
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
+      SOCKET_BASE_URL,
       {
         transports: ["websocket"],
         autoConnect: true,

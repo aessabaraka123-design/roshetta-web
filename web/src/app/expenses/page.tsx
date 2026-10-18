@@ -1,4 +1,5 @@
 "use client";
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useEffect } from "react";
 import AppBar from "@/components/AppBar";
 import useSWR from "swr";
@@ -65,7 +66,7 @@ export default function ExpensesPage() {
       if (!user?.pharmacy_id) return;
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/dashboard`,
+          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`,
         );
         const data = await res.json();
         if (data.success && data.branches?.length > 0) {
@@ -83,7 +84,7 @@ export default function ExpensesPage() {
 
   const { data, mutate } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/expenses?from=${from}&to=${to}&branch_id=${queryBranch}`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/expenses?from=${from}&to=${to}&branch_id=${queryBranch}`
       : null,
     fetcher,
   );
@@ -105,7 +106,7 @@ export default function ExpensesPage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/expenses`,
+        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/expenses`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -137,7 +138,7 @@ export default function ExpensesPage() {
 
   const handleDelete = async (id: string) => {
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/expenses/${id}`,
+      `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/expenses/${id}`,
       { method: "DELETE" },
     );
     const r = await res.json();

@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -67,7 +68,7 @@ export default function Inventory() {
       if (!user?.pharmacy_id) return;
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/dashboard`,
+          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`,
         );
         const data = await res.json();
         if (data.success && data.branches?.length > 0) {
@@ -88,7 +89,7 @@ export default function Inventory() {
   const shouldFetch = user && activeBranchId !== "PENDING";
   const { data, mutate, isLoading } = useSWR(
     shouldFetch
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/inventory?branch_id=${activeBranchId}`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/inventory?branch_id=${activeBranchId}`
       : null,
     fetcher,
   );
@@ -174,7 +175,7 @@ export default function Inventory() {
     setIsSubmittingBatch(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/inventory/${batchModalItem.id}/new-batch`,
+        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/inventory/${batchModalItem.id}/new-batch`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -259,7 +260,7 @@ export default function Inventory() {
     if (!editingItem) return;
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/inventory/${editingItem.id}`,
+        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/inventory/${editingItem.id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -327,7 +328,7 @@ export default function Inventory() {
     if (!itemToDelete) return;
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user?.pharmacy_id}/inventory/${itemToDelete.id}`,
+        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/inventory/${itemToDelete.id}`,
         {
           method: "DELETE",
         },

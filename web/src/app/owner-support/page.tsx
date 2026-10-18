@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import AppBar from "@/components/AppBar";
 import { useState } from "react";
 import toast from "react-hot-toast";
@@ -18,7 +19,7 @@ export default function OwnerSupportPage() {
 
   const { data, mutate } = useSWR(
     user
-      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/pharmacies/${user.pharmacy_id}/tickets`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/tickets`
       : null,
     fetcher,
   );
@@ -34,7 +35,7 @@ export default function OwnerSupportPage() {
     try {
       const ticketId = "TCK-" + Math.floor(1000 + Math.random() * 9000);
       const res = await fetch(
-        (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") +
+        API_BASE_URL +
           "/api/admin/tickets",
         {
           method: "POST",
