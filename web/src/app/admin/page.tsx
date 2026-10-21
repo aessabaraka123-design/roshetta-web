@@ -19,9 +19,9 @@ export default function PharmacyManager() {
 
   useEffect(() => {
     if (!user) {
-      const hasStored = typeof window !== "undefined" && (localStorage.getItem("roshetta_user") || localStorage.getItem("roshetta-web-storage"));
+      const hasStored = typeof window !== "undefined" && localStorage.getItem("roshetta_user");
       if (!hasStored) {
-        router.push("/login");
+        router.replace("/login");
       }
     }
     else if ((user as any)?.role !== "manager" && (user as any)?.role !== "owner" && (user as any)?.role !== "admin") {

@@ -56,9 +56,9 @@ export default function BatchesPage() {
   const router = useRouter();
   useEffect(() => {
     if (!user) {
-      const hasStored = typeof window !== "undefined" && (localStorage.getItem("roshetta_user") || localStorage.getItem("roshetta-web-storage"));
+      const hasStored = typeof window !== "undefined" && localStorage.getItem("roshetta_user");
       if (!hasStored) {
-        router.push("/login");
+        router.replace("/login");
       }
     }
   }, [user, router]);

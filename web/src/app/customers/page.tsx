@@ -19,9 +19,9 @@ export default function Customers() {
 
   useEffect(() => {
     if (!user) {
-      const hasStored = typeof window !== "undefined" && (localStorage.getItem("roshetta_user") || localStorage.getItem("roshetta-web-storage"));
+      const hasStored = typeof window !== "undefined" && localStorage.getItem("roshetta_user");
       if (!hasStored) {
-        router.push("/login");
+        router.replace("/login");
       }
     }
   }, [user, router]);

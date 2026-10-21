@@ -32,9 +32,9 @@ export default function More() {
     setMounted(true);
     const currentUser = useStore.getState().user;
     if (!currentUser) {
-      const hasStored = typeof window !== "undefined" && (localStorage.getItem("roshetta_user") || localStorage.getItem("roshetta-web-storage"));
+      const hasStored = typeof window !== "undefined" && localStorage.getItem("roshetta_user");
       if (!hasStored) {
-        router.push("/login");
+        router.replace("/login");
       }
     } else if (currentUser.role !== "manager") {
       router.push("/");

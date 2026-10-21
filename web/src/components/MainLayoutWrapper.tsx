@@ -1,10 +1,10 @@
 "use client";
 
 import { API_BASE_URL } from "@/lib/config";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/store";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import useSWR from "swr";
 
 export default function MainLayoutWrapper({
@@ -12,9 +12,15 @@ export default function MainLayoutWrapper({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const pathname = usePathname();
   const user = useStore((state: any) => state.user);
   const language = useStore((state: any) => state.language);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetcher = (url: string) => fetch(url).then((res) => res.json());
   const { data: subStatusData } = useSWR(
@@ -86,11 +92,33 @@ export default function MainLayoutWrapper({
     pathname === "/pricing" ||
     pathname === "/receipt-upload";
 
+  // Global Auth Guard: if not an auth page and no user logged in, smoothly redirect to /login
+  useEffect(() => {
+    if (mounted && !isAuth && !user) {
+      const storedUser = typeof window !== "undefined" ? localStorage.getItem("roshetta_user") : null;
+      if (!storedUser) {
+        router.replace("/login");
+      }
+    }
+  }, [mounted, isAuth, user, router]);
+
   if (isAuth) {
     return (
       <main className="flex-1 w-full min-h-screen flex flex-col">
         {children}
       </main>
+    );
+  }
+
+  // Prevent blank screen while checking auth on protected pages
+  if (mounted && !user) {
+    return (
+      <div className="flex-1 w-full min-h-[60vh] flex flex-col items-center justify-center gap-3 p-6 text-center">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-ink-soft text-sm font-bold">
+          {language === "en" ? "Redirecting to login..." : "جاري التحويل لتسجيل الدخول..."}
+        </p>
+      </div>
     );
   }
 
