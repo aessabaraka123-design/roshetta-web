@@ -336,7 +336,7 @@ export default function Dashboard() {
                 </svg>
               </div>
               <h3 className="text-[18px] font-bold text-teal mb-1">
-                {language === "en" ? "No urgent alerts!" : "لا توجد {t.dashboard.urgent_alerts}!"}
+                {language === "en" ? "No urgent alerts!" : "لا توجد تنبيهات عاجلة!"}
               </h3>
               <p className="text-[14px] text-teal/80">
                 {language === "en" ? "Inventory and expiry are in excellent condition." : "المخزون والصلاحيات في حالة ممتازة."}
@@ -349,7 +349,7 @@ export default function Dashboard() {
           <>
             <div className="flex items-center justify-between mt-5 mb-4">
               <h2 className="text-[20px] font-black text-primary">
-                {t.dashboard.urgent_alerts}
+                {language === "en" ? "Branch Performance" : "أداء الفروع"}
               </h2>
               <span className="text-[14px] text-teal font-bold bg-teal-pale px-3 py-1 rounded-full">
                 {language === "en" ? "This Week" : "هذا الأسبوع"}

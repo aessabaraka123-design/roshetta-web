@@ -544,7 +544,7 @@ export default function PurchasesPage() {
               <span>{language === 'en' ? 'You can edit "Selling Price" directly from within the invoice 🏷️' : 'يمكنك تعديل "سعر البيع" مباشرة من داخل الفاتورة 🏷️'}</span>
               <span className="text-mint-line">|</span>
               <span>
-                {language === 'en' ? 'Remember: "Draft" invoices do not change stock, "Completed" ones apply quantities and prices instantly ✅' : 'تذكر: الفاتورة "المبدئية" لا تُغيّر أرقام مخزونك، الفاتورة "ال{language === "en" ? "Completed" : "مكتملة"}" تعتمد الكميات والأسعار فوراً ✅'}
+                {language === 'en' ? 'Remember: "Draft" invoices do not change stock, "Completed" ones apply quantities and prices instantly ✅' : 'تذكر: الفاتورة "المبدئية" لا تُغيّر أرقام مخزونك، الفاتورة "المكتملة" تعتمد الكميات والأسعار فوراً ✅'}
               </span>
               <span className="text-mint-line">|</span>
               <span>
@@ -1089,7 +1089,7 @@ export default function PurchasesPage() {
                           {filteredInv.length === 0 && (
                             <div className="p-5 text-center">
                               <p className="text-[14px] text-ink-soft mb-3">
-                                "{itemSearch}" غير موجود
+                                {language === "en" ? `"${itemSearch}" not found` : `"${itemSearch}" غير موجود`}
                               </p>
                               <button
                                 type="button"
