@@ -5,7 +5,8 @@ import { io } from "socket.io-client";
 import { useStore } from "@/store";
 import { mutate } from "swr";
 import toast from "react-hot-toast";
-import { SOCKET_BASE_URL } from "@/lib/config";
+import { SOCKET_BASE_URL, API_BASE_URL } from "@/lib/config";
+import MaintenanceOverlay from "./MaintenanceOverlay";
 
 export default function SocketProvider({
   children,
@@ -15,6 +16,7 @@ export default function SocketProvider({
   const user = useStore((state) => state.user);
   const language = useStore((state: any) => state.language);
   const loginFn = useStore((state) => state.login);
+  const setIsMaintenanceMode = useStore((state: any) => state.setIsMaintenanceMode);
 
   const langRef = useRef(language);
   langRef.current = language;
@@ -26,7 +28,15 @@ export default function SocketProvider({
   loginFnRef.current = loginFn;
 
   useEffect(() => {
-    if (!user?.pharmacy_id) return;
+    // Initial maintenance status check on load
+    fetch(`${API_BASE_URL}/api/status?t=${Date.now()}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && typeof d.isMaintenance === "boolean") {
+          setIsMaintenanceMode(d.isMaintenance);
+        }
+      })
+      .catch(() => {});
 
     const newSocket = io(
       SOCKET_BASE_URL,
@@ -37,7 +47,9 @@ export default function SocketProvider({
     );
 
     newSocket.on("connect", () => {
-      newSocket.emit("join_pharmacy", user.pharmacy_id);
+      if (user?.pharmacy_id) {
+        newSocket.emit("join_pharmacy", user.pharmacy_id);
+      }
     });
 
     newSocket.on("sync_update", (data: any) => {
@@ -83,10 +95,12 @@ export default function SocketProvider({
 
     // 🔔 Listen for maintenance mode toggle
     newSocket.on("maintenance_mode", (data: any) => {
-      if (data?.isMaintenance) {
+      const isMaint = !!data?.isMaintenance;
+      setIsMaintenanceMode(isMaint);
+      if (isMaint) {
         toast.error(
           langRef.current === "en" ? "⚠️ System is undergoing scheduled maintenance." : "⚠️ النظام حالياً في وضع الصيانة والتحديثات.",
-          { duration: 9000 }
+          { duration: 5000 }
         );
       }
     });
@@ -264,7 +278,12 @@ export default function SocketProvider({
     return () => {
       newSocket.disconnect();
     };
-  }, [user?.pharmacy_id]);
+  }, [user?.pharmacy_id, setIsMaintenanceMode]);
 
-  return <>{children}</>;
+  return (
+    <>
+      <MaintenanceOverlay />
+      {children}
+    </>
+  );
 }

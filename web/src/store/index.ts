@@ -34,6 +34,7 @@ interface User {
   branch: string;
   controlledMedsAccess?: boolean;
   isReadOnly?: boolean;
+  isActive?: boolean;
   username?: string;
   cashierName?: string;
   name?: string;
@@ -42,6 +43,8 @@ interface User {
 interface StoreState {
   language: 'ar' | 'en';
   setLanguage: (lang: 'ar' | 'en') => void;
+  isMaintenanceMode: boolean;
+  setIsMaintenanceMode: (isMaint: boolean) => void;
   isMobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
   toggleMobileMenu: () => void;
@@ -102,6 +105,8 @@ export const useStore = create<StoreState>()(
     (set) => ({
       language: 'ar',
       setLanguage: (lang) => set({ language: lang }),
+      isMaintenanceMode: false,
+      setIsMaintenanceMode: (isMaint: boolean) => set({ isMaintenanceMode: isMaint }),
       isMobileMenuOpen: false,
       setMobileMenuOpen: (open) => set({ isMobileMenuOpen: open }),
       toggleMobileMenu: () => set((state) => ({ isMobileMenuOpen: !state.isMobileMenuOpen })),
