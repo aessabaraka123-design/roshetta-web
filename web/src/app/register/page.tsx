@@ -291,13 +291,11 @@ function RegisterPageContent() {
       const data = await res.json();
       if (data.success) {
         loginFn(data.user, data.token);
-        if (plan === "free" || selectedPlan?.price === 0) {
-          toast.success(language === "en" ? "Free account activated successfully! Welcome to Roshetta 🎉" : "تم تفعيل حسابك المجاني بنجاح! أهلاً بك في روشتة 🎉");
-        } else {
-          toast.success(
-            language === "en" ? "Subscription completed successfully! Payment will be reviewed and account activated soon." : "تم إتمام الاشتراك بنجاح! سيتم مراجعة الدفعة وتفعيل الحساب قريباً.",
-          );
-        }
+        toast.success(
+          language === "en"
+            ? "Subscription request submitted successfully! Your account will be activated once approved by admin."
+            : "تم إرسال طلب الاشتراك بنجاح! سيتم مراجعة الطلب وتفعيل الحساب فور موافقة المسؤول.",
+        );
         router.push("/");
       } else {
         toast.error(data.error || (language === "en" ? "Something went wrong" : "حدث خطأ ما"));
