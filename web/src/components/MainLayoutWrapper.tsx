@@ -237,6 +237,22 @@ export default function MainLayoutWrapper({
               >
                 📄 {language === "en" ? "Review Receipt" : "راجع إيصالك"}
               </Link>
+              <a
+                href={`https://wa.me/${subStatusData?.whatsapp || "972590000000"}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-amber-700/80 hover:bg-amber-700 text-white rounded-lg px-3 py-1 text-xs font-bold transition-colors shrink-0 flex items-center gap-1 shadow-sm"
+                style={{
+                  background: "#B45309",
+                  borderRadius: "8px",
+                  padding: "4px 10px",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                  textDecoration: "none",
+                }}
+              >
+                💬 {language === "en" ? "Technical Support" : "الدعم الفني"}
+              </a>
             </>
           ) : (
             <>
