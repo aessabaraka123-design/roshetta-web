@@ -116,7 +116,7 @@ export default function AppBar({
   }, []);
 
   return (
-    <div className="flex items-center justify-between mt-2 sm:mt-3 mb-4 sm:mb-5 w-full">
+    <div className="flex items-center justify-between mt-2 sm:mt-3 mb-4 sm:mb-5 w-full px-1 sm:px-0">
       <div className="flex items-center gap-2 text-primary">
         {/* Hamburger (3-lines) button for mobile */}
         <button
@@ -144,7 +144,7 @@ export default function AppBar({
         {showLogo && <LogoMark className="h-[26px] sm:h-[30px] w-auto shrink-0" />}
         <span className="font-bold text-[18px] sm:text-[20px] line-clamp-1">{actualTitle}</span>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         {children}
 
         <div className="relative" ref={notifsRef}>

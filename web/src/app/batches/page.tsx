@@ -183,172 +183,248 @@ export default function BatchesPage() {
   return (
     <>
       <AppBar title={language === "en" ? "Expiry Batches" : "دفعات الصلاحيات"} />
-      <div className="p-6 space-y-6">
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white rounded-2xl border border-mint-line p-5 text-center shadow-sm">
-            <div className="text-[12px] font-bold text-ink-soft mb-1">
+      <div className="p-2 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="bg-white rounded-xl sm:rounded-2xl border border-mint-line p-2.5 sm:p-5 text-center shadow-sm">
+            <div className="text-[10px] sm:text-[12px] font-bold text-ink-soft mb-1 truncate">
               {language === "en" ? "Total Batches" : "إجمالي الدفعات"}
             </div>
-            <div className="text-[32px] font-mono font-black text-primary">
+            <div className="text-[20px] sm:text-[32px] font-mono font-black text-primary">
               {batches.length}
             </div>
           </div>
           <div
-            className="bg-amber-pale/30 rounded-2xl border border-amber-pale p-5 text-center shadow-sm cursor-pointer"
+            className="bg-amber-pale/30 rounded-xl sm:rounded-2xl border border-amber-pale p-2.5 sm:p-5 text-center shadow-sm cursor-pointer hover:scale-[1.02] transition-transform"
             onClick={() => setFilterExpiring("expiring")}
           >
-            <div className="text-[12px] font-bold text-[#B9791C] mb-1">
-              {language === "en" ? "⚠️ Expiring in 60 days" : "⚠️ تنتهي خلال 60 يوم"}
+            <div className="text-[10px] sm:text-[12px] font-bold text-[#B9791C] mb-1 truncate">
+              {language === "en" ? "⚠️ Expiring (60d)" : "⚠️ تنتهي خلال 60 يوم"}
             </div>
-            <div className="text-[32px] font-mono font-black text-[#B9791C]">
+            <div className="text-[20px] sm:text-[32px] font-mono font-black text-[#B9791C]">
               {expiringCount}
             </div>
           </div>
           <div
-            className="bg-red-50 rounded-2xl border border-red-200 p-5 text-center shadow-sm cursor-pointer"
+            className="bg-red-50 rounded-xl sm:rounded-2xl border border-red-200 p-2.5 sm:p-5 text-center shadow-sm cursor-pointer hover:scale-[1.02] transition-transform"
             onClick={() => setFilterExpiring("expired")}
           >
-            <div className="text-[12px] font-bold text-red-600 mb-1">
+            <div className="text-[10px] sm:text-[12px] font-bold text-red-600 mb-1 truncate">
               {language === "en" ? "🚫 Expired" : "🚫 منتهية الصلاحية"}
             </div>
-            <div className="text-[32px] font-mono font-black text-red-600">
+            <div className="text-[20px] sm:text-[32px] font-mono font-black text-red-600">
               {expiredCount}
             </div>
           </div>
         </div>
 
-        <div className="flex gap-3 items-center">
+        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center">
           <input
             type="text"
-            placeholder={language === "en" ? "Search by drug name or batch number..." : "ابحث باسم الدواء أو رقم الدفعة..."}
+            placeholder={language === "en" ? "Search by drug name or batch..." : "ابحث باسم الدواء أو رقم الدفعة..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 bg-white border border-mint-line rounded-xl px-4 py-3 text-[14px] outline-none focus:border-teal"
+            className="flex-1 bg-white border border-mint-line rounded-xl px-4 py-2.5 sm:py-3 text-[14px] outline-none focus:border-teal shadow-sm"
           />
-          {(["all", "expiring", "expired"] as const).map((f) => (
+          <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-1 bg-bg p-1 rounded-xl border border-mint-line shrink-0">
+              {(["all", "expiring", "expired"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilterExpiring(f)}
+                  className={`px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
+                    filterExpiring === f
+                      ? "bg-primary text-white shadow-sm"
+                      : "text-ink-soft hover:text-primary"
+                  }`}
+                >
+                  {f === "all"
+                    ? language === "en" ? "All" : "الكل"
+                    : f === "expiring"
+                      ? language === "en" ? "Expiring" : "تنتهي قريباً"
+                      : language === "en" ? "Expired" : "منتهية"}
+                </button>
+              ))}
+            </div>
             <button
-              key={f}
-              onClick={() => setFilterExpiring(f)}
-              className={`px-4 py-2 rounded-xl text-[13px] font-bold border transition-all ${filterExpiring === f ? "bg-primary text-white border-primary" : "bg-white text-ink-soft border-mint-line"}`}
+              onClick={() => setShowAddModal(true)}
+              className="bg-primary text-white px-3.5 sm:px-5 py-2 sm:py-3 rounded-xl font-bold text-[13px] sm:text-[14px] shadow-md shadow-primary/20 hover:opacity-90 whitespace-nowrap shrink-0 flex items-center gap-1.5"
             >
-              {f === "all"
-                ? language === "en" ? "All" : "الكل"
-                : f === "expiring"
-                  ? language === "en" ? "Expiring Soon" : "تنتهي قريباً"
-                  : language === "en" ? "Expired" : "منتهية"}
+              <span>+</span>
+              <span>{language === "en" ? "Add Batch" : "إضافة دفعة"}</span>
             </button>
-          ))}
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-primary text-white px-5 py-3 rounded-xl font-bold text-[14px] shadow-md shadow-primary/20 hover:opacity-90 whitespace-nowrap"
-          >
-            {language === "en" ? "+ Add Batch" : "+ إضافة دفعة"}
-          </button>
+          </div>
         </div>
 
         {filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-mint-line p-12 text-center">
+          <div className="bg-white rounded-2xl border border-mint-line p-12 text-center shadow-sm">
             <div className="text-[40px] mb-3">📦</div>
             <div className="text-ink-soft font-bold">{language === "en" ? "No matching batches" : "لا توجد دفعات مطابقة"}</div>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-mint-line overflow-hidden shadow-sm">
-            <table className="w-full text-start">
-              <thead className="bg-bg border-b border-mint-line">
-                <tr>
-                  {[
-                    language === "en" ? "Drug" : "الدواء",
-                    language === "en" ? "Batch Number" : "رقم الدفعة",
-                    language === "en" ? "Quantity" : "الكمية",
-                    language === "en" ? "Expiry Date" : "تاريخ الصلاحية",
-                    language === "en" ? "Time Left" : "الوقت المتبقي",
-                    language === "en" ? "Purchase Price" : "سعر الشراء",
-                    "",
-                  ].map((h, i) => (
-                    <th
-                      key={i}
-                      className="px-4 py-3 text-[13px] font-bold text-ink-soft text-start"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-mint-line">
-                {filtered.map((batch: any) => {
-                  const days = getDaysUntilExpiry(batch.expiry_date);
-                  const s = getExpiryStyle(days);
-                  return (
-                    <tr
-                      key={batch.id}
-                      className={`${s.row} hover:brightness-95 transition-all`}
-                    >
-                      <td className="px-4 py-3 font-bold text-[14px] text-ink">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span>{batch.drug_name}</span>
-                          {batch.drug_name?.includes("(القديم)") && (
-                            <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold border border-amber-300">
-                              {language === "en" ? "Old" : "القديم"}
-                            </span>
-                          )}
-                          {batch.drug_name?.includes("(الجديد)") && (
-                            <span className="text-[10px] bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded font-bold border border-teal-300">
-                              {language === "en" ? "New" : "الجديد"}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-[13px] text-ink-soft">
-                        {batch.batch_number || "—"}
-                      </td>
-                      <td className="px-4 py-3 font-mono font-black text-[14px] text-primary">
-                        {batch.qty}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-[13px] text-ink">
-                        {batch.expiry_date || "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-1 rounded-lg text-[12px] font-bold ${s.badge}`}
-                        >
-                          {language === "en" ? s.labelEn : s.labelAr}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-[13px] text-ink-soft">
-                        ₪{(batch.purchase_price || 0).toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => setBatchToDelete(batch.id)}
-                          className="text-coral hover:text-red-600 p-1 transition-colors"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+          <>
+            {/* Mobile Card View */}
+            <div className="block md:hidden space-y-3">
+              {filtered.map((batch: any) => {
+                const days = getDaysUntilExpiry(batch.expiry_date);
+                const s = getExpiryStyle(days);
+                return (
+                  <div
+                    key={batch.id}
+                    className={`bg-white rounded-2xl border border-mint-line p-3.5 shadow-sm transition-all ${s.row}`}
+                  >
+                    <div className="flex justify-between items-start gap-2 mb-2">
+                      <div className="font-bold text-[14px] text-ink flex items-center gap-1.5 flex-wrap">
+                        <span>{batch.drug_name}</span>
+                        {batch.drug_name?.includes("(القديم)") && (
+                          <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold border border-amber-300">
+                            {language === "en" ? "Old" : "القديم"}
+                          </span>
+                        )}
+                        {batch.drug_name?.includes("(الجديد)") && (
+                          <span className="text-[10px] bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded font-bold border border-teal-300">
+                            {language === "en" ? "New" : "الجديد"}
+                          </span>
+                        )}
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-lg text-[11px] font-bold shrink-0 ${s.badge}`}>
+                        {language === "en" ? s.labelEn : s.labelAr}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 py-2 border-y border-mint-line/40 text-[12px]">
+                      <div>
+                        <span className="text-ink-soft block text-[10px]">{language === "en" ? "Batch No" : "رقم الدفعة"}</span>
+                        <span className="font-mono font-bold text-ink">{batch.batch_number || "—"}</span>
+                      </div>
+                      <div>
+                        <span className="text-ink-soft block text-[10px]">{language === "en" ? "Quantity" : "الكمية"}</span>
+                        <span className="font-mono font-black text-primary text-[13px]">{batch.qty}</span>
+                      </div>
+                      <div>
+                        <span className="text-ink-soft block text-[10px]">{language === "en" ? "Purchase Price" : "سعر الشراء"}</span>
+                        <span className="font-mono font-bold text-ink">₪{(batch.purchase_price || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2 text-[11px] text-ink-soft">
+                      <div>
+                        <span>{language === "en" ? "Expiry: " : "الصلاحية: "}</span>
+                        <span className="font-mono font-bold text-ink">{batch.expiry_date || "—"}</span>
+                      </div>
+                      <button
+                        onClick={() => setBatchToDelete(batch.id)}
+                        className="text-coral hover:text-red-600 p-1 rounded-lg hover:bg-coral/10 transition-colors flex items-center gap-1 text-[12px] font-bold"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        <span>{language === "en" ? "Delete" : "حذف"}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white rounded-2xl border border-mint-line overflow-x-auto shadow-sm">
+              <table className="w-full text-start min-w-[650px]">
+                <thead className="bg-bg border-b border-mint-line">
+                  <tr>
+                    {[
+                      language === "en" ? "Drug" : "الدواء",
+                      language === "en" ? "Batch Number" : "رقم الدفعة",
+                      language === "en" ? "Quantity" : "الكمية",
+                      language === "en" ? "Expiry Date" : "تاريخ الصلاحية",
+                      language === "en" ? "Time Left" : "الوقت المتبقي",
+                      language === "en" ? "Purchase Price" : "سعر الشراء",
+                      "",
+                    ].map((h, i) => (
+                      <th
+                        key={i}
+                        className="px-4 py-3 text-[13px] font-bold text-ink-soft text-start"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-mint-line">
+                  {filtered.map((batch: any) => {
+                    const days = getDaysUntilExpiry(batch.expiry_date);
+                    const s = getExpiryStyle(days);
+                    return (
+                      <tr
+                        key={batch.id}
+                        className={`${s.row} hover:brightness-95 transition-all`}
+                      >
+                        <td className="px-4 py-3 font-bold text-[14px] text-ink">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span>{batch.drug_name}</span>
+                            {batch.drug_name?.includes("(القديم)") && (
+                              <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold border border-amber-300">
+                                {language === "en" ? "Old" : "القديم"}
+                              </span>
+                            )}
+                            {batch.drug_name?.includes("(الجديد)") && (
+                              <span className="text-[10px] bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded font-bold border border-teal-300">
+                                {language === "en" ? "New" : "الجديد"}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-[13px] text-ink-soft">
+                          {batch.batch_number || "—"}
+                        </td>
+                        <td className="px-4 py-3 font-mono font-black text-[14px] text-primary">
+                          {batch.qty}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-[13px] text-ink">
+                          {batch.expiry_date || "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-2 py-1 rounded-lg text-[12px] font-bold ${s.badge}`}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                            {language === "en" ? s.labelEn : s.labelAr}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-[13px] text-ink-soft">
+                          ₪{(batch.purchase_price || 0).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => setBatchToDelete(batch.id)}
+                            className="text-coral hover:text-red-600 p-1 transition-colors"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
       {showAddModal && (
-        <div className="fixed inset-0 bg-primary/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl border border-mint-line">
+        <div className="fixed inset-0 bg-primary/20 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-3xl p-5 sm:p-6 w-full max-w-md max-h-[92vh] overflow-y-auto shadow-2xl border border-mint-line animate-fade-in-up">
             <div className="flex justify-between items-center mb-5 border-b border-mint-line pb-4">
               <h3 className="text-[20px] font-black text-primary">
                 {language === "en" ? "Add New Batch" : "إضافة دفعة جديدة"}
