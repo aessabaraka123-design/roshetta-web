@@ -37,8 +37,13 @@ export default function MainLayoutWrapper({
       let hasChanges = false;
       const updatedUser = { ...user };
 
-      if (typeof subStatusData.isReadOnly === "boolean" && subStatusData.isReadOnly !== user.isReadOnly) {
-        updatedUser.isReadOnly = subStatusData.isReadOnly;
+      // STRICT SECURITY: If request is pending admin approval, or server reports read-only, force read-only mode!
+      const shouldBeReadOnly = subStatusData.status === "pending" || subStatusData.isReadOnly === true;
+      if (shouldBeReadOnly && !user.isReadOnly) {
+        updatedUser.isReadOnly = true;
+        hasChanges = true;
+      } else if (!shouldBeReadOnly && subStatusData.isReadOnly === false && user.isReadOnly) {
+        updatedUser.isReadOnly = false;
         hasChanges = true;
       }
       if (subStatusData.pharmacyName && subStatusData.pharmacyName !== user.pharmacyName) {

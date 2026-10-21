@@ -40,8 +40,9 @@ export default function SocketProvider({
       newSocket.emit("join_pharmacy", user.pharmacy_id);
     });
 
-    newSocket.on("sync_update", (data) => {
-      if (data?.type === "shifts") {
+    newSocket.on("sync_update", (data: any) => {
+      const type = data?.type;
+      if (type === "shifts") {
         mutate(
           (key) =>
             typeof key === "string" &&
@@ -49,6 +50,18 @@ export default function SocketProvider({
           undefined,
           { revalidate: true }
         );
+      } else if (type === "plans") {
+        mutate((key) => typeof key === "string" && (key.includes("/plans") || key.includes("/subscription-plans")), undefined, { revalidate: true });
+      } else if (type === "settings") {
+        mutate((key) => typeof key === "string" && key.includes("/settings"), undefined, { revalidate: true });
+      } else if (type === "tickets") {
+        mutate((key) => typeof key === "string" && key.includes("/tickets"), undefined, { revalidate: true });
+      } else if (type === "staff") {
+        mutate((key) => typeof key === "string" && key.includes("/staff"), undefined, { revalidate: true });
+      } else if (type === "branches") {
+        mutate((key) => typeof key === "string" && key.includes("/branches"), undefined, { revalidate: true });
+      } else if (type === "sales") {
+        mutate((key) => typeof key === "string" && key.includes("/sales"), undefined, { revalidate: true });
       } else {
         mutate(
           (key) => typeof key === "string" && key.includes("/api/pharmacies"),
@@ -56,6 +69,59 @@ export default function SocketProvider({
           { revalidate: true },
         );
       }
+    });
+
+    // 🔔 Listen for subscription plans & prices updates
+    newSocket.on("plans_updated", () => {
+      mutate((key) => typeof key === "string" && (key.includes("/plans") || key.includes("/subscription-plans")), undefined, { revalidate: true });
+    });
+
+    // 🔔 Listen for platform settings & payment methods updates
+    newSocket.on("settings_updated", () => {
+      mutate((key) => typeof key === "string" && key.includes("/settings"), undefined, { revalidate: true });
+    });
+
+    // 🔔 Listen for maintenance mode toggle
+    newSocket.on("maintenance_mode", (data: any) => {
+      if (data?.isMaintenance) {
+        toast.error(
+          langRef.current === "en" ? "⚠️ System is undergoing scheduled maintenance." : "⚠️ النظام حالياً في وضع الصيانة والتحديثات.",
+          { duration: 9000 }
+        );
+      }
+    });
+
+    // 🔔 Listen for Global Announcements & Broadcasts
+    newSocket.on("new_broadcast", (data: any) => {
+      if (data) {
+        toast.custom(
+          (t) => (
+            <div className="max-w-md w-full bg-slate-900 text-white shadow-2xl rounded-2xl p-4 flex items-start gap-3 border border-indigo-500/40">
+              <span className="text-2xl pt-0.5">📢</span>
+              <div className="flex-1">
+                <h4 className="font-bold text-sm text-indigo-300">{data.title || "تنبيه عام من الإدارة"}</h4>
+                <p className="text-xs text-slate-200 mt-1 leading-relaxed">{data.message}</p>
+              </div>
+              <button onClick={() => toast.dismiss(t.id)} className="text-slate-400 hover:text-white text-xs font-bold px-2 py-1">✕</button>
+            </div>
+          ),
+          { duration: 10000, position: "top-center" }
+        );
+      }
+    });
+
+    // 🔔 Listen for ticket updates & support replies
+    newSocket.on("ticket_updated", () => {
+      mutate((key) => typeof key === "string" && key.includes("/tickets"), undefined, { revalidate: true });
+      toast.success(
+        langRef.current === "en" ? "Support ticket updated" : "تم تحديث تذكرة الدعم الفني",
+        { duration: 4000 }
+      );
+    });
+
+    // 🔔 Listen for deleted sales
+    newSocket.on("sale_deleted", () => {
+      mutate((key) => typeof key === "string" && key.includes("/sales"), undefined, { revalidate: true });
     });
 
     // 🔔 Listen for instant pharmacy updates from Superadmin (Live Sync)
