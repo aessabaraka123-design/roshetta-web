@@ -94,31 +94,52 @@ export default function SalesLog() {
     }
   };
 
+  const filteredSales = sales
+    .filter((s: any) => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase().trim();
+      const idMatch = s.id && s.id.toLowerCase().includes(q);
+      const custName = typeof s.customer === "object" ? s.customer?.name : typeof s.customer === "string" ? s.customer : "";
+      const custMatch = custName && custName.toLowerCase().includes(q);
+      const totalMatch = String(s.total || "").includes(q);
+      return idMatch || custMatch || totalMatch;
+    })
+    .filter((s: any) => {
+      if (!dateFilter) return true;
+      const localDateStr = new Date(s.date).toLocaleDateString(
+        "en-CA",
+      ); // Gets YYYY-MM-DD in local timezone
+      return localDateStr === dateFilter;
+    });
+
   return (
-    <div className="w-full pb-10">
+    <div className="w-full pb-10 px-2 sm:px-4 md:px-0">
       <AppBar />
-      <div className="mb-6 flex justify-between items-center">
+      <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <div>
-          <h1 className="text-[22px] font-bold text-primary">{language === 'en' ? 'Sales Log' : 'سجل المبيعات'}</h1>
-          <p className="text-[15px] text-ink-soft mt-1">
+          <h1 className="text-[20px] sm:text-[22px] font-bold text-primary">{language === 'en' ? 'Sales Log' : 'سجل المبيعات'}</h1>
+          <p className="text-[13px] sm:text-[15px] text-ink-soft mt-0.5 sm:mt-1">
             {language === 'en' ? 'Track daily invoices and past revenue' : 'تتبع الفواتير اليومية والإيرادات السابقة'}
           </p>
         </div>
       </div>
 
       <div className="bg-card rounded-2xl shadow-sm border border-mint-line overflow-hidden">
-        <div className="p-5 border-b border-mint-line bg-bg flex justify-between items-center">
-          <SearchBar
-            value={search}
-            onChange={setSearch}
-            placeholder={language === 'en' ? 'Search invoice number...' : 'ابحث برقم الفاتورة...'}
-          />
-          <div className="flex gap-2">
+        {/* Search & Filters (Fully Responsive) */}
+        <div className="p-3 sm:p-5 border-b border-mint-line bg-bg flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
+          <div className="flex-1 w-full">
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              placeholder={language === 'en' ? 'Search invoice number, customer...' : 'ابحث برقم الفاتورة أو العميل...'}
+            />
+          </div>
+          <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center justify-between sm:justify-end">
             {user?.role !== "صيدلي" && user?.role !== "مدير فرع" && (
               <select
                 value={branchFilter}
                 onChange={(e) => setBranchFilter(e.target.value)}
-                className="p-2 border border-ink-soft/30 bg-white rounded-lg text-[14px] focus:outline-none focus:border-primary shadow-sm"
+                className="flex-1 sm:flex-none p-2 sm:p-2.5 border border-ink-soft/30 bg-white rounded-xl text-[13px] sm:text-[14px] focus:outline-none focus:border-primary shadow-sm"
               >
                 <option value="all">{language === 'en' ? 'All Branches' : 'كل الفروع'}</option>
                 {branches.map((b: any) => (
@@ -128,12 +149,12 @@ export default function SalesLog() {
                 ))}
               </select>
             )}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1 sm:flex-none">
               <input
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="p-2 border border-ink-soft/30 bg-white rounded-lg text-[14px] focus:outline-none focus:border-primary shadow-sm"
+                className="flex-1 sm:flex-none p-2 sm:p-2.5 border border-ink-soft/30 bg-white rounded-xl text-[13px] sm:text-[14px] focus:outline-none focus:border-primary shadow-sm"
               />
               <button
                 onClick={() => {
@@ -146,10 +167,10 @@ export default function SalesLog() {
                     );
                   }
                 }}
-                className={`text-[12px] px-3 py-1.5 rounded-lg transition-colors font-bold ${
+                className={`text-[12px] sm:text-[13px] px-3 py-2 sm:py-2.5 rounded-xl transition-colors font-bold whitespace-nowrap shadow-sm ${
                   dateFilter
-                    ? "text-coral hover:bg-coral/10 bg-coral/5"
-                    : "text-primary hover:bg-primary/10 bg-primary/5"
+                    ? "text-coral hover:bg-coral/10 bg-coral/5 border border-coral/20"
+                    : "text-primary hover:bg-primary/10 bg-primary/5 border border-primary/20"
                 }`}
               >
                 {dateFilter ? (language === 'en' ? 'All' : 'الكل') : (language === 'en' ? 'Today' : 'اليوم')}
@@ -158,114 +179,232 @@ export default function SalesLog() {
           </div>
         </div>
 
-        <table className="w-full text-start">
-          <thead>
-            <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Invoice Number' : 'رقم الفاتورة'}</th>
-              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Date & Time' : 'التاريخ والوقت'}</th>
-              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Count' : 'العدد'}</th>
-              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Payment Method' : 'طريقة الدفع'}</th>
-              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Total' : 'الإجمالي'}</th>
-              <th className="py-3 px-5 font-semibold text-center">{language === 'en' ? 'Actions' : 'إجراءات'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sales
-              .filter((s: any) =>
-                s.id.toLowerCase().includes(search.toLowerCase()),
-              )
-              .filter((s: any) => {
-                if (!dateFilter) return true;
-                const localDateStr = new Date(s.date).toLocaleDateString(
-                  "en-CA",
-                ); // Gets YYYY-MM-DD in local timezone
-                return localDateStr === dateFilter;
-              })
-              .map((sale: any) => (
-                <tr
-                  key={sale.id}
-                  className={`border-b border-mint-line/50 transition-all ${sale.status === "refunded" ? "opacity-50 bg-bg" : "hover:bg-bg/50"}`}
-                >
-                  <td
-                    className="py-4 px-5 font-mono text-[15px] font-bold text-ink"
-                    dir="ltr"
-                  >
-                    {sale.id}
+        {/* Mobile View: Cards Layout (Hidden on Desktop) */}
+        <div className="block md:hidden divide-y divide-mint-line/50">
+          {filteredSales.length === 0 ? (
+            <div className="py-12 text-center text-ink-soft text-[14px]">
+              {language === "en" ? "No invoices found" : "لا توجد فواتير مطابقة للبحث أو التاريخ المحدد"}
+            </div>
+          ) : (
+            filteredSales.map((sale: any) => (
+              <div
+                key={sale.id}
+                className={`p-3.5 sm:p-4 transition-all ${sale.status === "refunded" ? "opacity-60 bg-bg/60" : "hover:bg-bg/40 bg-white"}`}
+              >
+                {/* Top Row: Invoice ID Badge & Total Amount */}
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-mint-bg border border-mint-line rounded-lg text-primary font-mono font-bold text-[13px]">
+                      <span className="text-primary/40 text-[11px]">#</span>
+                      <span dir="ltr">{sale.id}</span>
+                    </div>
                     {sale.status === "refunded" && (
-                      <span
-                        className="ml-2 text-[10px] bg-coral text-white px-2 py-0.5 rounded-full"
-                        dir="rtl"
-                      >
+                      <span className="text-[10px] bg-coral/10 text-coral border border-coral/20 px-1.5 py-0.5 rounded font-bold">
                         {language === 'en' ? 'Refunded' : 'مسترجعة'}
                       </span>
                     )}
-                  </td>
-                  <td className="py-4 px-5 text-[14px] text-ink-soft">
-                    {new Date(sale.date).toLocaleString(language === "en" ? "en-US" : "ar-EG")}
-                  </td>
-                  <td className="py-4 px-5 text-[14px]">
-                    {Array.isArray(sale.items) ? sale.items.length : 0} {language === 'en' ? 'Items' : 'أصناف'}
-                  </td>
-                  <td className="py-4 px-5">
-                    <span
-                      className={`px-2 py-1 rounded-md text-[12px] font-bold ${
-                        sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين"
-                          ? "bg-purple-100 text-purple-700"
-                          : sale.paymentMethod === "cash"
-                            ? "bg-teal-pale text-teal"
-                            : "bg-primary-pale text-primary"
-                      }`}
-                    >
-                      {sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين"
-                        ? (language === 'en' ? "Debt Collection" : "سداد دين") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
-                        : sale.paymentMethod === "cash"
-                          ? (language === 'en' ? "Cash" : "نقدي")
-                          : sale.paymentMethod === "bank"
-                            ? (language === 'en' ? "Bank" : "بنكي")
-                            : sale.paymentMethod === "jawwal"
-                              ? (language === 'en' ? "Jawwal Pay" : "جوال باي")
-                              : sale.paymentMethod === "palpay"
-                                ? (language === 'en' ? "PalPay" : "بال باي")
-                                : sale.paymentMethod === "maalchat"
-                                  ? (language === 'en' ? "MaalChat" : "مالتشات")
-                                  : sale.paymentMethod === "credit"
-                                    ? (language === 'en' ? "Credit" : "ذمم") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
-                                    : sale.paymentMethod}
+                  </div>
+                  <div className="font-mono font-black text-[16px] text-teal">
+                    <span className={sale.status === "refunded" ? "text-ink-soft line-through" : ""}>
+                      {Number(sale.total || 0).toLocaleString()} ₪
                     </span>
-                  </td>
-                  <td
-                    className={`py-4 px-5 font-bold text-[15px] ${sale.status === "refunded" ? "text-ink-soft line-through" : "text-primary"}`}
+                  </div>
+                </div>
+
+                {/* Middle Row: Payment Method Badge & Count Badge */}
+                <div className="flex flex-wrap gap-1.5 items-center mb-2.5">
+                  <span
+                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-bold text-[11px] ${
+                      sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين"
+                        ? "bg-purple-100 text-purple-700 border border-purple-200"
+                        : sale.paymentMethod === "cash"
+                          ? "bg-teal-pale text-teal border border-teal/20"
+                          : "bg-primary-pale text-primary border border-primary/20"
+                    }`}
                   >
-                    {sale.total} ₪
-                  </td>
-                  <td className="py-4 px-5">
-                    <div className="flex justify-center gap-2">
+                    {sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين"
+                      ? (language === 'en' ? "Debt Collection" : "سداد دين") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
+                      : sale.paymentMethod === "cash"
+                        ? (language === 'en' ? "Cash" : "نقدي")
+                        : sale.paymentMethod === "bank"
+                          ? (language === 'en' ? "Bank" : "بنكي")
+                          : sale.paymentMethod === "jawwal"
+                            ? (language === 'en' ? "Jawwal Pay" : "جوال باي")
+                            : sale.paymentMethod === "palpay"
+                              ? (language === 'en' ? "PalPay" : "بال باي")
+                              : sale.paymentMethod === "maalchat"
+                                ? (language === 'en' ? "MaalChat" : "مالتشات")
+                                : sale.paymentMethod === "credit"
+                                  ? (language === 'en' ? "Credit" : "ذمم") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
+                                  : sale.paymentMethod}
+                  </span>
+
+                  {sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين" || (!sale.items || sale.items.length === 0) ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                      💳 {language === 'en' ? 'Debt Receipt' : 'سند سداد'}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-ink-soft bg-bg px-2 py-0.5 rounded-md border border-mint-line">
+                      {Array.isArray(sale.items) ? sale.items.length : 0} {language === 'en' ? 'Items' : 'أصناف'}
+                    </span>
+                  )}
+                </div>
+
+                {/* Bottom Row: Date & Actions */}
+                <div className="flex justify-between items-center pt-2 border-t border-mint-line/30 text-[12px] text-ink-soft">
+                  <div className="flex items-center gap-1.5 text-[11px]">
+                    <span className="font-bold text-ink">
+                      {new Date(sale.date).toLocaleDateString(language === "en" ? "en-US" : "ar-EG")}
+                    </span>
+                    <span>•</span>
+                    <span className="font-mono text-ink-soft">
+                      {new Date(sale.date).toLocaleTimeString(language === "en" ? "en-US" : "ar-EG", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setSelectedInvoice(sale)}
+                      className="px-3 py-1 text-[12px] font-bold text-primary bg-primary-pale rounded-lg hover:bg-primary hover:text-white transition-all shadow-sm"
+                    >
+                      {language === 'en' ? 'View' : 'عرض'}
+                    </button>
+                    {sale.status !== "refunded" && sale.status !== "debt_payment" && sale.paymentMethod !== "debt_payment" && sale.paymentMethod !== "تسديد دين" && (
                       <button
-                        onClick={() => setSelectedInvoice(sale)}
-                        className="px-3 py-1.5 text-[13px] font-bold text-primary bg-primary-pale rounded-lg hover:bg-primary hover:text-white transition-all"
+                        onClick={() => handleRefund(sale.id)}
+                        className="px-3 py-1 text-[12px] font-bold text-coral border border-coral-pale rounded-lg hover:bg-coral hover:text-white transition-all"
                       >
-                        {language === 'en' ? 'View' : 'عرض'}
+                        {language === 'en' ? 'Refund' : 'استرجاع'}
                       </button>
-                      {sale.status !== "refunded" && sale.status !== "debt_payment" && sale.paymentMethod !== "debt_payment" && sale.paymentMethod !== "تسديد دين" && (
-                        <button
-                          onClick={() => handleRefund(sale.id)}
-                          className="px-3 py-1.5 text-[13px] font-bold text-coral border border-coral-pale rounded-lg hover:bg-coral hover:text-white transition-all"
-                        >
-                          {language === 'en' ? 'Refund' : 'استرجاع'}
-                        </button>
-                      )}
-                    </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop View: Full Responsive Table (Hidden on Mobile) */}
+        <div className="hidden md:block overflow-x-auto w-full">
+          <table className="w-full text-start min-w-[700px]">
+            <thead>
+              <tr className="border-b border-mint-line text-ink-soft text-[14px]">
+                <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Invoice Number' : 'رقم الفاتورة'}</th>
+                <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Date & Time' : 'التاريخ والوقت'}</th>
+                <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Count' : 'العدد'}</th>
+                <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Payment Method' : 'طريقة الدفع'}</th>
+                <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Total' : 'الإجمالي'}</th>
+                <th className="py-3 px-5 font-semibold text-center">{language === 'en' ? 'Actions' : 'إجراءات'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredSales.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-ink-soft text-[15px]">
+                    {language === "en" ? "No invoices found" : "لا توجد فواتير مطابقة للبحث أو التاريخ المحدد"}
                   </td>
                 </tr>
-              ))}
-          </tbody>
-        </table>
+              ) : (
+                filteredSales.map((sale: any) => (
+                  <tr
+                    key={sale.id}
+                    className={`border-b border-mint-line/50 transition-all ${sale.status === "refunded" ? "opacity-50 bg-bg" : "hover:bg-bg/50"}`}
+                  >
+                    <td className="py-4 px-5 text-start">
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-mint-bg border border-mint-line rounded-xl text-primary font-mono font-bold text-[14px]">
+                        <span className="text-primary/40 text-[12px]">#</span>
+                        <span dir="ltr">{sale.id}</span>
+                      </div>
+                      {sale.status === "refunded" && (
+                        <span
+                          className="inline-block mr-2 text-[11px] bg-coral/10 text-coral border border-coral/20 px-2 py-0.5 rounded-md font-bold"
+                        >
+                          {language === 'en' ? 'Refunded' : 'مسترجعة'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-4 px-5 text-start">
+                      <div className="text-[13px] font-bold text-ink">
+                        {new Date(sale.date).toLocaleDateString(language === "en" ? "en-US" : "ar-EG")}
+                      </div>
+                      <div className="text-[12px] text-ink-soft font-mono mt-0.5">
+                        {new Date(sale.date).toLocaleTimeString(language === "en" ? "en-US" : "ar-EG", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                      </div>
+                    </td>
+                    <td className="py-4 px-5 text-start">
+                      {sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين" || (!sale.items || sale.items.length === 0) ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[12px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                          💳 {language === 'en' ? 'Debt Receipt' : 'سند سداد'}
+                        </span>
+                      ) : (
+                        <span className="text-[14px] font-medium text-ink">
+                          {Array.isArray(sale.items) ? sale.items.length : 0} {language === 'en' ? 'Items' : 'أصناف'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-4 px-5 text-start">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[12px] font-bold ${
+                          sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين"
+                            ? "bg-purple-100 text-purple-700 border border-purple-200"
+                            : sale.paymentMethod === "cash"
+                              ? "bg-teal-pale text-teal border border-teal/20"
+                              : "bg-primary-pale text-primary border border-primary/20"
+                        }`}
+                      >
+                        {sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين"
+                          ? (language === 'en' ? "Debt Collection" : "سداد دين") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
+                          : sale.paymentMethod === "cash"
+                            ? (language === 'en' ? "Cash" : "نقدي")
+                            : sale.paymentMethod === "bank"
+                              ? (language === 'en' ? "Bank" : "بنكي")
+                              : sale.paymentMethod === "jawwal"
+                                ? (language === 'en' ? "Jawwal Pay" : "جوال باي")
+                                : sale.paymentMethod === "palpay"
+                                  ? (language === 'en' ? "PalPay" : "بال باي")
+                                  : sale.paymentMethod === "maalchat"
+                                    ? (language === 'en' ? "MaalChat" : "مالتشات")
+                                    : sale.paymentMethod === "credit"
+                                      ? (language === 'en' ? "Credit" : "ذمم") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
+                                      : sale.paymentMethod}
+                      </span>
+                    </td>
+                    <td
+                      className="py-4 px-5 text-start font-mono font-bold text-[15px]"
+                    >
+                      <span className={sale.status === "refunded" ? "text-ink-soft line-through" : "text-teal font-black"}>
+                        {Number(sale.total || 0).toLocaleString()} ₪
+                      </span>
+                    </td>
+                    <td className="py-4 px-5">
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => setSelectedInvoice(sale)}
+                          className="px-3 py-1.5 text-[13px] font-bold text-primary bg-primary-pale rounded-lg hover:bg-primary hover:text-white transition-all shadow-sm"
+                        >
+                          {language === 'en' ? 'View' : 'عرض'}
+                        </button>
+                        {sale.status !== "refunded" && sale.status !== "debt_payment" && sale.paymentMethod !== "debt_payment" && sale.paymentMethod !== "تسديد دين" && (
+                          <button
+                            onClick={() => handleRefund(sale.id)}
+                            className="px-3 py-1.5 text-[13px] font-bold text-coral border border-coral-pale rounded-lg hover:bg-coral hover:text-white transition-all"
+                          >
+                            {language === 'en' ? 'Refund' : 'استرجاع'}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Invoice Details Modal */}
       {selectedInvoice && (
-        <div className="fixed inset-0 bg-primary/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div id="invoice-modal-content" className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl border border-mint-line animate-fade-in-up">
+        <div className="fixed inset-0 bg-primary/20 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+          <div id="invoice-modal-content" className="bg-white rounded-3xl p-5 sm:p-6 w-full max-w-md max-h-[92vh] overflow-y-auto shadow-2xl border border-mint-line animate-fade-in-up">
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-mint-line dashed">
               <div>
                 <h3 className="text-[20px] font-black text-primary">
@@ -306,7 +445,9 @@ export default function SalesLog() {
               <div className="flex justify-between text-[14px]">
                 <span className="text-ink-soft font-bold">{language === 'en' ? 'Payment Method:' : 'طريقة الدفع:'}</span>
                 <span className="text-ink font-semibold">
-                  {selectedInvoice.paymentMethod === "cash"
+                  {selectedInvoice.status === "debt_payment" || selectedInvoice.paymentMethod === "debt_payment" || selectedInvoice.paymentMethod === "تسديد دين"
+                    ? (language === 'en' ? "Debt Collection" : "سداد دين") + (selectedInvoice.customer?.name ? ` (${selectedInvoice.customer.name})` : "")
+                    : selectedInvoice.paymentMethod === "cash"
                     ? (language === 'en' ? "Cash" : "نقدي")
                     : selectedInvoice.paymentMethod === "bank"
                       ? (language === 'en' ? "Bank" : "بنكي")
@@ -322,13 +463,23 @@ export default function SalesLog() {
                 </span>
               </div>
               <div className="flex justify-between text-[14px]">
-                <span className="text-ink-soft font-bold">{language === 'en' ? 'Number of Items:' : 'عدد الأصناف:'}</span>
+                <span className="text-ink-soft font-bold">{language === 'en' ? 'Transaction Type:' : 'نوع الحركة:'}</span>
                 <span className="text-ink font-semibold">
-                  {Array.isArray(selectedInvoice.items)
-                    ? selectedInvoice.items.length
-                    : 0}
+                  {selectedInvoice.status === "debt_payment" || selectedInvoice.paymentMethod === "debt_payment" || selectedInvoice.paymentMethod === "تسديد دين"
+                    ? (language === 'en' ? "Debt Repayment Voucher" : "سند قبض / سداد دين")
+                    : (language === 'en' ? "Sales Invoice" : "فاتورة مبيعات أدوية")}
                 </span>
               </div>
+              {selectedInvoice.status !== "debt_payment" && selectedInvoice.paymentMethod !== "debt_payment" && selectedInvoice.paymentMethod !== "تسديد دين" && (
+                <div className="flex justify-between text-[14px]">
+                  <span className="text-ink-soft font-bold">{language === 'en' ? 'Number of Items:' : 'عدد الأصناف:'}</span>
+                  <span className="text-ink font-semibold">
+                    {Array.isArray(selectedInvoice.items)
+                      ? selectedInvoice.items.length
+                      : 0}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between text-[14px]">
                 <span className="text-ink-soft font-bold">{language === 'en' ? 'Invoice Status:' : 'حالة الفاتورة:'}</span>
                 <span
@@ -340,7 +491,7 @@ export default function SalesLog() {
             </div>
 
             {Array.isArray(selectedInvoice.items) &&
-              selectedInvoice.items.length > 0 && (
+              selectedInvoice.items.length > 0 ? (
                 <div className="mb-6">
                   <h4 className="font-bold text-[15px] mb-3">
                     {language === 'en' ? 'Sold Items' : 'الأصناف المباعة'}
@@ -377,6 +528,17 @@ export default function SalesLog() {
                     </table>
                   </div>
                 </div>
+              ) : (
+                <div className="mb-6 p-4 bg-purple-50/70 border border-purple-200 rounded-2xl text-center">
+                  <div className="text-[14px] font-bold text-purple-900 mb-1">
+                    {language === 'en' ? '💳 Debt Repayment Voucher' : '💳 سند قبض مالي (سداد دين)'}
+                  </div>
+                  <div className="text-[13px] text-purple-700">
+                    {selectedInvoice.customer?.name
+                      ? (language === 'en' ? `Customer: ${selectedInvoice.customer.name}` : `العميل: ${selectedInvoice.customer.name}`)
+                      : (language === 'en' ? 'Financial collection (No dispensed items)' : 'حركة قبض مالي لا تتضمن صرف أدوية')}
+                  </div>
+                </div>
               )}
 
             <div className="bg-bg rounded-xl p-4 flex justify-between items-center">
@@ -388,7 +550,7 @@ export default function SalesLog() {
               </span>
             </div>
 
-            <div id="invoice-modal-actions" className="flex gap-2 mt-6">
+            <div id="invoice-modal-actions" className="flex flex-col sm:flex-row gap-2 mt-6">
               <button
                 onClick={async () => {
                   const element = document.getElementById("invoice-modal-content");
@@ -414,21 +576,23 @@ export default function SalesLog() {
                     if (closeBtn) closeBtn.style.display = "block";
                   }
                 }}
-                className="flex-1 bg-[#1C2733] text-white font-bold py-3.5 rounded-xl hover:bg-[#5B6A78] transition-all text-[13px]"
+                className="w-full sm:flex-1 bg-[#1C2733] text-white font-bold py-3 sm:py-3.5 rounded-xl hover:bg-[#5B6A78] transition-all text-[13px]"
               >
                 {language === 'en' ? 'Export PDF' : 'تصدير PDF'}
               </button>
-              <button
-                onClick={() => {
-                  router.push(`/pos?edit=${selectedInvoice.id}`);
-                }}
-                className="flex-[1.2] bg-white text-primary border-2 border-primary font-bold py-3.5 rounded-xl hover:bg-primary-pale transition-all text-[13px]"
-              >
-                {language === 'en' ? 'Edit Invoice' : 'تعديل الفاتورة'}
-              </button>
+              {selectedInvoice.status !== "debt_payment" && selectedInvoice.paymentMethod !== "debt_payment" && selectedInvoice.paymentMethod !== "تسديد دين" && (
+                <button
+                  onClick={() => {
+                    router.push(`/pos?edit=${selectedInvoice.id}`);
+                  }}
+                  className="w-full sm:flex-[1.2] bg-white text-primary border-2 border-primary font-bold py-3 sm:py-3.5 rounded-xl hover:bg-primary-pale transition-all text-[13px]"
+                >
+                  {language === 'en' ? 'Edit Invoice' : 'تعديل الفاتورة'}
+                </button>
+              )}
               <button
                 onClick={() => setSelectedInvoice(null)}
-                className="flex-[1.2] bg-primary text-white font-bold py-3.5 rounded-xl shadow-md shadow-primary/20 hover:bg-teal transition-all text-[13px]"
+                className="w-full sm:flex-[1.2] bg-primary text-white font-bold py-3 sm:py-3.5 rounded-xl shadow-md shadow-primary/20 hover:bg-teal transition-all text-[13px]"
               >
                 {language === 'en' ? 'Close' : 'إغلاق'}
               </button>
