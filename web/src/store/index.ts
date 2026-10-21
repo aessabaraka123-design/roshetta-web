@@ -42,6 +42,9 @@ interface User {
 interface StoreState {
   language: 'ar' | 'en';
   setLanguage: (lang: 'ar' | 'en') => void;
+  isMobileMenuOpen: boolean;
+  setMobileMenuOpen: (open: boolean) => void;
+  toggleMobileMenu: () => void;
   user: User | null;
   token: string | null;
   login: (user: User, token?: string) => void;
@@ -99,6 +102,9 @@ export const useStore = create<StoreState>()(
     (set) => ({
       language: 'ar',
       setLanguage: (lang) => set({ language: lang }),
+      isMobileMenuOpen: false,
+      setMobileMenuOpen: (open) => set({ isMobileMenuOpen: open }),
+      toggleMobileMenu: () => set((state) => ({ isMobileMenuOpen: !state.isMobileMenuOpen })),
       user: getInitialUser(),
       token: getInitialToken(),
       login: (user, token) => {
