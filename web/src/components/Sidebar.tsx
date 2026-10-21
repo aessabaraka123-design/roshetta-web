@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useStore } from "@/store";
 import toast from "react-hot-toast";
 import RoshettaLogo from "./RoshettaLogo";
@@ -27,7 +27,13 @@ export default function Sidebar() {
   const user = useStore((state) => state.user);
   const logout = useStore((state) => state.logout);
   const language = useStore((state: any) => state.language);
-  
+  const isMobileMenuOpen = useStore((state: any) => state.isMobileMenuOpen);
+  const setMobileMenuOpen = useStore((state: any) => state.setMobileMenuOpen);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname, setMobileMenuOpen]);
+
   const { t } = useTranslation();
 
   const navGroups = [
@@ -96,10 +102,36 @@ export default function Sidebar() {
     return null;
 
   return (
-    <aside className="w-64 flex flex-col h-screen sticky top-0 shrink-0 bg-white shadow-xl shadow-teal/5 z-20 print:hidden">
-      <div className="flex items-center gap-3 p-4 border-b border-mint-line text-primary">
-        <RoshettaLogo showText={true} />
-      </div>
+    <>
+      {/* Mobile Drawer Backdrop */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-ink/50 backdrop-blur-sm z-40 md:hidden transition-opacity"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Main Sidebar: Drawer on Mobile, Sticky on Desktop */}
+      <aside
+        className={`
+          flex flex-col h-screen bg-white shadow-xl shadow-teal/5 print:hidden transition-transform duration-300 ease-in-out
+          fixed inset-y-0 ${language === "en" ? "left-0" : "right-0"} w-72 max-w-[85vw] z-50
+          ${isMobileMenuOpen ? "translate-x-0" : (language === "en" ? "-translate-x-full" : "translate-x-full")}
+          md:static md:translate-x-0 md:w-64 md:shrink-0 md:sticky md:top-0 md:z-20
+        `}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-mint-line text-primary">
+          <RoshettaLogo showText={true} />
+          {/* Close button on mobile only */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(false)}
+            className="md:hidden w-8 h-8 rounded-full bg-bg flex items-center justify-center text-ink-soft hover:text-coral transition-colors"
+            aria-label="إغلاق القائمة"
+          >
+            ✕
+          </button>
+        </div>
 
       <nav className="flex-1 p-3 space-y-4 overflow-y-auto no-scrollbar">
         {navGroups
@@ -177,6 +209,7 @@ export default function Sidebar() {
                       <Link
                         key={item.name}
                         href={item.href}
+                        onClick={() => setMobileMenuOpen(false)}
                         className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
                           isActive
                             ? "bg-teal-pale text-teal font-bold shadow-sm"
@@ -214,7 +247,10 @@ export default function Sidebar() {
           </div>
 
           <button
-            onClick={handleLogout}
+            onClick={() => {
+              setMobileMenuOpen(false);
+              handleLogout();
+            }}
             title={t.sidebar.logout}
             className="p-2 text-red-500/70 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors"
           >
@@ -236,5 +272,6 @@ export default function Sidebar() {
         </div>
       </div>
     </aside>
+    </>
   );
 }

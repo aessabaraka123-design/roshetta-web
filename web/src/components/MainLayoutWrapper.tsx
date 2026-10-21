@@ -154,7 +154,7 @@ export default function MainLayoutWrapper({
         </div>
       )}
       <main
-        className={`p-8 flex-1 w-full max-w-7xl mx-auto transition-all duration-300 ${user?.isReadOnly ? "pointer-events-none opacity-60 grayscale-[30%] select-none" : ""}`}
+        className={`p-3 sm:p-5 md:p-8 flex-1 w-full max-w-7xl mx-auto transition-all duration-300 ${user?.isReadOnly ? "pointer-events-none opacity-60 grayscale-[30%] select-none" : ""}`}
       >
         {children}
       </main>

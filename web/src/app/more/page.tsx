@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 
 import { useRouter } from "next/navigation";
+import AppBar from "@/components/AppBar";
 import { useStore } from "@/store";
 import { useTranslation } from "@/i18n";
 
@@ -111,9 +112,7 @@ export default function More() {
 
   return (
     <>
-      <div className="flex items-center justify-between mt-5 mb-3">
-        <h2 className="text-[20px] font-bold text-primary">{language === "en" ? "Settings" : "الإعدادات"}</h2>
-      </div>
+      <AppBar title={language === "en" ? "Settings" : "الإعدادات"} />
 
       <div className="flex items-center gap-3 bg-card border border-mint-line rounded-[16px] p-4 mb-5 shadow-sm">
         <div className="bg-primary-pale text-primary w-[50px] h-[50px] rounded-full flex items-center justify-center font-bold text-[18px] shrink-0">

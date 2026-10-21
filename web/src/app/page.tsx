@@ -67,12 +67,12 @@ export default function Dashboard() {
 
       <AppBar />
 
-      <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 px-6">
+      <div className="mb-4 sm:mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 px-1 sm:px-4 md:px-6">
         <div>
-          <h1 className="text-[26px] font-black text-primary mb-1 flex items-center gap-2">
+          <h1 className="text-[22px] sm:text-[26px] font-black text-primary mb-1 flex items-center gap-2">
             {language === "en" ? `Hello, ${user.managerName || "Pharmacy Manager"} 👋` : `مرحباً، ${user.managerName || "مدير الصيدلية"} 👋`}
           </h1>
-          <p className="text-[15px] text-ink-soft font-medium">
+          <p className="text-[13px] sm:text-[15px] text-ink-soft font-medium">
             {mounted ? new Date().toLocaleDateString(language === "en" ? "en-US" : "ar-EG", {
               weekday: "long",
               day: "numeric",
@@ -87,7 +87,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="px-6">
+      <div className="px-1 sm:px-4 md:px-6">
         {isManager && (
           <div className="flex gap-2 overflow-x-auto pb-4 mb-2 no-scrollbar">
             {branches.map((branch) => (

@@ -30,6 +30,7 @@ export default function AppBar({
   const notifsRef = useRef<HTMLDivElement>(null);
 
   const user = useStore((state: any) => state.user);
+  const toggleMobileMenu = useStore((state: any) => state.toggleMobileMenu);
   const { t, language } = useTranslation();
 
   const isRtl = language !== "en";
@@ -115,10 +116,33 @@ export default function AppBar({
   }, []);
 
   return (
-    <div className="flex items-center justify-between mt-3 mb-5 w-full">
+    <div className="flex items-center justify-between mt-2 sm:mt-3 mb-4 sm:mb-5 w-full">
       <div className="flex items-center gap-2 text-primary">
-        {showLogo && <LogoMark className="h-[30px] w-auto shrink-0" />}
-        <span className="font-bold text-[20px]">{actualTitle}</span>
+        {/* Hamburger (3-lines) button for mobile */}
+        <button
+          type="button"
+          onClick={toggleMobileMenu}
+          className="md:hidden p-2 rounded-xl text-ink hover:text-primary hover:bg-mint-bg active:scale-95 transition-all flex items-center justify-center border border-mint-line/50 bg-white shadow-sm shrink-0"
+          title={language === "en" ? "Menu" : "القائمة"}
+          aria-label="القائمة"
+        >
+          <svg
+            className="w-5 h-5 text-ink"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </svg>
+        </button>
+
+        {showLogo && <LogoMark className="h-[26px] sm:h-[30px] w-auto shrink-0" />}
+        <span className="font-bold text-[18px] sm:text-[20px] line-clamp-1">{actualTitle}</span>
       </div>
       <div className="flex items-center gap-4">
         {children}
