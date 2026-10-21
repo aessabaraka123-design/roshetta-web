@@ -58,6 +58,65 @@ export default function SocketProvider({
       }
     });
 
+    // 🔔 Listen for instant pharmacy updates from Superadmin (Live Sync)
+    newSocket.on("pharmacy_updated", (data: any) => {
+      const currentUser = userRef.current;
+      if (currentUser && data) {
+        const updatedUser = {
+          ...currentUser,
+          ...(data.pharmacyName ? { pharmacyName: data.pharmacyName } : {}),
+          ...(data.managerName ? { managerName: data.managerName } : {}),
+          ...(data.subscriptionType ? { subscriptionType: data.subscriptionType } : {}),
+          ...(data.subscriptionExpiry ? { subscriptionExpiry: data.subscriptionExpiry } : {}),
+          ...(typeof data.isReadOnly === "boolean" ? { isReadOnly: data.isReadOnly } : {}),
+          ...(typeof data.isActive === "boolean" ? { isActive: data.isActive } : {}),
+        };
+        loginFnRef.current(updatedUser, useStore.getState().token || undefined);
+        try {
+          localStorage.setItem("roshetta_user", JSON.stringify(updatedUser));
+        } catch (e) {}
+      }
+
+      // Revalidate all SWR queries
+      mutate(
+        (key) => typeof key === "string" && key.includes("/api/pharmacies"),
+        undefined,
+        { revalidate: true }
+      );
+
+      if (data?.pharmacyName && data.pharmacyName !== userRef.current?.pharmacyName) {
+        toast.success(
+          langRef.current === "en" ? `Pharmacy name updated: ${data.pharmacyName}` : `تم تحديث بيانات الصيدلية: ${data.pharmacyName}`,
+          { duration: 4000 }
+        );
+      }
+    });
+
+    // 🔔 Listen for account active/freeze status changes
+    newSocket.on("account_status_changed", (data: any) => {
+      if (data && typeof data.isActive === "boolean") {
+        const currentUser = userRef.current;
+        if (currentUser) {
+          loginFnRef.current({ ...currentUser, isActive: data.isActive }, useStore.getState().token || undefined);
+        }
+        if (!data.isActive) {
+          toast.error(
+            langRef.current === "en"
+              ? "⚠️ Your pharmacy account has been suspended by administration."
+              : "⚠️ تم إيقاف/تجميد حساب الصيدلية من قبل الإدارة.",
+            { duration: 8000 }
+          );
+        } else {
+          toast.success(
+            langRef.current === "en"
+              ? "✅ Your pharmacy account has been reactivated."
+              : "✅ تم إعادة تنشيط حساب الصيدلية بنجاح.",
+            { duration: 6000 }
+          );
+        }
+      }
+    });
+
     // 🔔 Listen for subscription approval
     newSocket.on("subscription_approved", (data) => {
       // Update the user in store to remove read-only mode instantly

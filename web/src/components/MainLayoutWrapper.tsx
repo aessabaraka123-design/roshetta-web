@@ -31,13 +31,34 @@ export default function MainLayoutWrapper({
     { refreshInterval: user?.isReadOnly ? 10000 : 30000 }
   );
 
-  // Sync isReadOnly between server check and client store
+  // Sync isReadOnly, pharmacyName, subscriptionType, isActive between server check and client store
   useEffect(() => {
     if (subStatusData && subStatusData.success && user) {
-      if (subStatusData.isReadOnly === false && user.isReadOnly) {
-        useStore.getState().login({ ...user, isReadOnly: false }, useStore.getState().token || undefined);
-      } else if (subStatusData.isReadOnly === true && !user.isReadOnly) {
-        useStore.getState().login({ ...user, isReadOnly: true }, useStore.getState().token || undefined);
+      let hasChanges = false;
+      const updatedUser = { ...user };
+
+      if (typeof subStatusData.isReadOnly === "boolean" && subStatusData.isReadOnly !== user.isReadOnly) {
+        updatedUser.isReadOnly = subStatusData.isReadOnly;
+        hasChanges = true;
+      }
+      if (subStatusData.pharmacyName && subStatusData.pharmacyName !== user.pharmacyName) {
+        updatedUser.pharmacyName = subStatusData.pharmacyName;
+        hasChanges = true;
+      }
+      if (subStatusData.subscriptionType && subStatusData.subscriptionType !== user.subscriptionType) {
+        updatedUser.subscriptionType = subStatusData.subscriptionType;
+        hasChanges = true;
+      }
+      if (typeof subStatusData.isActive === "boolean" && subStatusData.isActive !== user.isActive) {
+        updatedUser.isActive = subStatusData.isActive;
+        hasChanges = true;
+      }
+
+      if (hasChanges) {
+        useStore.getState().login(updatedUser, useStore.getState().token || undefined);
+        try {
+          localStorage.setItem("roshetta_user", JSON.stringify(updatedUser));
+        } catch (e) {}
       }
     }
   }, [subStatusData, user]);
