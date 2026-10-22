@@ -905,10 +905,11 @@ function POSContent() {
           <div className="min-h-screen py-10 flex flex-col items-center justify-center print:py-0 print:block">
             <div
               id="pos-receipt-content"
-              className="bg-[#FDFAED] border border-mint-line shadow-[0_10px_40px_-15px_rgba(34,62,86,0.15)] p-5 font-mono text-ink relative mx-auto print:shadow-none print:border-none print:p-0 print:w-auto"
+              className="bg-[#FDFAED] border border-mint-line shadow-[0_10px_40px_-15px_rgba(34,62,86,0.15)] p-5 text-ink relative mx-auto print:shadow-none print:border-none print:p-0 print:w-auto font-sans"
               style={{
                 width: "100%",
                 maxWidth: printerSize === "80mm" ? "320px" : "230px",
+                fontFamily: "var(--font-cairo), Cairo, system-ui, -apple-system, sans-serif",
               }}
               dir="rtl"
             >
@@ -946,13 +947,13 @@ function POSContent() {
               <div className="space-y-1.5 mb-1 px-1">
                 <div className="flex justify-between items-center text-[12px]">
                   <span className="text-ink-soft font-bold">{language === 'en' ? "Invoice No:" : "رقم الفاتورة:"}</span>
-                  <span className="text-ink font-bold font-mono text-[11px]">
+                  <span className="text-ink font-bold font-mono text-[12px]" dir="ltr">
                     {lastInvoice.id}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-[12px]">
                   <span className="text-ink-soft font-bold">{language === 'en' ? "Date:" : "التاريخ:"}</span>
-                  <span className="text-ink font-bold font-mono text-[11px]">
+                  <span className="text-ink font-bold font-mono text-[11px]" dir="ltr">
                     {lastInvoice.date}
                   </span>
                 </div>
@@ -968,32 +969,38 @@ function POSContent() {
                 - - - - - - - - - - - - - - - - - - - - - -
               </div>
 
-              <div className="flex text-[12px] font-bold text-ink-soft mb-3 px-1">
-                <div className="flex-[2] text-start">{language === 'en' ? "Item" : "الصنف"}</div>
-                <div className="w-[40px] text-center">{language === 'en' ? "Qty" : "الكمية"}</div>
-                <div className="flex-1 text-start">{language === 'en' ? "Total" : "المجموع"}</div>
+              <div className="flex text-[12px] font-bold text-ink-soft mb-2 px-1 border-b border-dashed border-[#94A3B8]/40 pb-1.5">
+                <div className="flex-1 text-start min-w-0 pr-1 pl-1">{language === 'en' ? "Item" : "الصنف"}</div>
+                <div className="w-[45px] text-center shrink-0">{language === 'en' ? "Qty" : "الكمية"}</div>
+                <div className="w-[65px] text-end shrink-0">{language === 'en' ? "Total" : "المجموع"}</div>
               </div>
 
-              <div className="space-y-3 mb-1 px-1">
-                {lastInvoice.items.map((item: any, i: number) => (
-                  <div
-                    key={i}
-                    className="flex text-[12px] text-ink items-center"
-                  >
-                    <div className="flex-[2] text-start font-bold truncate pr-1">
-                      {(item.displayName || item.name || "").replace(/\s*\(القديم\)|\s*\(الجديد\)|\s*\(دفعة قديمة\)|\s*\(دفعة جديدة\)/g, "").trim()}
+              <div className="space-y-2 mb-1 px-1">
+                {lastInvoice.items.map((item: any, i: number) => {
+                  const cleanName = (item.displayName || item.name || "")
+                    .replace(/\s*\(القديم\)|\s*\(الجديد\)|\s*\(دفعة قديمة\)|\s*\(دفعة جديدة\)/g, "")
+                    .trim();
+                  const qty = item.cartQty || item.qty || 1;
+                  const unitPrice = Number(item.unitPrice || item.price || 0);
+                  const rowTotal = (unitPrice * Number(qty)).toFixed(2);
+
+                  return (
+                    <div
+                      key={i}
+                      className="flex text-[12px] text-ink items-start py-1 border-b border-dashed border-[#94A3B8]/20 last:border-0"
+                    >
+                      <div className="flex-1 text-start font-bold leading-snug break-words pr-1 pl-1 min-w-0">
+                        <bdi dir="auto">{cleanName}</bdi>
+                      </div>
+                      <div className="w-[45px] text-center font-mono shrink-0 pt-0.5">
+                        {qty}
+                      </div>
+                      <div className="w-[65px] text-end font-mono font-bold shrink-0 pt-0.5">
+                        {rowTotal}
+                      </div>
                     </div>
-                    <div className="w-[40px] text-center font-mono">
-                      {item.cartQty || item.qty || 1}
-                    </div>
-                    <div className="flex-1 text-start font-mono font-bold">
-                      {(
-                        Number(item.unitPrice || item.price || 0) *
-                        Number(item.cartQty || item.qty || 1)
-                      ).toFixed(2)}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="text-center text-[#94A3B8] tracking-widest my-3">
@@ -1004,9 +1011,9 @@ function POSContent() {
                 <span className="text-[14px] font-bold text-ink">
                   {language === 'en' ? "Grand Total" : "الإجمالي الكلي"}
                 </span>
-                <span className="text-[18px] font-black text-ink">
+                <span className="text-[18px] font-black text-ink font-mono">
                   {Number(lastInvoice.total || 0).toFixed(2)}{" "}
-                  <span className="text-[14px]">₪</span>
+                  <span className="text-[14px] font-sans">₪</span>
                 </span>
               </div>
 

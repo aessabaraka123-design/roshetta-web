@@ -11,6 +11,7 @@ import useSWR from "swr";
 import { useStore } from "@/store";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import RoshettaLogo from "@/components/RoshettaLogo";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -47,6 +48,7 @@ export default function SalesLog() {
     fetchBranches();
   }, [user?.pharmacy_id]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [thermalInvoice, setThermalInvoice] = useState<any>(null);
   const [refunding, setRefunding] = useState(false);
   const [branchFilter, setBranchFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState(() => {
@@ -66,6 +68,19 @@ export default function SalesLog() {
     fetcher,
   );
   const sales = (data?.sales || []).filter((s: any) => s.status !== "refund_proxy");
+
+  const { data: pharmacyData } = useSWR(
+    user ? `${API_BASE_URL}/api/admin/pharmacies/${user.pharmacy_id}` : null,
+    fetcher,
+  );
+  const pharmacyName = pharmacyData?.pharmacy?.name || "";
+  const pharmacyPhone = pharmacyData?.pharmacy?.phone || "";
+  const receiptFooter = pharmacyData?.pharmacy?.receiptFooter || "";
+  const printerSize = pharmacyData?.pharmacy?.printerSize || "80mm";
+  const showLogo =
+    pharmacyData?.pharmacy?.showLogo !== undefined
+      ? !!pharmacyData.pharmacy.showLogo
+      : true;
 
   const handleRefund = async (id: string) => {
     if (refunding) return;
@@ -515,7 +530,13 @@ export default function SalesLog() {
                             key={i}
                             className="border-b border-mint-line/50 last:border-0"
                           >
-                            <td className="py-2 px-3 font-bold">{item.name}</td>
+                            <td className="py-2 px-3 font-bold">
+                              <bdi dir="auto">
+                                {(item.displayName || item.name || "")
+                                  .replace(/\s*\(القديم\)|\s*\(الجديد\)|\s*\(دفعة قديمة\)|\s*\(دفعة جديدة\)/g, "")
+                                  .trim()}
+                              </bdi>
+                            </td>
                             <td className="py-2 px-3 text-center">
                               {item.cartQty || item.qty}
                             </td>
@@ -551,6 +572,14 @@ export default function SalesLog() {
             </div>
 
             <div id="invoice-modal-actions" className="flex flex-col sm:flex-row gap-2 mt-6">
+              <button
+                onClick={() => setThermalInvoice(selectedInvoice)}
+                className="w-full sm:flex-1 bg-amber text-white font-bold py-3 sm:py-3.5 rounded-xl hover:bg-amber/90 transition-all text-[13px] flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <span>🖨️</span>
+                <span>{language === 'en' ? 'Thermal Receipt' : 'إيصال حراري'}</span>
+              </button>
+
               <button
                 onClick={async () => {
                   const element = document.getElementById("invoice-modal-content");
@@ -595,6 +624,248 @@ export default function SalesLog() {
                 className="w-full sm:flex-[1.2] bg-primary text-white font-bold py-3 sm:py-3.5 rounded-xl shadow-md shadow-primary/20 hover:bg-teal transition-all text-[13px]"
               >
                 {language === 'en' ? 'Close' : 'إغلاق'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Thermal Receipt Modal for Reprinting */}
+      {thermalInvoice && (
+        <div className="fixed inset-0 bg-ink/50 z-50 overflow-y-auto print:overflow-visible print:p-0 print:bg-white print:static print:block">
+          <div className="min-h-screen py-10 flex flex-col items-center justify-center print:py-0 print:block">
+            <div
+              id="sales-thermal-receipt-content"
+              className="bg-[#FDFAED] border border-mint-line shadow-[0_10px_40px_-15px_rgba(34,62,86,0.15)] p-5 text-ink relative mx-auto print:shadow-none print:border-none print:p-0 print:w-auto font-sans"
+              style={{
+                width: "100%",
+                maxWidth: printerSize === "80mm" ? "320px" : "230px",
+                fontFamily: "var(--font-cairo), Cairo, system-ui, -apple-system, sans-serif",
+              }}
+              dir="rtl"
+            >
+              <div
+                className="absolute top-[-4px] left-0 right-0 h-[4px] bg-repeat-x print:hidden"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(-45deg, transparent 3px, #FDFAED 3px, #FDFAED 7px, transparent 7px), linear-gradient(45deg, transparent 3px, #FDFAED 3px, #FDFAED 7px, transparent 7px)",
+                  backgroundSize: "8px 8px",
+                }}
+              ></div>
+
+              {showLogo && (
+                <div className="flex justify-center mt-2 mb-3">
+                  <RoshettaLogo className="w-10 h-10" />
+                </div>
+              )}
+
+              <div className="text-center mb-1">
+                <h1 className="text-[18px] font-bold mb-1 text-ink">
+                  {pharmacyName || ""}
+                </h1>
+                {thermalInvoice.branchName && (
+                  <p className="text-[12px] text-ink-soft">{thermalInvoice.branchName}</p>
+                )}
+                {pharmacyPhone && (
+                  <p className="text-[12px] text-ink-soft">{pharmacyPhone}</p>
+                )}
+              </div>
+
+              <div className="text-center text-[#94A3B8] tracking-widest my-3">
+                - - - - - - - - - - - - - - - - - - - - - -
+              </div>
+
+              <div className="space-y-1.5 mb-1 px-1">
+                <div className="flex justify-between items-center text-[12px]">
+                  <span className="text-ink-soft font-bold">{language === 'en' ? "Invoice No:" : "رقم الفاتورة:"}</span>
+                  <span className="text-ink font-bold font-mono text-[12px]" dir="ltr">
+                    {thermalInvoice.id}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-[12px]">
+                  <span className="text-ink-soft font-bold">{language === 'en' ? "Date:" : "التاريخ:"}</span>
+                  <span className="text-ink font-bold font-mono text-[11px]" dir="ltr">
+                    {new Date(thermalInvoice.date).toLocaleString(language === "en" ? "en-US" : "ar-EG")}
+                  </span>
+                </div>
+                {thermalInvoice.cashierName && (
+                  <div className="flex justify-between items-center text-[12px]">
+                    <span className="text-ink-soft font-bold">{language === 'en' ? "Employee:" : "الموظف:"}</span>
+                    <span className="text-ink font-bold">
+                      {thermalInvoice.cashierName}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-center text-[#94A3B8] tracking-widest my-3">
+                - - - - - - - - - - - - - - - - - - - - - -
+              </div>
+
+              <div className="flex text-[12px] font-bold text-ink-soft mb-2 px-1 border-b border-dashed border-[#94A3B8]/40 pb-1.5">
+                <div className="flex-1 text-start min-w-0 pr-1 pl-1">{language === 'en' ? "Item" : "الصنف"}</div>
+                <div className="w-[45px] text-center shrink-0">{language === 'en' ? "Qty" : "الكمية"}</div>
+                <div className="w-[65px] text-end shrink-0">{language === 'en' ? "Total" : "المجموع"}</div>
+              </div>
+
+              <div className="space-y-2 mb-1 px-1">
+                {(thermalInvoice.items || []).map((item: any, i: number) => {
+                  const cleanName = (item.displayName || item.name || "")
+                    .replace(/\s*\(القديم\)|\s*\(الجديد\)|\s*\(دفعة قديمة\)|\s*\(دفعة جديدة\)/g, "")
+                    .trim();
+                  const qty = item.cartQty || item.qty || 1;
+                  const unitPrice = Number(item.unitPrice || item.price || 0);
+                  const rowTotal = (unitPrice * Number(qty)).toFixed(2);
+
+                  return (
+                    <div
+                      key={i}
+                      className="flex text-[12px] text-ink items-start py-1 border-b border-dashed border-[#94A3B8]/20 last:border-0"
+                    >
+                      <div className="flex-1 text-start font-bold leading-snug break-words pr-1 pl-1 min-w-0">
+                        <bdi dir="auto">{cleanName}</bdi>
+                      </div>
+                      <div className="w-[45px] text-center font-mono shrink-0 pt-0.5">
+                        {qty}
+                      </div>
+                      <div className="w-[65px] text-end font-mono font-bold shrink-0 pt-0.5">
+                        {rowTotal}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="text-center text-[#94A3B8] tracking-widest my-3">
+                - - - - - - - - - - - - - - - - - - - - - -
+              </div>
+
+              <div className="flex justify-between items-center mb-1 px-1">
+                <span className="text-[14px] font-bold text-ink">
+                  {language === 'en' ? "Grand Total" : "الإجمالي الكلي"}
+                </span>
+                <span className="text-[18px] font-black text-ink font-mono">
+                  {Number(thermalInvoice.total || 0).toFixed(2)}{" "}
+                  <span className="text-[14px] font-sans">₪</span>
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center mb-1 px-1">
+                <span className="text-[12px] font-bold text-ink-soft">
+                  {language === 'en' ? "Payment Method" : "طريقة الدفع"}
+                </span>
+                <span className="text-[12px] font-bold text-ink font-mono">
+                  {thermalInvoice.paymentMethod === "cash"
+                    ? (language === 'en' ? "Cash" : "نقدي")
+                    : thermalInvoice.paymentMethod === "bank"
+                      ? (language === 'en' ? "Bank" : "بنكي")
+                      : thermalInvoice.paymentMethod === "jawwal"
+                        ? (language === 'en' ? "Jawwal Pay" : "جوال باي")
+                        : thermalInvoice.paymentMethod === "palpay"
+                          ? (language === 'en' ? "PalPay" : "بال باي")
+                          : thermalInvoice.paymentMethod === "maalchat"
+                            ? (language === 'en' ? "Maalchat" : "مالتشات")
+                            : thermalInvoice.paymentMethod === "credit"
+                              ? (language === 'en' ? "Credit" : "ذمم")
+                              : (language === 'en' ? "Cash" : "نقدي")}
+                </span>
+              </div>
+
+              <div className="text-center text-[#94A3B8] tracking-widest my-3">
+                - - - - - - - - - - - - - - - - - - - - - -
+              </div>
+
+              <div className="mt-2 text-[12px] text-center space-y-1">
+                <p className="font-bold">
+                  {receiptFooter || (language === 'en' ? "We wish you continued health and wellness" : "نتمنى لكم دوام الصحة والعافية")}
+                </p>
+                {pharmacyPhone && (
+                  <p className="font-mono text-ink-soft text-[13px]" dir="ltr">
+                    ☎ {pharmacyPhone}
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-5 flex justify-center opacity-80">
+                <div className="flex h-[30px] items-center">
+                  {[
+                    4, 2, 2, 4, 2, 6, 2, 2, 4, 2, 2, 8, 2, 4, 4, 2, 6, 4, 2, 2,
+                    8, 4, 2, 2, 6, 2, 2, 4,
+                  ].map((w, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        width: w,
+                        height: "100%",
+                        backgroundColor: "#475569",
+                        marginRight: 2,
+                      }}
+                    ></div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-5 flex flex-col items-center justify-center gap-1 opacity-50 grayscale">
+                <RoshettaLogo className="w-4 h-4" />
+                <span className="text-[9px] font-bold text-[#475569]">
+                  {language === 'en' ? "Roshetta Pharmacy Management System" : "نظام روشتة لإدارة الصيدليات"}
+                </span>
+              </div>
+
+              <div
+                className="absolute bottom-[-4px] left-0 right-0 h-[4px] bg-repeat-x rotate-180 print:hidden"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(-45deg, transparent 3px, #FDFAED 3px, #FDFAED 7px, transparent 7px), linear-gradient(45deg, transparent 3px, #FDFAED 3px, #FDFAED 7px, transparent 7px)",
+                  backgroundSize: "8px 8px",
+                }}
+              ></div>
+            </div>
+
+            {/* Actions (Hidden on Print) */}
+            <div
+              className="mt-8 flex flex-row flex-wrap gap-2 justify-center print:hidden w-full px-4"
+              style={{ maxWidth: "500px" }}
+            >
+              <button
+                onClick={() => window.print()}
+                className="flex-1 min-w-[100px] py-3 bg-primary text-white font-bold rounded-xl hover:bg-teal transition-all text-sm"
+              >
+                {language === 'en' ? "Thermal Print" : "طباعة حرارية"}
+              </button>
+              
+              <button
+                onClick={async () => {
+                  const element = document.getElementById("sales-thermal-receipt-content");
+                  if (!element) return;
+                  const widthMm = printerSize === "80mm" ? 80 : 58;
+                  try {
+                    const html2canvas = (await import("html2canvas")).default;
+                    const jsPDF = (await import("jspdf")).jsPDF;
+                    const originalBoxShadow = element.style.boxShadow;
+                    const originalBorder = element.style.border;
+                    element.style.boxShadow = "none";
+                    element.style.border = "none";
+                    const canvas = await html2canvas(element, { scale: 3, useCORS: true, backgroundColor: "#FDFAED" });
+                    element.style.boxShadow = originalBoxShadow;
+                    element.style.border = originalBorder;
+                    const imgData = canvas.toDataURL("image/png");
+                    const heightMm = (canvas.height * widthMm) / canvas.width;
+                    const pdf = new jsPDF("p", "mm", [widthMm, heightMm]);
+                    pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm);
+                    pdf.save(`receipt_${thermalInvoice?.id || Date.now()}.pdf`);
+                  } catch (err) {}
+                }}
+                className="flex-1 min-w-[100px] py-3 bg-amber text-white font-bold rounded-xl hover:bg-amber/90 transition-all text-sm"
+              >
+                {language === 'en' ? "PDF Receipt" : "إيصال PDF"}
+              </button>
+
+              <button
+                onClick={() => setThermalInvoice(null)}
+                className="flex-1 min-w-[100px] py-3 bg-bg text-ink-soft font-bold rounded-xl hover:bg-mint-line transition-all text-sm"
+              >
+                {language === 'en' ? "Close" : "إغلاق"}
               </button>
             </div>
           </div>

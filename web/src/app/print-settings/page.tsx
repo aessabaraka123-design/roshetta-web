@@ -211,9 +211,10 @@ export default function PrintSettings() {
         {/* Live Preview */}
         <div className="w-full md:w-1/2 flex justify-center sticky top-20">
           <div
-            className="bg-[#FDFAED] border border-mint-line shadow-[0_10px_40px_-15px_rgba(34,62,86,0.15)] p-5 w-full font-mono text-ink transition-all duration-300 relative"
+            className="bg-[#FDFAED] border border-mint-line shadow-[0_10px_40px_-15px_rgba(34,62,86,0.15)] p-5 w-full text-ink transition-all duration-300 relative font-sans"
             style={{
               maxWidth: formData.printerSize === "80mm" ? "320px" : "230px",
+              fontFamily: "var(--font-cairo), Cairo, system-ui, -apple-system, sans-serif",
             }}
             dir={language === "en" ? "ltr" : "rtl"}
           >
@@ -249,13 +250,13 @@ export default function PrintSettings() {
             <div className="space-y-1.5 mb-1 px-1">
               <div className="flex justify-between items-center text-[12px]">
                 <span className="text-ink-soft font-bold">{language === "en" ? "Invoice No:" : "رقم الفاتورة:"}</span>
-                <span className="text-ink font-bold font-mono text-[11px]">
+                <span className="text-ink font-bold font-mono text-[12px]" dir="ltr">
                   INV2G4D-000019
                 </span>
               </div>
               <div className="flex justify-between items-center text-[12px]">
                 <span className="text-ink-soft font-bold">{language === "en" ? "Date:" : "التاريخ:"}</span>
-                <span className="text-ink font-bold font-mono text-[11px]">
+                <span className="text-ink font-bold font-mono text-[11px]" dir="ltr">
                   {currentDate}
                 </span>
               </div>
@@ -269,28 +270,28 @@ export default function PrintSettings() {
               - - - - - - - - - - - - - - - - - - - - - -
             </div>
 
-            <div className="flex text-[12px] font-bold text-ink-soft mb-3 px-1">
-              <div className="flex-[2] text-start">{language === "en" ? "Item" : "الصنف"}</div>
-              <div className="w-[40px] text-center">{language === "en" ? "Qty" : "الكمية"}</div>
-              <div className="flex-1 text-start">{language === "en" ? "Total" : "المجموع"}</div>
+            <div className="flex text-[12px] font-bold text-ink-soft mb-2 px-1 border-b border-dashed border-[#94A3B8]/40 pb-1.5">
+              <div className="flex-1 text-start min-w-0 pr-1 pl-1">{language === "en" ? "Item" : "الصنف"}</div>
+              <div className="w-[45px] text-center shrink-0">{language === "en" ? "Qty" : "الكمية"}</div>
+              <div className="w-[65px] text-end shrink-0">{language === "en" ? "Total" : "المجموع"}</div>
             </div>
 
-            <div className="space-y-3 mb-1 px-1">
-              <div className="flex text-[12px] text-ink items-center">
-                <div className="flex-[2] text-start font-bold truncate pr-1">
-                  {language === "en" ? "Panadol Advance" : "بنادول ادفانس"}
+            <div className="space-y-2 mb-1 px-1">
+              <div className="flex text-[12px] text-ink items-start py-1 border-b border-dashed border-[#94A3B8]/20">
+                <div className="flex-1 text-start font-bold leading-snug break-words pr-1 pl-1 min-w-0">
+                  <bdi dir="auto">{language === "en" ? "Panadol Advance (Box)" : "بنادول ادفانس (علبة)"}</bdi>
                 </div>
-                <div className="w-[40px] text-center font-mono">1</div>
-                <div className="flex-1 text-start font-mono font-bold">
+                <div className="w-[45px] text-center font-mono shrink-0 pt-0.5">1</div>
+                <div className="w-[65px] text-end font-mono font-bold shrink-0 pt-0.5">
                   15.00
                 </div>
               </div>
-              <div className="flex text-[12px] text-ink items-center">
-                <div className="flex-[2] text-start font-bold truncate pr-1">
-                  {language === "en" ? "Augmentin 1g" : "أوجمنتين 1 جم"}
+              <div className="flex text-[12px] text-ink items-start py-1">
+                <div className="flex-1 text-start font-bold leading-snug break-words pr-1 pl-1 min-w-0">
+                  <bdi dir="auto">{language === "en" ? "Augmentin 1g (Strip)" : "أوجمنتين 1 جم (شريط)"}</bdi>
                 </div>
-                <div className="w-[40px] text-center font-mono">1</div>
-                <div className="flex-1 text-start font-mono font-bold">
+                <div className="w-[45px] text-center font-mono shrink-0 pt-0.5">1</div>
+                <div className="w-[65px] text-end font-mono font-bold shrink-0 pt-0.5">
                   45.00
                 </div>
               </div>
