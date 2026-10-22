@@ -147,6 +147,7 @@ export const useStore = create<StoreState>()(
 
       addToPosCart: (med, unit) =>
         set((state) => {
+          if (Number(med.qty || 0) <= 0) return state;
           const u = unit || { name: "Box", count: 1, price: med.price, cost: med.cost };
           const cartItemId = `${med.id}-${u.name}`;
 

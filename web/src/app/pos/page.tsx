@@ -237,6 +237,26 @@ function POSContent() {
   };
 
   const handleItemSelect = (med: any) => {
+    // 0. Stock validation
+    const medStock = Number(med.qty || 0);
+    const inCartQty = getCartQtyForMed(med.id);
+    if (medStock <= 0) {
+      toast.error(
+        language === 'en'
+          ? `Product "${med.name}" is out of stock (Quantity: 0)!`
+          : `عذراً، المنتج "${med.name}" نافذ من المخزون (الكمية 0) ولا يمكن بيعه!`
+      );
+      return;
+    }
+    if (inCartQty >= medStock) {
+      toast.error(
+        language === 'en'
+          ? `Cannot add more. All available stock (${medStock}) is already in the cart!`
+          : `لا يمكن إضافة المزيد. كامل الكمية المتوفرة بالمخزون (${medStock}) موجودة بالسلة!`
+      );
+      return;
+    }
+
     // 1. Controlled Meds Check
     if (med.isControlled) {
       if (user?.role !== "manager" && !user?.controlledMedsAccess) {
@@ -274,6 +294,17 @@ function POSContent() {
   };
 
   const addToCartWithUnit = (med: any, unit: any) => {
+    const medStock = Number(med.qty || 0);
+    const inCartQty = getCartQtyForMed(med.id);
+    const neededCount = Number(unit.count || 1);
+    if (inCartQty + neededCount > medStock) {
+      toast.error(
+        language === 'en'
+          ? `Insufficient stock for unit "${unit.name}". Available: ${Math.max(0, medStock - inCartQty)} units!`
+          : `الكمية المتبقية لا تكفي لاختيار وحدة "${unit.name}". المتبقي: ${Math.max(0, medStock - inCartQty)} وحدة فقط!`
+      );
+      return;
+    }
     setUnitModal({ visible: false, med: null, units: [] });
     addToPosCart(med, unit);
   };
@@ -324,35 +355,74 @@ function POSContent() {
       }
     }
 
+    // Direct stock check for med
+    const medStock = Number(medAny.qty || 0);
+    const inCartQty = getCartQtyForMed(medAny.id);
+    if (medStock <= 0) {
+      toast.error(
+        language === 'en'
+          ? `Product "${medAny.name}" is out of stock (Quantity: 0)!`
+          : `عذراً، المنتج "${medAny.name}" نافذ من المخزون (الكمية 0) ولا يمكن بيعه!`
+      );
+      return;
+    }
+    if (inCartQty >= medStock) {
+      toast.error(
+        language === 'en'
+          ? `Cannot add more. Available stock is only ${medStock}!`
+          : `لا يمكن إضافة المزيد. المتوفر بالمخزون هو ${medStock} فقط!`
+      );
+      return;
+    }
+
     handleItemSelect(med);
   };
 
   const changeQty = (cartItemId: string, delta: number) => {
     if (delta > 0) {
       const cartItem = cart.find((ci: any) => ci.cartItemId === cartItemId);
-      if (cartItem && cartItem.name?.includes("(القديم)")) {
-        const oldStock = Number(cartItem.qty || 0);
-        const inCart = Number(cartItem.cartQty || 0) * Number(cartItem.unitCount || 1);
+      if (cartItem) {
+        const medStock = Number(cartItem.qty || 0);
+        const unitCount = Number(cartItem.unitCount || 1);
+        const inCartForThisMed = getCartQtyForMed(cartItem.id);
 
-        if (inCart >= oldStock) {
-          const cleanBaseName = (cartItem.name || "")
-            .replace(/\s*\(القديم\)|\s*\(الجديد\)|\s*\(دفعة قديمة\)|\s*\(دفعة جديدة\)/g, "")
-            .trim();
-          const newSibling = branchMeds.find(
-            (m: any) =>
-              m.name?.includes("(الجديد)") &&
-              (m.barcode === cartItem.barcode || (m.name || "").replace(/\s*\(القديم\)|\s*\(الجديد\)/g, "").trim() === cleanBaseName)
+        if (inCartForThisMed + unitCount > medStock) {
+          toast.error(
+            language === 'en'
+              ? `Cannot exceed available stock (${medStock})!`
+              : `لا يمكن تجاوز الكمية المتوفرة بالمخزون (${medStock})!`
           );
+          return;
+        }
 
-          if (newSibling) {
-            toast(
-              language === 'en'
-                ? `Old batch max reached (${oldStock} max). Added 1 from new batch.`
-                : `تم استنفاد رصيد الدفعة القديمة (${oldStock} علبة). تم إضافة علبة من الدفعة الجديدة بالسعر الجديد.`,
-              { icon: '✨', duration: 4000 }
+        if (cartItem.name?.includes("(القديم)")) {
+          const oldStock = Number(cartItem.qty || 0);
+          const inCart = Number(cartItem.cartQty || 0) * Number(cartItem.unitCount || 1);
+
+          if (inCart >= oldStock) {
+            const cleanBaseName = (cartItem.name || "")
+              .replace(/\s*\(القديم\)|\s*\(الجديد\)|\s*\(دفعة قديمة\)|\s*\(دفعة جديدة\)/g, "")
+              .trim();
+            const newSibling = branchMeds.find(
+              (m: any) =>
+                m.name?.includes("(الجديد)") &&
+                (m.barcode === cartItem.barcode || (m.name || "").replace(/\s*\(القديم\)|\s*\(الجديد\)/g, "").trim() === cleanBaseName)
             );
-            handleItemSelect(newSibling as Med);
-            return;
+
+            if (newSibling) {
+              const newStock = Number(newSibling.qty || 0);
+              const newInCart = getCartQtyForMed(newSibling.id);
+              if (newStock > newInCart) {
+                toast(
+                  language === 'en'
+                    ? `Old batch max reached (${oldStock} max). Added 1 from new batch.`
+                    : `تم استنفاد رصيد الدفعة القديمة (${oldStock} علبة). تم إضافة علبة من الدفعة الجديدة بالسعر الجديد.`,
+                  { icon: '✨', duration: 4000 }
+                );
+                handleItemSelect(newSibling as Med);
+                return;
+              }
+            }
           }
         }
       }
@@ -366,6 +436,28 @@ function POSContent() {
     if (cart.length === 0) return toast.error(language === 'en' ? "Cart is empty" : "السلة فارغة");
     if (payMethod === "credit" && !selectedCustomerId)
       return toast.error(language === 'en' ? "Customer must be selected for credit payment" : "يجب اختيار العميل عند الدفع بالآجل");
+
+    // Strictly validate available stock before processing payment
+    for (const item of cart) {
+      const medStock = Number(item.qty || 0);
+      const totalNeeded = getCartQtyForMed(item.id);
+      if (medStock <= 0) {
+        toast.error(
+          language === 'en'
+            ? `Product "${item.name}" is out of stock (Quantity: 0)! Please remove it.`
+            : `المنتج "${item.name}" نافذ من المخزون (الكمية 0)! يرجى حذفه من السلة لإتمام البيع.`
+        );
+        return;
+      }
+      if (totalNeeded > medStock) {
+        toast.error(
+          language === 'en'
+            ? `Quantity for "${item.name}" (${totalNeeded}) exceeds available stock (${medStock})!`
+            : `الكمية المطلوبة من "${item.name}" (${totalNeeded}) تتجاوز المتوفر بالمخزون (${medStock})!`
+        );
+        return;
+      }
+    }
 
     setLoading(true);
 
@@ -424,6 +516,141 @@ function POSContent() {
       toast.error(language === 'en' ? `Error saving invoice: ${error.message}` : `حدث خطأ أثناء حفظ الفاتورة: ${error.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const printThermalReceipt = () => {
+    const content = document.getElementById("pos-receipt-content");
+    if (!content) return;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0px";
+    iframe.style.height = "0px";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    const clone = content.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll(".print\\:hidden").forEach((el) => el.remove());
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="utf-8">
+        <title>Receipt ${lastInvoice?.id || ""}</title>
+        <style>
+          @page {
+            size: ${printerSize === "80mm" ? "80mm" : "58mm"} auto;
+            margin: 0;
+          }
+          html, body {
+            margin: 0;
+            padding: 6px;
+            background-color: #FDFAED;
+            color: #1C2733;
+            font-family: Cairo, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          * { box-sizing: border-box; }
+        </style>
+      </head>
+      <body>
+        ${clone.innerHTML}
+      </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (e) {
+        window.print();
+      } finally {
+        setTimeout(() => {
+          if (iframe.parentNode) document.body.removeChild(iframe);
+        }, 1500);
+      }
+    }, 250);
+  };
+
+  const generateReceiptPDF = async () => {
+    const element = document.getElementById("pos-receipt-content");
+    if (!element) return;
+    const widthMm = printerSize === "80mm" ? 80 : 58;
+    const loadingToast = toast.loading(
+      language === "en" ? "Generating PDF receipt..." : "جاري إنشاء إيصال PDF..."
+    );
+
+    try {
+      const html2pdf = (await import("html2pdf.js")).default;
+      const clone = element.cloneNode(true) as HTMLElement;
+      clone.querySelectorAll(".print\\:hidden").forEach((el) => el.remove());
+      clone.style.boxShadow = "none";
+      clone.style.border = "none";
+      clone.style.margin = "0";
+
+      await html2pdf()
+        .set({
+          margin: 3,
+          filename: `receipt_${lastInvoice?.id || Date.now()}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#FDFAED",
+            logging: false,
+          },
+          jsPDF: {
+            unit: "mm",
+            format: [widthMm, (clone.offsetHeight * widthMm) / (clone.offsetWidth || 300) + 12],
+            orientation: "portrait",
+          },
+        })
+        .from(clone)
+        .save();
+
+      toast.success(
+        language === "en" ? "PDF receipt downloaded successfully!" : "تم تحميل إيصال PDF بنجاح!",
+        { id: loadingToast }
+      );
+    } catch (err: any) {
+      console.error("html2pdf failed, fallback to jsPDF:", err);
+      try {
+        const html2canvas = (await import("html2canvas")).default;
+        const jsPDF = (await import("jspdf")).jsPDF;
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#FDFAED",
+          ignoreElements: (el) => el.classList?.contains("print:hidden"),
+        });
+        const imgData = canvas.toDataURL("image/png");
+        const heightMm = (canvas.height * widthMm) / canvas.width;
+        const pdf = new jsPDF("p", "mm", [widthMm, heightMm]);
+        pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm);
+        pdf.save(`receipt_${lastInvoice?.id || Date.now()}.pdf`);
+        toast.success(
+          language === "en" ? "PDF receipt downloaded successfully!" : "تم تحميل إيصال PDF بنجاح!",
+          { id: loadingToast }
+        );
+      } catch (fallbackErr: any) {
+        toast.error(
+          language === "en"
+            ? `Failed to generate PDF: ${fallbackErr.message || "Unknown error"}`
+            : `تعذر إنشاء PDF: ${fallbackErr.message || "حدث خطأ"}`,
+          { id: loadingToast }
+        );
+      }
     }
   };
 
@@ -491,40 +718,62 @@ function POSContent() {
               {search && (
                 <div className="absolute top-full left-0 right-0 bg-[#FDFAED] border border-mint-line shadow-xl rounded-xl mt-1 max-h-60 overflow-y-auto z-30">
                   {filteredMeds.length > 0 ? (
-                    filteredMeds.map((med: any) => (
-                      <div
-                        key={med.id}
-                        onClick={() => addToCart(med)}
-                        className="p-3 border-b border-mint-line hover:bg-bg cursor-pointer flex justify-between items-center last:border-0"
-                      >
-                        <div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-bold text-ink block text-[14px]">
-                              {med.name}
+                    filteredMeds.map((med: any) => {
+                      const isOutOfStock = Number(med.qty || 0) <= 0;
+                      return (
+                        <div
+                          key={med.id}
+                          onClick={() => {
+                            if (isOutOfStock) {
+                              toast.error(
+                                language === 'en'
+                                  ? `"${med.name}" is out of stock (Quantity: 0)!`
+                                  : `عذراً، المنتج "${med.name}" نفذ من المخزون (الكمية 0) ولا يمكن بيعه!`
+                              );
+                              return;
+                            }
+                            addToCart(med);
+                          }}
+                          className={`p-3 border-b border-mint-line flex justify-between items-center last:border-0 transition-colors ${
+                            isOutOfStock
+                              ? "bg-slate-50 opacity-60 cursor-not-allowed"
+                              : "hover:bg-bg cursor-pointer"
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`font-bold block text-[14px] ${isOutOfStock ? "text-slate-400 line-through" : "text-ink"}`}>
+                                {med.name}
+                              </span>
+                              {isOutOfStock && (
+                                <span className="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold border border-rose-300">
+                                  🚫 {language === 'en' ? 'Out of Stock' : 'نفذ من المخزون'}
+                                </span>
+                              )}
+                              {med.name?.includes("(القديم)") && (
+                                <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold border border-amber-300">
+                                  🏷️ {language === 'en' ? 'Old' : 'القديم'}
+                                </span>
+                              )}
+                              {med.name?.includes("(الجديد)") && (
+                                <span className="text-[10px] bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded font-bold border border-teal-300">
+                                  ✨ {language === 'en' ? 'New' : 'الجديد'}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[12px] text-ink-soft mt-0.5 flex gap-1">
+                              {language === 'en' ? "Available:" : "متوفر:"}{" "}
+                              <span className={`font-mono font-bold ${isOutOfStock ? "text-rose-600" : "text-teal"}`}>
+                                {formatQty(med.qty, med.units, language)}
+                              </span>
                             </span>
-                            {med.name?.includes("(القديم)") && (
-                              <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold border border-amber-300">
-                                🏷️ {language === 'en' ? 'Old' : 'القديم'}
-                              </span>
-                            )}
-                            {med.name?.includes("(الجديد)") && (
-                              <span className="text-[10px] bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded font-bold border border-teal-300">
-                                ✨ {language === 'en' ? 'New' : 'الجديد'}
-                              </span>
-                            )}
                           </div>
-                          <span className="text-[12px] text-ink-soft mt-0.5 flex gap-1">
-                            {language === 'en' ? "Available:" : "متوفر:"}{" "}
-                            <span className="font-mono font-bold text-teal">
-                              {formatQty(med.qty, med.units, language)}
-                            </span>
+                          <span className={`font-mono font-bold text-[15px] ${isOutOfStock ? "text-slate-400" : "text-primary"}`}>
+                            {med.price || 0} ₪
                           </span>
                         </div>
-                        <span className="font-mono text-primary font-bold text-[15px]">
-                          {med.price || 0} ₪
-                        </span>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="p-4 text-center text-ink-soft text-[14px]">
                       {language === 'en' ? "No results" : "لا توجد نتائج"}
@@ -1094,38 +1343,23 @@ function POSContent() {
               style={{ maxWidth: "500px" }}
             >
               <button
-                onClick={() => window.print()}
-                className="flex-1 min-w-[100px] py-3 bg-primary text-white font-bold rounded-xl hover:bg-teal transition-all text-sm"
+                onClick={printThermalReceipt}
+                className="flex-1 min-w-[100px] py-3 bg-primary text-white font-bold rounded-xl hover:bg-teal transition-all text-sm flex items-center justify-center gap-2 shadow-sm"
               >
-                {language === 'en' ? "Thermal Print" : "طباعة حرارية"}
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                <span>{language === 'en' ? "Thermal Print" : "طباعة حرارية"}</span>
               </button>
               
               <button
-                onClick={async () => {
-                  const element = document.getElementById("pos-receipt-content");
-                  if (!element) return;
-                  const widthMm = printerSize === "80mm" ? 80 : 58;
-                  try {
-                    const html2canvas = (await import("html2canvas")).default;
-                    const jsPDF = (await import("jspdf")).jsPDF;
-                    const originalBoxShadow = element.style.boxShadow;
-                    const originalBorder = element.style.border;
-                    element.style.boxShadow = "none";
-                    element.style.border = "none";
-                    const canvas = await html2canvas(element, { scale: 3, useCORS: true, backgroundColor: "#FDFAED" });
-                    element.style.boxShadow = originalBoxShadow;
-                    element.style.border = originalBorder;
-                    const imgData = canvas.toDataURL("image/png");
-                    const heightMm = (canvas.height * widthMm) / canvas.width;
-                    const pdf = new jsPDF("p", "mm", [widthMm, heightMm]);
-                    pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm);
-                    pdf.save(`receipt_${lastInvoice?.id || Date.now()}.pdf`);
-                  } catch (err) {
-                  }
-                }}
-                className="flex-1 min-w-[100px] py-3 bg-amber text-white font-bold rounded-xl hover:bg-amber/90 transition-all text-sm"
+                onClick={generateReceiptPDF}
+                className="flex-1 min-w-[100px] py-3 bg-amber text-white font-bold rounded-xl hover:bg-amber/90 transition-all text-sm flex items-center justify-center gap-2 shadow-sm"
               >
-                {language === 'en' ? "PDF Receipt" : "إيصال PDF"}
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>{language === 'en' ? "PDF Receipt" : "إيصال PDF"}</span>
               </button>
               
 

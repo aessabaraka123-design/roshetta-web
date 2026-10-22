@@ -82,6 +82,141 @@ export default function SalesLog() {
       ? !!pharmacyData.pharmacy.showLogo
       : true;
 
+  const printThermalReceipt = () => {
+    const content = document.getElementById("sales-thermal-receipt-content");
+    if (!content) return;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0px";
+    iframe.style.height = "0px";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    const clone = content.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll(".print\\:hidden").forEach((el) => el.remove());
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="utf-8">
+        <title>Receipt ${thermalInvoice?.id || ""}</title>
+        <style>
+          @page {
+            size: ${printerSize === "80mm" ? "80mm" : "58mm"} auto;
+            margin: 0;
+          }
+          html, body {
+            margin: 0;
+            padding: 6px;
+            background-color: #FDFAED;
+            color: #1C2733;
+            font-family: Cairo, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          * { box-sizing: border-box; }
+        </style>
+      </head>
+      <body>
+        ${clone.innerHTML}
+      </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (e) {
+        window.print();
+      } finally {
+        setTimeout(() => {
+          if (iframe.parentNode) document.body.removeChild(iframe);
+        }, 1500);
+      }
+    }, 250);
+  };
+
+  const generateReceiptPDF = async () => {
+    const element = document.getElementById("sales-thermal-receipt-content");
+    if (!element) return;
+    const widthMm = printerSize === "80mm" ? 80 : 58;
+    const loadingToast = toast.loading(
+      language === "en" ? "Generating PDF receipt..." : "جاري إنشاء إيصال PDF..."
+    );
+
+    try {
+      const html2pdf = (await import("html2pdf.js")).default;
+      const clone = element.cloneNode(true) as HTMLElement;
+      clone.querySelectorAll(".print\\:hidden").forEach((el) => el.remove());
+      clone.style.boxShadow = "none";
+      clone.style.border = "none";
+      clone.style.margin = "0";
+
+      await html2pdf()
+        .set({
+          margin: 3,
+          filename: `receipt_${thermalInvoice?.id || Date.now()}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#FDFAED",
+            logging: false,
+          },
+          jsPDF: {
+            unit: "mm",
+            format: [widthMm, (clone.offsetHeight * widthMm) / (clone.offsetWidth || 300) + 12],
+            orientation: "portrait",
+          },
+        })
+        .from(clone)
+        .save();
+
+      toast.success(
+        language === "en" ? "PDF receipt downloaded successfully!" : "تم تحميل إيصال PDF بنجاح!",
+        { id: loadingToast }
+      );
+    } catch (err: any) {
+      console.error("html2pdf failed, fallback to jsPDF:", err);
+      try {
+        const html2canvas = (await import("html2canvas")).default;
+        const jsPDF = (await import("jspdf")).jsPDF;
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#FDFAED",
+          ignoreElements: (el) => el.classList?.contains("print:hidden"),
+        });
+        const imgData = canvas.toDataURL("image/png");
+        const heightMm = (canvas.height * widthMm) / canvas.width;
+        const pdf = new jsPDF("p", "mm", [widthMm, heightMm]);
+        pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm);
+        pdf.save(`receipt_${thermalInvoice?.id || Date.now()}.pdf`);
+        toast.success(
+          language === "en" ? "PDF receipt downloaded successfully!" : "تم تحميل إيصال PDF بنجاح!",
+          { id: loadingToast }
+        );
+      } catch (fallbackErr: any) {
+        toast.error(
+          language === "en"
+            ? `Failed to generate PDF: ${fallbackErr.message || "Unknown error"}`
+            : `تعذر إنشاء PDF: ${fallbackErr.message || "حدث خطأ"}`,
+          { id: loadingToast }
+        );
+      }
+    }
+  };
+
   const handleRefund = async (id: string) => {
     if (refunding) return;
     setRefunding(true);
@@ -828,37 +963,23 @@ export default function SalesLog() {
               style={{ maxWidth: "500px" }}
             >
               <button
-                onClick={() => window.print()}
-                className="flex-1 min-w-[100px] py-3 bg-primary text-white font-bold rounded-xl hover:bg-teal transition-all text-sm"
+                onClick={printThermalReceipt}
+                className="flex-1 min-w-[100px] py-3 bg-primary text-white font-bold rounded-xl hover:bg-teal transition-all text-sm flex items-center justify-center gap-2 shadow-sm"
               >
-                {language === 'en' ? "Thermal Print" : "طباعة حرارية"}
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                <span>{language === 'en' ? "Thermal Print" : "طباعة حرارية"}</span>
               </button>
               
               <button
-                onClick={async () => {
-                  const element = document.getElementById("sales-thermal-receipt-content");
-                  if (!element) return;
-                  const widthMm = printerSize === "80mm" ? 80 : 58;
-                  try {
-                    const html2canvas = (await import("html2canvas")).default;
-                    const jsPDF = (await import("jspdf")).jsPDF;
-                    const originalBoxShadow = element.style.boxShadow;
-                    const originalBorder = element.style.border;
-                    element.style.boxShadow = "none";
-                    element.style.border = "none";
-                    const canvas = await html2canvas(element, { scale: 3, useCORS: true, backgroundColor: "#FDFAED" });
-                    element.style.boxShadow = originalBoxShadow;
-                    element.style.border = originalBorder;
-                    const imgData = canvas.toDataURL("image/png");
-                    const heightMm = (canvas.height * widthMm) / canvas.width;
-                    const pdf = new jsPDF("p", "mm", [widthMm, heightMm]);
-                    pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm);
-                    pdf.save(`receipt_${thermalInvoice?.id || Date.now()}.pdf`);
-                  } catch (err) {}
-                }}
-                className="flex-1 min-w-[100px] py-3 bg-amber text-white font-bold rounded-xl hover:bg-amber/90 transition-all text-sm"
+                onClick={generateReceiptPDF}
+                className="flex-1 min-w-[100px] py-3 bg-amber text-white font-bold rounded-xl hover:bg-amber/90 transition-all text-sm flex items-center justify-center gap-2 shadow-sm"
               >
-                {language === 'en' ? "PDF Receipt" : "إيصال PDF"}
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>{language === 'en' ? "PDF Receipt" : "إيصال PDF"}</span>
               </button>
 
               <button
