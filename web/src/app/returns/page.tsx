@@ -37,22 +37,40 @@ export default function Returns() {
 
   const allSales = salesData?.sales || [];
 
+  const isDebtPaymentRecord = (s: any) =>
+    s.status === "debt_payment" ||
+    s.type === "debt_payment" ||
+    String(s.id || "").startsWith("PAY") ||
+    String(s.id || "").startsWith("RET-CR") ||
+    s.paymentMethod === "debt_payment" ||
+    s.paymentMethod === "تسديد دين" ||
+    s.paymentMethod === "سداد دين" ||
+    s.paymentMethod === "سداد دَين" ||
+    s.paymentMethod === "سداد";
+
   const completedSales = useMemo(
     () =>
       allSales.filter(
         (s: any) =>
+          s &&
+          s.id &&
           s.status !== "refunded" &&
           s.status !== "refund_proxy" &&
-          s.status !== "debt_payment" &&
-          s.paymentMethod !== "debt_payment" &&
-          s.paymentMethod !== "تسديد دين",
+          !String(s.id).startsWith("REF-") &&
+          Number(s.total || 0) > 0 &&
+          !isDebtPaymentRecord(s),
       ),
     [allSales],
   );
   const refundedSales = useMemo(
     () =>
       allSales.filter(
-        (s: any) => s.status === "refunded" && s.status !== "refund_proxy",
+        (s: any) =>
+          s &&
+          s.id &&
+          (s.status === "refunded" || s.isRefunded || s.is_refunded) &&
+          s.status !== "refund_proxy" &&
+          !isDebtPaymentRecord(s),
       ),
     [allSales],
   );
@@ -73,8 +91,16 @@ export default function Returns() {
       .slice(0, 5);
   }, [searchQuery, completedSales]);
 
+  const { data: customersData } = useSWR(
+    user ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/customers` : null,
+    fetcher,
+  );
+  const allCustomers = customersData?.customers || [];
+
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [settlementData, setSettlementData] = useState<any>(null);
   const [isRefunding, setIsRefunding] = useState(false);
   const [refundMode, setRefundMode] = useState<"full" | "partial">("full");
 
@@ -114,9 +140,115 @@ export default function Returns() {
     }, 0);
   }, [selectedItemsToRefund, selectedInvoice]);
 
-  const handleRefund = async () => {
+  const initiateRefund = (mode: "full" | "partial") => {
+    if (!selectedInvoice) return;
+    setRefundMode(mode);
+
+    const totalRefund =
+      mode === "full"
+        ? Number(selectedInvoice.total || 0)
+        : partialRefundTotal;
+
+    const customer = selectedInvoice.customer;
+    const hasCustomer = !!(customer && customer.id);
+    const origPm = (selectedInvoice.paymentMethod || "").toString().trim().toLowerCase();
+
+    let salePayments: any = null;
+    try {
+      salePayments =
+        typeof selectedInvoice.payments === "string"
+          ? JSON.parse(selectedInvoice.payments)
+          : selectedInvoice.payments;
+    } catch (e) {}
+
+    const hasSplitCredit = salePayments && Number(salePayments.credit || 0) > 0;
+    const isCreditSale =
+      origPm === "credit" ||
+      origPm === "آجل" ||
+      origPm === "اجل" ||
+      origPm === "ذمم" ||
+      origPm === "دين" ||
+      hasSplitCredit;
+
+    const saleTotal = Number(selectedInvoice.total || 0);
+    let creditPart = 0;
+    let paidPart = 0;
+    let paidMethodName = "نقداً (كاش)";
+
+    const storeCustomer = hasCustomer
+      ? allCustomers.find((c: any) => c.id === customer.id) || customer
+      : null;
+
+    if (hasSplitCredit) {
+      creditPart = Number(salePayments.credit || 0);
+      paidPart = Math.max(0, saleTotal - creditPart);
+      if (Number(salePayments.jawwal_pay || salePayments.jawwalpay) > 0)
+        paidMethodName = "جوال باي";
+      else if (Number(salePayments.palpay) > 0) paidMethodName = "بال باي";
+      else if (Number(salePayments.card) > 0) paidMethodName = "بطاقة بنكية";
+      else if (Number(salePayments.bank) > 0) paidMethodName = "تحويل بنكي";
+      else paidMethodName = "نقداً (كاش)";
+    } else if (isCreditSale) {
+      const currentDebt = Number(storeCustomer?.debt || 0);
+      if (currentDebt < saleTotal) {
+        paidPart = Math.max(0, saleTotal - currentDebt);
+        creditPart = Math.max(0, saleTotal - paidPart);
+      } else {
+        creditPart = saleTotal;
+        paidPart = 0;
+      }
+    } else {
+      paidPart = saleTotal;
+      creditPart = 0;
+      if (origPm === "jawwalpay" || origPm === "jawwal") paidMethodName = "جوال باي";
+      else if (origPm === "palpay") paidMethodName = "بال باي";
+      else if (origPm === "card") paidMethodName = "بطاقة بنكية";
+      else if (origPm === "bank") paidMethodName = "تحويل بنكي";
+      else paidMethodName = "نقداً (كاش)";
+    }
+
+    const debtToCancel = Math.min(totalRefund, creditPart);
+    const paidAmountToRefund = Math.max(0, totalRefund - debtToCancel);
+
+    // إذا كان العميل موجوداً ودفع جزءاً من الفاتورة (> 0): إظهار نافذة التسوية للاختيار
+    if (hasCustomer && paidAmountToRefund > 0) {
+      const currentDebt = Number(storeCustomer?.debt || 0);
+      const previousOtherDebt = Math.max(0, currentDebt - debtToCancel);
+      setSettlementData({
+        mode,
+        totalRefund,
+        debtToCancel,
+        paidAmountToRefund,
+        paidMethodName,
+        customer: storeCustomer,
+        previousOtherDebt,
+      });
+      setShowSettlementModal(true);
+      return;
+    }
+
+    // الحالة الأولى: فاتورة ذمم لم يدفع منها شيء (100% دين) أو لا يوجد عميل
+    setShowConfirmModal(true);
+  };
+
+  const handleRefund = async (customOptions?: any) => {
     if (!selectedInvoice) return;
     setIsRefunding(true);
+
+    const totalRefund =
+      refundMode === "full"
+        ? Number(selectedInvoice.total || 0)
+        : partialRefundTotal;
+
+    const refundOptions = customOptions || {
+      returnPaidMode: "cash_out",
+      debtToCancel: totalRefund,
+      paidAmountToRefund: 0,
+      paymentMethod: selectedInvoice.paymentMethod || "cash",
+      customerId: selectedInvoice.customer?.id,
+      customerName: selectedInvoice.customer?.name,
+    };
+
     try {
       let res;
       if (refundMode === "full") {
@@ -124,6 +256,8 @@ export default function Returns() {
           `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales/${selectedInvoice.id}/refund`,
           {
             method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refundOptions }),
           },
         );
       } else {
@@ -132,7 +266,11 @@ export default function Returns() {
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ itemsToRefund: selectedItemsToRefund }),
+            body: JSON.stringify({
+              itemsToRefund: selectedItemsToRefund,
+              totalRefund,
+              refundOptions,
+            }),
           },
         );
       }
@@ -140,22 +278,27 @@ export default function Returns() {
       const result = await res.json();
 
       if (result.success) {
-        toast.success(
-          refundMode === "full"
-            ? language === "en" ? "Invoice refunded successfully!" : "تم استرجاع الفاتورة بنجاح!"
-            : language === "en" ? "Items refunded successfully!" : "تم استرجاع الأصناف بنجاح!",
-        );
+        const successMsg =
+          refundOptions.returnPaidMode === "credit_balance" &&
+          refundOptions.paidAmountToRefund > 0
+            ? language === "en"
+              ? `Refund completed and ₪${refundOptions.paidAmountToRefund.toFixed(2)} credited to customer balance!`
+              : `تم الاسترجاع وتحويل ${refundOptions.paidAmountToRefund.toFixed(2)} ₪ لرصيد الزبون بنجاح!`
+            : refundMode === "full"
+              ? language === "en"
+                ? "Invoice refunded successfully!"
+                : "تم استرجاع الفاتورة بنجاح!"
+              : language === "en"
+                ? "Items refunded successfully!"
+                : "تم استرجاع الأصناف بنجاح!";
+
+        toast.success(successMsg);
         setSelectedInvoice(null);
         setSearchQuery("");
-        mutate(
-          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales`,
-        );
-        mutate(
-          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/inventory`,
-        );
-        mutate(
-          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`,
-        );
+        mutate(`${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales`);
+        mutate(`${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/inventory`);
+        mutate(`${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`);
+        mutate(`${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/customers`);
       } else {
         toast.error(result.error || (language === "en" ? "Failed to refund" : "فشل في الاسترجاع"));
       }
@@ -164,6 +307,8 @@ export default function Returns() {
     } finally {
       setIsRefunding(false);
       setShowConfirmModal(false);
+      setShowSettlementModal(false);
+      setSettlementData(null);
     }
   };
 
@@ -393,20 +538,14 @@ export default function Returns() {
                   <div className="mt-6 flex flex-col sm:flex-row justify-end gap-3">
                     {selectedItemsToRefund.length > 0 && (
                       <button
-                        onClick={() => {
-                          setRefundMode("partial");
-                          setShowConfirmModal(true);
-                        }}
+                        onClick={() => initiateRefund("partial")}
                         className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-3.5 rounded-xl shadow-lg shadow-orange-500/30 transition-colors flex items-center justify-center gap-2"
                       >
                         {language === "en" ? "Refund Selected Items" : "استرجاع الأصناف المحددة"}
                       </button>
                     )}
                     <button
-                      onClick={() => {
-                        setRefundMode("full");
-                        setShowConfirmModal(true);
-                      }}
+                      onClick={() => initiateRefund("full")}
                       className="bg-red-500 hover:bg-red-600 text-white font-bold px-6 py-3.5 rounded-xl shadow-lg shadow-red-500/30 transition-colors flex items-center justify-center gap-2"
                     >
                       <svg
@@ -576,7 +715,7 @@ export default function Returns() {
 
               <div className="flex gap-3 mt-4">
                 <button
-                  onClick={handleRefund}
+                  onClick={() => handleRefund()}
                   disabled={isRefunding}
                   className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-red-500/30 transition-all flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -590,6 +729,174 @@ export default function Returns() {
                   {language === "en" ? "Cancel" : "إلغاء"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Smart Debt & Credit Settlement Modal */}
+      {showSettlementModal && settlementData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-[32px] shadow-2xl p-7 relative overflow-hidden border border-mint-line">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-mint-line">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <polyline points="16 11 18 13 22 9" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-[18px] font-black text-ink">
+                    {language === "en" ? "Refund Settlement Choice" : "تسوية مستحقات المرتجع للزبون"}
+                  </h3>
+                  <p className="text-[13px] font-bold text-ink-soft">
+                    {settlementData.customer?.name} ({settlementData.customer?.phone || settlementData.customer?.id})
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSettlementModal(false)}
+                className="w-8 h-8 rounded-full bg-bg hover:bg-mint-bg flex items-center justify-center text-ink-soft transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Breakdown Card */}
+            <div className="bg-[#F8FAFC] border border-mint-line rounded-2xl p-4 space-y-2.5 mb-5 text-[14px]">
+              <div className="flex justify-between items-center text-ink-soft">
+                <span>{language === "en" ? "Total Refund Amount:" : "إجمالي المبلغ المسترجع:"}</span>
+                <span className="font-mono font-black text-[16px] text-ink">
+                  {settlementData.totalRefund?.toFixed(2)} ₪
+                </span>
+              </div>
+
+              {settlementData.debtToCancel > 0 && (
+                <div className="flex justify-between items-center text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                  <span className="font-bold">{language === "en" ? "Drop remaining invoice debt:" : "إسقاط الذمم المتبقية من الفاتورة:"}</span>
+                  <span className="font-mono font-black text-[15px]">
+                    -{settlementData.debtToCancel?.toFixed(2)} ₪
+                  </span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center text-blue-700 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200">
+                <span className="font-bold">
+                  {language === "en" ? `Paid portion to settle (${settlementData.paidMethodName}):` : `المبلغ المدفوع مسبقاً (${settlementData.paidMethodName}):`}
+                </span>
+                <span className="font-mono font-black text-[16px]">
+                  {settlementData.paidAmountToRefund?.toFixed(2)} ₪
+                </span>
+              </div>
+
+              {settlementData.previousOtherDebt > 0 ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[12px] flex items-center gap-2">
+                  <span className="text-[16px]">⚠️</span>
+                  <span>
+                    {language === "en"
+                      ? `Customer has other previous debt of ₪${settlementData.previousOtherDebt.toFixed(2)} unrelated to this returned invoice.`
+                      : `ملاحظة: على الزبون ديون سابقة أخرى بقيمة (${settlementData.previousOtherDebt.toFixed(2)} ₪) غير مرتبطة بهذه الفاتورة.`}
+                  </span>
+                </div>
+              ) : (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-[12px] flex items-center gap-2">
+                  <span className="text-[16px]">✅</span>
+                  <span>
+                    {language === "en"
+                      ? "Customer account is clean with no previous debt."
+                      : "حساب الزبون صافٍ ولا توجد عليه أي ديون سابقة."}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Prompt */}
+            <p className="text-[14px] font-bold text-ink mb-3 text-start">
+              {language === "en"
+                ? `Choose how to handle the paid amount (₪${settlementData.paidAmountToRefund?.toFixed(2)}):`
+                : `حدد رغبة الزبون في استرجاع المبلغ المدفوع (${settlementData.paidAmountToRefund?.toFixed(2)} ₪):`}
+            </p>
+
+            {/* 2 Main Action Buttons */}
+            <div className="space-y-3">
+              {/* Button 1: Credit Balance */}
+              <button
+                onClick={() => {
+                  handleRefund({
+                    returnPaidMode: "credit_balance",
+                    debtToCancel: settlementData.debtToCancel,
+                    paidAmountToRefund: settlementData.paidAmountToRefund,
+                    paymentMethod: selectedInvoice.paymentMethod || "cash",
+                    customerId: settlementData.customer?.id,
+                    customerName: settlementData.customer?.name,
+                  });
+                }}
+                disabled={isRefunding}
+                className="w-full p-4 rounded-2xl bg-[#1E3A8A] hover:bg-[#1E40AF] text-white text-start transition-all shadow-md shadow-blue-900/20 flex items-center gap-4 group disabled:opacity-50"
+              >
+                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 text-white">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <polyline points="16 11 18 13 22 9" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <div className="font-black text-[15px] text-white">
+                    {language === "en" ? "Transfer to Customer Credit Balance" : "تحويل إلى رصيد الزبون (مستحق له)"}
+                  </div>
+                  <div className="text-[12px] text-blue-200 mt-0.5">
+                    {settlementData.previousOtherDebt > 0
+                      ? (language === "en" ? `Deduct from previous debt (₪${settlementData.previousOtherDebt.toFixed(2)})` : `سداد وخصم من ديونه السابقة المتبقية (${settlementData.previousOtherDebt.toFixed(2)} ₪)`)
+                      : (language === "en" ? "Add as store credit for future purchases (shows in green)" : "قيد المبلغ كرصيد دائن مستحق له للشراء به لاحقاً (يظهر بالأخضر)")}
+                  </div>
+                </div>
+              </button>
+
+              {/* Button 2: Cash Out */}
+              <button
+                onClick={() => {
+                  handleRefund({
+                    returnPaidMode: "cash_out",
+                    debtToCancel: settlementData.debtToCancel,
+                    paidAmountToRefund: settlementData.paidAmountToRefund,
+                    paymentMethod: selectedInvoice.paymentMethod || "cash",
+                    customerId: settlementData.customer?.id,
+                    customerName: settlementData.customer?.name,
+                  });
+                }}
+                disabled={isRefunding}
+                className="w-full p-4 rounded-2xl bg-[#059669] hover:bg-[#047857] text-white text-start transition-all shadow-md shadow-emerald-900/20 flex items-center gap-4 group disabled:opacity-50"
+              >
+                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 text-white">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23" />
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <div className="font-black text-[15px] text-white">
+                    {language === "en" ? `Receive Remaining Amount (${settlementData.paidMethodName})` : `استلام باقي المبلغ (${settlementData.paidMethodName})`}
+                  </div>
+                  <div className="text-[12px] text-emerald-200 mt-0.5">
+                    {language === "en"
+                      ? "Pay out to customer now without touching previous debts"
+                      : "إرجاع المبلغ للزبون بيده فوراً دون المساس بأي ديون سابقة"}
+                  </div>
+                </div>
+              </button>
+
+              {/* Cancel Button */}
+              <button
+                onClick={() => setShowSettlementModal(false)}
+                disabled={isRefunding}
+                className="w-full py-3 rounded-xl border border-mint-line text-ink-soft hover:bg-bg font-bold text-[14px] transition-colors"
+              >
+                {language === "en" ? "Cancel" : "إلغاء التراجع"}
+              </button>
             </div>
           </div>
         </div>

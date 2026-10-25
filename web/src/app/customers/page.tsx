@@ -261,11 +261,19 @@ export default function Customers() {
                   </td>
                   <td className="py-4 px-5">
                     <span
-                      className={`font-bold text-[14px] ${customer.debt > 0 ? "text-coral" : "text-teal"}`}
+                      className={`font-bold text-[14px] ${
+                        customer.debt > 0
+                          ? "text-coral"
+                          : customer.debt < 0
+                            ? "text-teal"
+                            : "text-ink-soft"
+                      }`}
                     >
                       {customer.debt > 0
-                        ? `-$${customer.debt.toFixed(2)}`
-                        : "$0.00"}
+                        ? `-${customer.debt.toFixed(2)} ₪`
+                        : customer.debt < 0
+                          ? `+${Math.abs(customer.debt).toFixed(2)} ₪ (${language === 'en' ? 'Store Credit' : 'له رصيد'})`
+                          : `0.00 ₪`}
                     </span>
                   </td>
                   <td className="py-4 px-5">
@@ -548,11 +556,19 @@ export default function Customers() {
                 >
                   <span className="text-[13px] font-bold text-ink-soft mb-2">
                     {selectedCustomer.debt < 0
-                      ? (language === 'en' ? 'Available Customer Balance' : 'رصيد العميل المتاح')
-                      : (language === 'en' ? 'Total Remaining Debt' : 'إجمالي الديون المتبقية')}
+                      ? (language === 'en' ? 'Available Customer Balance (Store Credit)' : 'رصيد دائن مستحق للعميل (له رصيد)')
+                      : selectedCustomer.debt === 0
+                        ? (language === 'en' ? 'Balance (No Debt)' : 'الرصيد: 0.00 ₪ (لا يوجد دين)')
+                        : (language === 'en' ? 'Total Remaining Debt' : 'إجمالي الديون المتبقية (عليه دين)')}
                   </span>
                   <span
-                    className={`text-[28px] font-mono font-black ${selectedCustomer.debt < 0 ? "text-teal" : "text-coral"}`}
+                    className={`text-[28px] font-mono font-black ${
+                      selectedCustomer.debt < 0
+                        ? "text-teal"
+                        : selectedCustomer.debt === 0
+                          ? "text-ink-soft"
+                          : "text-coral"
+                    }`}
                   >
                     ₪{Math.abs(selectedCustomer.debt).toFixed(2)}
                   </span>

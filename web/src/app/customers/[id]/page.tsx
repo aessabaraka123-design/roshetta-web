@@ -87,10 +87,26 @@ export default function CustomerProfile() {
             </div>
             <div className="flex justify-between pb-2">
               <span className="text-ink-soft text-[14px]">
-                الرصيد المستحق (ديون)
+                {customer.debt < 0
+                  ? "رصيد دائن مستحق للعميل"
+                  : customer.debt === 0
+                    ? "الرصيد"
+                    : "الرصيد المستحق (ديون)"}
               </span>
-              <span className="font-bold text-[16px] text-coral">
-                {customer.debt} ₪
+              <span
+                className={`font-bold text-[16px] ${
+                  customer.debt < 0
+                    ? "text-teal"
+                    : customer.debt === 0
+                      ? "text-ink-soft"
+                      : "text-coral"
+                }`}
+              >
+                {customer.debt < 0
+                  ? `+${Math.abs(customer.debt).toFixed(2)} ₪ (له رصيد)`
+                  : customer.debt === 0
+                    ? "0.00 ₪ (لا يوجد دين)"
+                    : `${customer.debt.toFixed(2)} ₪`}
               </span>
             </div>
           </div>

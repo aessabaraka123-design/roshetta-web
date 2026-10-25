@@ -1,7 +1,7 @@
 "use client";
 
 import { API_BASE_URL } from "@/lib/config";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import AppBar from "@/components/AppBar";
 import useSWR from "swr";
 import { useStore } from "@/store";
@@ -118,24 +118,50 @@ export default function ShiftsPage() {
     return shifts.filter((s: any) => s.status === "open");
   }, [currentData, shifts]);
 
+  const isManager = Boolean(
+    user && (user.role === "manager" || user.role === "admin" || user.role === "owner" || user.role === "branchManager")
+  );
+
+  const isMyShift = useCallback((s: any) => {
+    if (!s || !user) return false;
+    const uEmail = (user.email || "").toLowerCase();
+    const uName = (user.managerName || user.name || user.username || "").trim().toLowerCase();
+    const sEmail = (s.cashier_email || "").toLowerCase();
+    const sName = (s.cashier_name || "").trim().toLowerCase();
+    return Boolean((uEmail && sEmail && uEmail === sEmail) || (uName && sName && uName === sName));
+  }, [user]);
+
+  // For pharmacists/cashiers, only display their own active shift
+  const visibleActiveShifts = useMemo(() => {
+    if (isManager) return activeShifts;
+    return activeShifts.filter((s: any) => isMyShift(s));
+  }, [activeShifts, isManager, isMyShift]);
+
   // Closed / Past shifts
   const closedShifts: any[] = useMemo(() => {
     return shifts.filter((s: any) => s.status === "closed");
   }, [shifts]);
 
+  // For pharmacists/cashiers, only display their own past shifts in history
+  const visibleClosedShifts = useMemo(() => {
+    if (isManager) return closedShifts;
+    return closedShifts.filter((s: any) => isMyShift(s));
+  }, [closedShifts, isManager, isMyShift]);
+
   // Filtered Closed Shifts for History
   const filteredClosedShifts = useMemo(() => {
-    return closedShifts.filter((s: any) => {
+    return visibleClosedShifts.filter((s: any) => {
       const matchSearch =
         !historySearch ||
         (s.cashier_name || "").toLowerCase().includes(historySearch.toLowerCase()) ||
         (s.cashier_email || "").toLowerCase().includes(historySearch.toLowerCase());
       const matchBranch =
+        !isManager ||
         historyBranchFilter === "all" ||
         (s.branch_name || "الفرع الرئيسي") === historyBranchFilter;
       return matchSearch && matchBranch;
     });
-  }, [closedShifts, historySearch, historyBranchFilter]);
+  }, [visibleClosedShifts, historySearch, historyBranchFilter, isManager]);
 
   // Set default employee when opening modal
   useEffect(() => {
@@ -237,6 +263,10 @@ export default function ShiftsPage() {
 
   // Open Close Modal for a specific shift
   const handleOpenCloseModal = (shift: any) => {
+    if (!isManager && !isMyShift(shift)) {
+      alert(language === "en" ? "You do not have permission to close another employee's shift." : "لا تملك صلاحية لإغلاق دورية موظف آخر. هذه الصلاحية للمدير فقط.");
+      return;
+    }
     setShiftToClose(shift);
     setClosingAmount("");
     setCloseNotes("");
@@ -425,10 +455,10 @@ export default function ShiftsPage() {
                 {language === "en" ? "Currently Active Shifts" : "الورديات المفتوحة حالياً"}
               </h2>
               <span className="bg-teal-pale text-teal px-3 py-1 rounded-full font-mono text-[13px] font-bold">
-                {activeShifts.length} {language === "en" ? "Active" : "وردية نشطة"}
+                {visibleActiveShifts.length} {language === "en" ? "Active" : "وردية نشطة"}
               </span>
             </div>
-            {activeShifts.length > 0 && (
+            {visibleActiveShifts.length > 0 && (
               <span className="text-[12px] text-ink-soft font-bold flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-teal animate-ping"></span>
                 {language === "en" ? "Live syncing with cashiers" : "تزامن لحظي مع أجهزة الكاشير"}
@@ -436,9 +466,9 @@ export default function ShiftsPage() {
             )}
           </div>
 
-          {activeShifts.length > 0 ? (
+          {visibleActiveShifts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {activeShifts.map((shift: any) => {
+              {visibleActiveShifts.map((shift: any) => {
                 const opening = parseFloat(shift.opening_amount || 0);
                 const liveCash = parseFloat(
                   shift.live_cash_sales !== undefined
@@ -622,7 +652,7 @@ export default function ShiftsPage() {
                 className="bg-white border border-mint-line rounded-xl px-4 py-2 text-[13px] font-medium outline-none focus:border-teal w-full sm:w-48"
               />
 
-              {branchesList.length > 0 && (
+              {isManager && branchesList.length > 0 && (
                 <select
                   value={historyBranchFilter}
                   onChange={(e) => setHistoryBranchFilter(e.target.value)}

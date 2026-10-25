@@ -15,6 +15,7 @@ import { formatQty } from "@/utils/formatQty";
 import { BoxIcon } from "@/components/icons";
 import useSWR from "swr";
 import RoshettaLogo from "@/components/RoshettaLogo";
+import LocalBarcode from "@/components/LocalBarcode";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -1302,24 +1303,7 @@ function POSContent() {
                 )}
               </div>
 
-              <div className="mt-5 flex justify-center opacity-80">
-                <div className="flex h-[30px] items-center">
-                  {[
-                    4, 2, 2, 4, 2, 6, 2, 2, 4, 2, 2, 8, 2, 4, 4, 2, 6, 4, 2, 2,
-                    8, 4, 2, 2, 6, 2, 2, 4,
-                  ].map((w, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        width: w,
-                        height: "100%",
-                        backgroundColor: "#475569",
-                        marginRight: 2,
-                      }}
-                    ></div>
-                  ))}
-                </div>
-              </div>
+              <LocalBarcode value={lastInvoice?.id || "INV-000000"} />
 
               <div className="mt-5 flex flex-col items-center justify-center gap-1 opacity-50 grayscale">
                 <RoshettaLogo className="w-4 h-4" />
