@@ -122,6 +122,32 @@ export default function ShiftsPage() {
     user && (user.role === "manager" || user.role === "admin" || user.role === "owner" || user.role === "branchManager")
   );
 
+  const getRoleDisplayName = (role?: string) => {
+    const r = (role || "").toLowerCase().trim();
+    if (r === "manager" || r === "مدير") {
+      return language === "en" ? "Manager" : "المدير";
+    }
+    if (r === "owner" || r === "مالك") {
+      return language === "en" ? "Owner" : "المالك";
+    }
+    if (r === "superadmin") {
+      return language === "en" ? "Super Admin" : "المسؤول العام";
+    }
+    if (r === "pharmacist" || r === "صيدلي" || r === "صيدلاني") {
+      return language === "en" ? "Pharmacist" : "صيدلي";
+    }
+    if (r === "senior_pharmacist" || r === "صيدلي أول") {
+      return language === "en" ? "Senior Pharmacist" : "صيدلي أول";
+    }
+    if (r === "cashier" || r === "كاشير") {
+      return language === "en" ? "Cashier" : "كاشير";
+    }
+    if (r === "branchmanager" || r === "branch_manager" || r === "مدير فرع") {
+      return language === "en" ? "Branch Manager" : "مدير فرع";
+    }
+    return role || (language === "en" ? "Employee" : "موظف");
+  };
+
   const isMyShift = useCallback((s: any) => {
     if (!s || !user) return false;
     const uEmail = (user.email || "").toLowerCase();
@@ -410,7 +436,9 @@ export default function ShiftsPage() {
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
             </svg>
-            {language === "en" ? "+ Open Shift for Staff" : "+ فتح وردية جديدة لموظف"}
+            {isManager
+              ? (language === "en" ? "+ Open Shift for Staff" : "+ فتح وردية جديدة لموظف")
+              : (language === "en" ? "+ Open New Shift" : "+ فتح وردية جديدة")}
           </button>
         </div>
 
@@ -785,7 +813,9 @@ export default function ShiftsPage() {
               <div className="flex items-center gap-2">
                 <span className="text-[22px]">🏪🔑</span>
                 <h3 className="text-[18px] font-black text-primary">
-                  {language === "en" ? "Open Shift for Employee" : "فتح وردية جديدة لموظف"}
+                  {isManager
+                    ? (language === "en" ? "Open Shift for Employee" : "فتح وردية جديدة لموظف")
+                    : (language === "en" ? "Open New Shift" : "فتح وردية جديدة")}
                 </h3>
               </div>
               <button
@@ -800,19 +830,22 @@ export default function ShiftsPage() {
               {/* Employee Selection */}
               <div>
                 <label className="block text-[13px] font-bold text-ink-soft mb-1">
-                  {language === "en" ? "Select Employee / Cashier *" : "اختر الموظف / الكاشير *"}
+                  {isManager
+                    ? (language === "en" ? "Select Employee / Cashier *" : "اختر الموظف / الكاشير *")
+                    : (language === "en" ? "Employee / Cashier *" : "الموظف / الكاشير *")}
                 </label>
                 <select
                   value={selectedStaffEmail || selectedStaffName}
                   onChange={(e) => {
                     const val = e.target.value;
                     const found = staffList.find((s: any) => s.email === val || s.name === val);
+                    const currentUserVal = user?.email || user?.name || "current_user";
                     if (found) {
                       setSelectedStaffName(found.name || found.username);
                       setSelectedStaffEmail(found.email || "");
-                    } else if (val === "current_user") {
-                      setSelectedStaffName(user.managerName || user.name || user.username || "المدير");
-                      setSelectedStaffEmail(user.email || "");
+                    } else if (val === currentUserVal || val === "current_user" || (user?.email && val === user.email) || (user?.name && val === user.name)) {
+                      setSelectedStaffName(user?.name || user?.managerName || user?.username || (language === "en" ? "Current User" : "المستخدم الحالي"));
+                      setSelectedStaffEmail(user?.email || "");
                     } else {
                       setSelectedStaffName(val);
                       setSelectedStaffEmail("");
@@ -822,29 +855,42 @@ export default function ShiftsPage() {
                   className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 text-[14px] font-bold outline-none focus:border-teal"
                 >
                   {(() => {
-                    const isCurrentManagerOpen = activeShifts.some(
+                    const isCurrentUserOpen = activeShifts.some(
                       (ashift: any) =>
                         (user?.email && ashift.cashier_email && ashift.cashier_email.toLowerCase() === user.email.toLowerCase()) ||
-                        (ashift.cashier_name && ashift.cashier_name.trim().toLowerCase() === (user?.managerName || user?.name || user?.username || "").trim().toLowerCase())
+                        (ashift.cashier_name && ashift.cashier_name.trim().toLowerCase() === (user?.name || user?.managerName || user?.username || "").trim().toLowerCase())
                     );
+                    const currentUserName = user?.name || user?.managerName || user?.username || (language === "en" ? "Current User" : "المستخدم الحالي");
+                    const currentUserRole = getRoleDisplayName(user?.role);
+                    const currentUserValue = user?.email || user?.name || "current_user";
                     return (
-                      <option value="current_user" disabled={isCurrentManagerOpen}>
-                        {user?.managerName || user?.name || "المدير الحالي"} (أنا - المدير) {isCurrentManagerOpen ? (language === "en" ? "[Has active shift]" : "[لديه وردية مفتوحة حالياً]") : ""}
+                      <option value={currentUserValue} disabled={isCurrentUserOpen}>
+                        {currentUserName} ({language === "en" ? `Me - ${currentUserRole}` : `أنا - ${currentUserRole}`}) {isCurrentUserOpen ? (language === "en" ? "[Has active shift]" : "[لديه وردية مفتوحة حالياً]") : ""}
                       </option>
                     );
                   })()}
-                  {staffList.map((s: any) => {
-                    const isOpen = activeShifts.some(
-                      (ashift: any) =>
-                        (s.email && ashift.cashier_email && ashift.cashier_email.toLowerCase() === s.email.toLowerCase()) ||
-                        (s.name && ashift.cashier_name && ashift.cashier_name.trim().toLowerCase() === s.name.trim().toLowerCase())
-                    );
-                    return (
-                      <option key={s.id || s.email} value={s.email || s.name} disabled={isOpen}>
-                        {s.name || s.username} ({s.role || "موظف"}) {isOpen ? (language === "en" ? "[Has active shift]" : "[لديه وردية مفتوحة حالياً]") : ""}
-                      </option>
-                    );
-                  })}
+                  {staffList
+                    .filter((s: any) => {
+                      const sEmail = (s.email || "").toLowerCase();
+                      const sName = (s.name || s.username || "").toLowerCase();
+                      const uEmail = (user?.email || "").toLowerCase();
+                      const uName = (user?.name || user?.managerName || user?.username || "").toLowerCase();
+                      if (uEmail && sEmail && uEmail === sEmail) return false;
+                      if (uName && sName && uName === sName) return false;
+                      return true;
+                    })
+                    .map((s: any) => {
+                      const isOpen = activeShifts.some(
+                        (ashift: any) =>
+                          (s.email && ashift.cashier_email && ashift.cashier_email.toLowerCase() === s.email.toLowerCase()) ||
+                          (s.name && ashift.cashier_name && ashift.cashier_name.trim().toLowerCase() === s.name.trim().toLowerCase())
+                      );
+                      return (
+                        <option key={s.id || s.email} value={s.email || s.name} disabled={isOpen}>
+                          {s.name || s.username} ({getRoleDisplayName(s.role)}) {isOpen ? (language === "en" ? "[Has active shift]" : "[لديه وردية مفتوحة حالياً]") : ""}
+                        </option>
+                      );
+                    })}
                 </select>
               </div>
 
