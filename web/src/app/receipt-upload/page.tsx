@@ -49,6 +49,17 @@ export default function ReceiptUpload() {
       return;
     }
 
+    const isManager = ["manager", "owner", "admin", "superadmin", "مدير", "مالك"].includes((user.role || "").toLowerCase().trim());
+    if (!isManager) {
+      toast.error(
+        language === "en"
+          ? "Receipt upload is restricted to the pharmacy manager/owner only."
+          : "رفع الإيصال وإدارة الاشتراك خاصة بمدير / مالك الصيدلية فقط."
+      );
+      router.replace("/");
+      return;
+    }
+
     if (user?.pharmacy_id) {
       fetch(
         API_BASE_URL +

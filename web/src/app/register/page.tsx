@@ -95,15 +95,44 @@ function RegisterPageContent() {
   const loginFn = useStore((state) => state.login);
   const storeUser = useStore((state) => state.user);
 
-  // If user is logged in and in read-only mode and came via ?step=2 → go straight to step 2
-  const initialStep = stepParam === "2" && storeUser?.isReadOnly ? 2 : 1;
+  const isManagerRole = (role?: string) => {
+    const r = (role || "").toLowerCase().trim();
+    return ["manager", "owner", "admin", "superadmin", "مدير", "مالك"].includes(r);
+  };
 
-  const [step, setStep] = useState(initialStep);
+  useEffect(() => {
+    if (storeUser) {
+      if (!isManagerRole(storeUser.role)) {
+        toast.error(
+          language === "en"
+            ? "Subscription and registration are restricted to the pharmacy manager/owner only."
+            : "إدارة وتجديد الاشتراك وتسجيل الصيدليات خاصة بمدير / مالك الصيدلية فقط."
+        );
+        router.replace("/");
+        return;
+      }
+
+      // If user is already a manager/owner of an existing pharmacy:
+      // Redirect them cleanly to the existing pharmacy's receipt upload / renewal page!
+      if (storeUser.pharmacy_id) {
+        toast(
+          language === "en"
+            ? "Redirecting to your pharmacy subscription renewal..."
+            : "جاري تحويلك لتجديد اشتراك صيدليتك الحالية...",
+          { icon: "🔄" }
+        );
+        router.replace(`/receipt-upload?plan=${encodeURIComponent(plan)}`);
+      }
+    }
+  }, [storeUser, plan, router, language]);
+
+  // Clean empty form for new pharmacy registration
+  const [step, setStep] = useState(1);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
-    pharmacyName: storeUser?.pharmacyName || "",
-    managerName: storeUser?.managerName || "",
-    email: storeUser?.email || "",
+    pharmacyName: "",
+    managerName: "",
+    email: "",
     phone: "",
     password: "",
   });
@@ -510,6 +539,26 @@ function RegisterPageContent() {
   .upload-box:hover { border-color: var(--sage); background: #fff; }
   .upload-box.has-image { padding: 10px; border-style: solid; border-color: var(--sage); background: #fff; }
   `;
+
+  if (storeUser) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center p-4" dir={language === "en" ? "ltr" : "rtl"}>
+        <div className="bg-white rounded-3xl p-8 border border-mint-line shadow-lg max-w-md w-full text-center space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-teal-pale text-teal flex items-center justify-center mx-auto text-2xl animate-spin">
+            ⏳
+          </div>
+          <h3 className="text-[17px] font-black text-ink">
+            {language === "en" ? "Checking authorization..." : "جاري التحقق من الصلاحيات والتوجيه..."}
+          </h3>
+          <p className="text-[13px] text-ink-soft">
+            {!isManagerRole(storeUser.role)
+              ? (language === "en" ? "Redirecting to main page..." : "جاري تحويلك للصفحة الرئيسية...")
+              : (language === "en" ? "Redirecting to your pharmacy subscription..." : "جاري تحويلك لتجديد اشتراك صيدليتك الحالية...")}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="register-page-container" dir={language === "en" ? "ltr" : "rtl"}>

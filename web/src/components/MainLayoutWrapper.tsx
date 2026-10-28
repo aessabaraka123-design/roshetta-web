@@ -268,21 +268,27 @@ export default function MainLayoutWrapper({
                     : "انتهى اشتراكك، أنت الآن في وضع القراءة فقط."}
                 </span>
               </span>
-              <Link
-                href="/upgrade-plan"
-                className="bg-white text-red-600 rounded-lg px-3.5 py-1.5 text-xs font-black hover:bg-red-50 hover:scale-105 active:scale-95 transition-all shrink-0 shadow-sm flex items-center gap-1.5"
-                style={{
-                  color: "#DC2626",
-                  background: "white",
-                  borderRadius: "8px",
-                  padding: "5px 14px",
-                  fontSize: "12px",
-                  fontWeight: "800",
-                  textDecoration: "none",
-                }}
-              >
-                ⚡ {language === "en" ? "Upgrade & Renew" : "ترقية وتجديد الاشتراك"}
-              </Link>
+              {Boolean(user && ["manager", "owner", "admin", "superadmin", "مدير", "مالك"].includes((user.role || "").toLowerCase().trim())) ? (
+                <Link
+                  href="/upgrade-plan"
+                  className="bg-white text-red-600 rounded-lg px-3.5 py-1.5 text-xs font-black hover:bg-red-50 hover:scale-105 active:scale-95 transition-all shrink-0 shadow-sm flex items-center gap-1.5"
+                  style={{
+                    color: "#DC2626",
+                    background: "white",
+                    borderRadius: "8px",
+                    padding: "5px 14px",
+                    fontSize: "12px",
+                    fontWeight: "800",
+                    textDecoration: "none",
+                  }}
+                >
+                  ⚡ {language === "en" ? "Upgrade & Renew" : "ترقية وتجديد الاشتراك"}
+                </Link>
+              ) : (
+                <span className="text-xs bg-red-700/60 text-white px-2.5 py-1 rounded-md font-bold">
+                  {language === "en" ? "Contact manager to renew" : "يرجى مراجعة إدارة الصيدلية للتجديد"}
+                </span>
+              )}
               <a
                 href={`https://wa.me/${subStatusData?.whatsapp || "972590000000"}`}
                 target="_blank"

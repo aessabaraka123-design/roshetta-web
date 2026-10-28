@@ -535,9 +535,25 @@ export default function Pricing() {
                   ))}
                 </ul>
                 <button
-                  onClick={() =>
-                    router.push(`/register?plan=${p.id || p.type}`)
-                  }
+                  onClick={() => {
+                    const u = useStore.getState().user;
+                    if (!u) {
+                      router.push(`/register?plan=${p.id || p.type}`);
+                      return;
+                    }
+                    const isMgr = Boolean(
+                      u && ["manager", "owner", "admin", "superadmin", "مدير", "مالك"].includes((u.role || "").toLowerCase().trim())
+                    );
+                    if (!isMgr) {
+                      toast.error(
+                        language === "en"
+                          ? "Subscription management is restricted to the pharmacy manager/owner only."
+                          : "إدارة وتجديد الاشتراك خاصة بمدير / مالك الصيدلية فقط."
+                      );
+                      return;
+                    }
+                    router.push(`/receipt-upload?plan=${p.id || p.type}`);
+                  }}
                   className={`cta theme-${p.id || p.type}`}
                 >
                   {p.isFree ? (language === 'en' ? "Start Free Trial" : "ابدأ تجربتك المجانية") : (language === 'en' ? "Choose Plan" : "اختيار الباقة")}

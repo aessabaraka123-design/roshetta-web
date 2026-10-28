@@ -1,12 +1,30 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AppBar from "@/components/AppBar";
 import { useStore } from "@/store";
 
+import toast from "react-hot-toast";
+
 export default function UpgradePlan() {
   const router = useRouter();
   const language = useStore((state: any) => state.language);
+  const user = useStore((state: any) => state.user);
+
+  useEffect(() => {
+    if (user) {
+      const isManager = ["manager", "owner", "admin", "superadmin", "مدير", "مالك"].includes((user.role || "").toLowerCase().trim());
+      if (!isManager) {
+        toast.error(
+          language === "en"
+            ? "Subscription upgrade is restricted to the pharmacy manager/owner only."
+            : "ترقية وتجديد الاشتراك خاصة بمدير / مالك الصيدلية فقط."
+        );
+        router.replace("/");
+      }
+    }
+  }, [user, router, language]);
 
   const handleUpgrade = (planName: string) => {
     let id = "monthly";
