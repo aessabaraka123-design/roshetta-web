@@ -10,6 +10,7 @@ import { useStore } from "@/store";
 import useSWR from "swr";
 import toast from "react-hot-toast";
 import { formatQty } from "@/utils/formatQty";
+import MasterCatalogModal from "@/components/MasterCatalogModal";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -62,6 +63,16 @@ export default function Inventory() {
   const [branchFilter, setBranchFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [branches, setBranches] = useState<any[]>([]);
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("catalog") === "open" || params.get("catalog") === "true") {
+        setIsCatalogOpen(true);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     async function fetchBranches() {
@@ -370,6 +381,14 @@ export default function Inventory() {
           >
             {language === 'en' ? 'Stock Take' : 'جرد المخزون'}
           </Link>
+          <button
+            type="button"
+            onClick={() => setIsCatalogOpen(true)}
+            className="bg-card text-primary border-2 border-primary/30 px-3.5 py-2 rounded-xl font-bold text-[14px] hover:bg-primary hover:text-white transition-all flex items-center gap-1.5 shadow-sm"
+          >
+            <span>📘</span>
+            <span>{language === 'en' ? 'Drug Directory' : 'دليل الأدوية'}</span>
+          </button>
           <Link
             href="/add-item"
             className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-[14px] hover:bg-teal transition-colors flex items-center justify-center"
@@ -378,6 +397,43 @@ export default function Inventory() {
           </Link>
         </div>
       </AppBar>
+
+      {/* Master Catalog Hero Banner */}
+      <div
+        onClick={() => setIsCatalogOpen(true)}
+        className="mb-4 bg-gradient-to-r from-primary/10 via-teal/5 to-card border border-primary/25 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 cursor-pointer hover:border-primary/60 transition-all shadow-sm"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-primary text-white flex items-center justify-center font-bold text-xl shadow-md shrink-0">
+            📘
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="font-bold text-sm text-ink">
+                {language === 'en' ? 'Master Drug Directory (Formulary)' : 'دليل الأدوية الافتراضي الموحد'}
+              </h4>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-300">
+                70+ {language === 'en' ? 'Certified' : 'معتمد ⚡'}
+              </span>
+            </div>
+            <p className="text-xs text-ink-soft mt-0.5">
+              {language === 'en'
+                ? 'Browse official drug directory, check stock status, and 1-click import into your pharmacy inventory'
+                : 'تصفح قاعدة بيانات الأدوية الرسمية، فحص توفر الصنف في صيدليتك، وإدراجه بنقرة واحدة بالمخزون'}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsCatalogOpen(true);
+          }}
+          className="bg-primary text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-teal transition-colors shrink-0 shadow-sm"
+        >
+          {language === 'en' ? 'Open Directory →' : 'فتح دليل الأدوية ←'}
+        </button>
+      </div>
 
       <SearchBar
         placeholder={language === 'en' ? 'Search by med name or barcode...' : "ابحث باسم الدواء أو الباركود…"}
@@ -1110,6 +1166,16 @@ export default function Inventory() {
           </div>
         </div>
       )}
+
+      {/* Master Catalog Modal */}
+      <MasterCatalogModal
+        isOpen={isCatalogOpen}
+        onClose={() => setIsCatalogOpen(false)}
+        inventory={meds}
+        pharmacyId={user?.pharmacy_id}
+        branches={branches}
+        onItemAdded={mutate}
+      />
     </div>
   );
 }

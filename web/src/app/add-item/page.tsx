@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import AppBar from "@/components/AppBar";
 import toast from "react-hot-toast";
 import { useStore } from "@/store";
+import MasterCatalogModal, { MasterDrug } from "@/components/MasterCatalogModal";
 
 export default function AddItem() {
   const user = useStore((state: any) => state.user);
@@ -24,6 +25,31 @@ export default function AddItem() {
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+
+  const handleSelectFromCatalog = (drug: MasterDrug) => {
+    setFormData((prev) => ({
+      ...prev,
+      name: drug.name,
+      scientificName: drug.scientificName || "",
+      category: drug.category || "",
+      batch_number: prev.batch_number || `B-${Math.floor(1000 + Math.random() * 9000)}`,
+      isControlled: Boolean(drug.isControlled),
+    }));
+
+    if (drug.hasSubUnit) {
+      setHasSubUnit(true);
+      setSub1Name(drug.sub1Name || "شريط");
+      setSub1Count(String(drug.sub1Count || ""));
+      if (drug.hasSubUnit2) {
+        setHasSubUnit2(true);
+        setSub2Name(drug.sub2Name || "حبة");
+        setSub2Count(String(drug.sub2Count || ""));
+      }
+    }
+
+    toast.success(language === 'en' ? 'Drug details imported!' : `تم استيراد بيانات (${drug.name}) بنجاح!`);
+  };
 
   const [formData, setFormData] = useState({
     name: "",
@@ -284,7 +310,37 @@ export default function AddItem() {
     <div className="max-w-2xl mx-auto">
       <AppBar title={language === 'en' ? 'Add New Item' : 'إضافة صنف جديد'} showLogo={false} />
 
-      <form onSubmit={handleSubmit} noValidate className="space-y-4 mt-6">
+      {/* Quick Catalog Import Banner */}
+      <div
+        onClick={() => setIsCatalogOpen(true)}
+        className="mt-4 bg-gradient-to-r from-primary/10 via-teal/5 to-card border border-primary/25 rounded-2xl p-3.5 flex items-center justify-between cursor-pointer hover:border-primary/60 transition-all shadow-sm"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="text-xl">⚡</span>
+          <div>
+            <h4 className="font-bold text-xs text-ink">
+              {language === 'en' ? 'Quick Auto-fill from Drug Directory' : 'تعبئة تلقائية سريعة من دليل الأدوية الافتراضي'}
+            </h4>
+            <p className="text-[11px] text-ink-soft">
+              {language === 'en'
+                ? 'Select any certified medicine to auto-complete name, category, and units'
+                : 'اختر أي صنف معتمد لتعبئة الاسم، التصنيف، والوحدات تلقائياً'}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsCatalogOpen(true);
+          }}
+          className="bg-primary text-white text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-teal transition-colors shrink-0 shadow-sm"
+        >
+          {language === 'en' ? 'Browse Directory' : 'تصفح الدليل'}
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} noValidate className="space-y-4 mt-4">
         <div className="flex gap-4">
           <div className="flex-1">
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
@@ -728,6 +784,13 @@ export default function AddItem() {
           {loading ? (language === 'en' ? 'Saving...' : 'جاري الحفظ...') : (language === 'en' ? 'Save Item' : 'حفظ الصنف')}
         </button>
       </form>
+
+      {/* Master Catalog Selection Modal */}
+      <MasterCatalogModal
+        isOpen={isCatalogOpen}
+        onClose={() => setIsCatalogOpen(false)}
+        onSelectDrug={handleSelectFromCatalog}
+      />
     </div>
   );
 }

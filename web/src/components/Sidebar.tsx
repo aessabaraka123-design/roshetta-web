@@ -51,6 +51,7 @@ export default function Sidebar() {
       title: t.sidebar.inventory_meds,
       items: [
         { name: t.sidebar.inventory_meds, href: "/inventory", icon: InventoryIcon },
+        { name: language === 'en' ? "Master Drug Directory" : "دليل الأدوية الافتراضي", href: "/inventory?catalog=open", icon: InventoryIcon },
         { name: t.sidebar.suppliers_management, href: "/suppliers", icon: CustomersIcon },
         { name: t.sidebar.purchase_invoices, href: "/purchases", icon: SalesIcon },
         { name: t.sidebar.batches_expiry, href: "/batches", icon: BoxIcon },
