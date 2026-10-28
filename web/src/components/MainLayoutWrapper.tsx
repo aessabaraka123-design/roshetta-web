@@ -6,6 +6,22 @@ import Link from "next/link";
 import { useStore } from "@/store";
 import { useState, useEffect } from "react";
 import useSWR from "swr";
+import toast from "react-hot-toast";
+
+function isJwtExpired(token: string): boolean {
+  if (!token || typeof token !== "string") return false;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = atob(base64);
+    const payload = JSON.parse(json);
+    if (typeof payload.exp === "number") {
+      return Date.now() >= payload.exp * 1000;
+    }
+  } catch (_) {}
+  return false;
+}
 
 export default function MainLayoutWrapper({
   children,
@@ -68,17 +84,38 @@ export default function MainLayoutWrapper({
     }
   }, [subStatusData, user]);
 
+  const isAuth =
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/pricing" ||
+    pathname === "/receipt-upload";
+
   useEffect(() => {
-    // Sync stored session if store was not hydrated yet
+    // 1. Proactively check stored session if store was not hydrated yet or token is expired
     if (typeof window !== "undefined") {
       const storedUser = localStorage.getItem("roshetta_user");
       const storedToken = localStorage.getItem("roshetta_token");
-      if (storedUser && !useStore.getState().user) {
+
+      if (storedToken && isJwtExpired(storedToken)) {
+        useStore.getState().logout();
+        if (!isAuth) {
+          toast.error(
+            language === "en"
+              ? "Session expired; please sign in again."
+              : "انتهت صلاحية الجلسة؛ يرجى تسجيل الدخول مجدداً.",
+            { id: "session-expired-toast", duration: 4500 }
+          );
+          router.replace("/login");
+          return;
+        }
+      } else if (storedUser && !useStore.getState().user) {
         try {
           useStore.getState().login(JSON.parse(storedUser), storedToken || undefined);
         } catch (e) {}
       }
     }
+
+    let isRedirectingForExpiredSession = false;
 
     const originalFetch = window.fetch;
     window.fetch = async (input, init) => {
@@ -103,24 +140,62 @@ export default function MainLayoutWrapper({
         }
         init.headers = headers;
       }
-      return originalFetch(input, init);
+
+      const response = await originalFetch(input, init);
+
+      // Global 401 Session Interceptor: catches expired or invalid session errors
+      if (
+        response.status === 401 &&
+        url &&
+        url.includes('/api/') &&
+        !url.includes('/api/auth/login')
+      ) {
+        try {
+          const clone = response.clone();
+          const data = await clone.json();
+          const errStr = String(data?.error || '').toLowerCase();
+          const codeStr = String(data?.code || '').toUpperCase();
+          const isSessionError =
+            codeStr === 'DEVICE_SESSION_INVALID' ||
+            codeStr === 'DEVICE_SESSION_REVOKED' ||
+            codeStr === 'ACCOUNT_UNAVAILABLE' ||
+            codeStr === 'CREDENTIALS_CHANGED' ||
+            errStr.includes('expired session') ||
+            errStr.includes('invalid session') ||
+            errStr.includes('sign in again') ||
+            errStr.includes('authentication required');
+
+          if (isSessionError && !isRedirectingForExpiredSession) {
+            isRedirectingForExpiredSession = true;
+            useStore.getState().logout();
+            const currentLang = useStore.getState().language || 'ar';
+            toast.error(
+              currentLang === 'en'
+                ? 'Session expired; please sign in again.'
+                : 'انتهت صلاحية الجلسة؛ يرجى تسجيل الدخول مجدداً.',
+              { id: 'session-expired-toast', duration: 4500 }
+            );
+            if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+              setTimeout(() => {
+                window.location.href = '/login';
+              }, 400);
+            }
+          }
+        } catch (_) {}
+      }
+
+      return response;
     };
 
     return () => {
       window.fetch = originalFetch;
     };
-  }, []);
+  }, [isAuth, language, router]);
 
   useEffect(() => {
     document.documentElement.dir = language === "en" ? "ltr" : "rtl";
     document.documentElement.lang = language || "ar";
   }, [language]);
-
-  const isAuth =
-    pathname === "/login" ||
-    pathname === "/register" ||
-    pathname === "/pricing" ||
-    pathname === "/receipt-upload";
 
   // Global Auth Guard: if not an auth page and no user logged in, smoothly redirect to /login
   useEffect(() => {

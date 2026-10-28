@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import masterDrugsData from "@/data/masterDrugs.json";
 import { API_BASE_URL } from "@/lib/config";
 import toast from "react-hot-toast";
+import { useStore } from "@/store";
 
 export interface MasterDrug {
   barcode: string;
@@ -40,6 +41,7 @@ export default function MasterCatalogModal({
   onItemAdded,
   onSelectDrug,
 }: Props) {
+  const language = useStore((state: any) => state.language) || "ar";
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("الكل");
   const [statusFilter, setStatusFilter] = useState<"all" | "in_stock" | "not_in_stock">("all");
@@ -155,7 +157,7 @@ export default function MasterCatalogModal({
 
     const sell = parseFloat(quickForm.price_sell);
     if (!sell || sell <= 0) {
-      toast.error("يرجى إدخال سعر بيع صحيح");
+      toast.error(language === "en" ? "Please enter a valid selling price" : "يرجى إدخال سعر بيع صحيح");
       return;
     }
 
@@ -183,7 +185,12 @@ export default function MasterCatalogModal({
         ]);
       }
 
+      const eventId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `evt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      const itemId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `item_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
       const payload = {
+        id: itemId,
+        eventId,
         name: quickDrug.name,
         scientificName: quickDrug.scientificName,
         barcode: quickDrug.barcode,
@@ -202,20 +209,37 @@ export default function MasterCatalogModal({
 
       const res = await fetch(`${API_BASE_URL}/api/pharmacies/${pharmacyId}/inventory`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": eventId,
+        },
         body: JSON.stringify(payload),
       });
 
+      if (res.status === 401) {
+        return; // Session expired interceptor handles notification and redirection
+      }
+
       const data = await res.json();
       if (data.success) {
-        toast.success(`تم إدراج ${quickDrug.name} بالمخزون بنجاح!`);
+        toast.success(
+          language === "en"
+            ? `${quickDrug.name} added to inventory successfully!`
+            : `تم إدراج ${quickDrug.name} بالمخزون بنجاح!`
+        );
         setQuickDrug(null);
         if (onItemAdded) onItemAdded();
+      } else if (data.code === "INVENTORY_NAME_CONFLICT") {
+        toast.error(
+          language === "en"
+            ? "An item with this name already exists in inventory"
+            : "يوجد صنف بنفس هذا الاسم مسبقاً في المخزون"
+        );
       } else {
-        toast.error(data.error || "فشل إدراج الصنف بالمخزون");
+        toast.error(data.error || (language === "en" ? "Failed to add item to inventory" : "فشل إدراج الصنف بالمخزون"));
       }
     } catch (err) {
-      toast.error("خطأ في الاتصال بالخادم");
+      toast.error(language === "en" ? "Server connection error" : "خطأ في الاتصال بالخادم");
     } finally {
       setIsSubmitting(false);
     }
