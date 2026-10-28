@@ -23,6 +23,7 @@ export default function AddItem() {
 
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
     name: "",
@@ -86,58 +87,159 @@ export default function AddItem() {
       }
     }
     fetchBranches();
-  }, [user?.pharmacy_id]);
+  }, [user?.pharmacy_id, user?.branch]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors((prev) => {
+        const updated = { ...prev };
+        delete updated[name];
+        return updated;
+      });
+    }
+  };
+
+  const handleSub1CountChange = (val: string) => {
+    setSub1Count(val);
+    if (errors.sub1Count) {
+      setErrors((prev) => {
+        const updated = { ...prev };
+        delete updated.sub1Count;
+        return updated;
+      });
+    }
+  };
+
+  const handleSub1PriceChange = (val: string) => {
+    setSub1Price(val);
+    if (errors.sub1Price) {
+      setErrors((prev) => {
+        const updated = { ...prev };
+        delete updated.sub1Price;
+        return updated;
+      });
+    }
+  };
+
+  const handleSub2CountChange = (val: string) => {
+    setSub2Count(val);
+    if (errors.sub2Count) {
+      setErrors((prev) => {
+        const updated = { ...prev };
+        delete updated.sub2Count;
+        return updated;
+      });
+    }
+  };
+
+  const handleSub2PriceChange = (val: string) => {
+    setSub2Price(val);
+    if (errors.sub2Price) {
+      setErrors((prev) => {
+        const updated = { ...prev };
+        delete updated.sub2Price;
+        return updated;
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
-    let finalQty = Number(formData.qty);
+    // ─── VALIDATION ────────────────────────────────────────────────────────────
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.name || !formData.name.trim()) {
+      newErrors.name = language === 'en' ? 'Medicine trade name is required' : 'اسم الدواء (التجاري) مطلوب';
+    }
+
+    const priceSell = parseFloat(formData.price_sell);
+    if (!formData.price_sell || isNaN(priceSell) || priceSell <= 0) {
+      newErrors.price_sell = language === 'en' ? 'Valid selling price (> 0) is required' : 'يرجى إدخال سعر بيع صحيح أكبر من صفر';
+    }
+
+    if (formData.price_buy) {
+      const priceBuy = parseFloat(formData.price_buy);
+      if (isNaN(priceBuy) || priceBuy < 0) {
+        newErrors.price_buy = language === 'en' ? 'Purchase price cannot be negative' : 'سعر الشراء لا يمكن أن يكون بالسالب';
+      }
+    }
+
+    if (formData.qty) {
+      const qtyNum = parseFloat(formData.qty);
+      if (isNaN(qtyNum) || qtyNum < 0) {
+        newErrors.qty = language === 'en' ? 'Initial quantity cannot be negative' : 'الكمية الابتدائية لا يمكن أن تكون بالسالب';
+      }
+    }
+
+    let finalQty = Number(formData.qty) || 0;
     let unitsArr: any = null;
 
     if (hasSubUnit) {
-      if (!sub1Name || !sub1Count || !sub1Price) {
-        toast.error(language === 'en' ? "Please complete sub-unit details (strips/ampoules)" : "يرجى إكمال بيانات الجزء الأصغر (الأشرطة/الأمبولات)");
-        setLoading(false);
-        return;
-      }
       const s1Count = Number(sub1Count);
+      const s1Price = Number(sub1Price);
+
+      if (!sub1Count || isNaN(s1Count) || s1Count <= 0) {
+        newErrors.sub1Count = language === 'en' ? `Please enter count of ${sub1Name} in the box` : `يرجى إدخال عدد الـ ${sub1Name} في العلبة`;
+      }
+      if (!sub1Price || isNaN(s1Price) || s1Price <= 0) {
+        newErrors.sub1Price = language === 'en' ? `Please enter price for ${sub1Name}` : `يرجى إدخال سعر الـ ${sub1Name}`;
+      }
+
       if (hasSubUnit2) {
-        if (!sub2Name || !sub2Count || !sub2Price) {
-          toast.error(language === 'en' ? "Please complete smallest unit details (pills)" : "يرجى إكمال تفاصيل أصغر جزء (الحبات)");
-          setLoading(false);
-          return;
-        }
         const s2Count = Number(sub2Count);
-        const boxBaseCount = s1Count * s2Count;
-        const stripBaseCount = s2Count;
-        finalQty = Number(formData.qty) * boxBaseCount;
-        unitsArr = [
-          {
-            name: "علبة",
-            count: boxBaseCount,
-            price: Number(formData.price_sell),
-          },
-          { name: sub1Name, count: stripBaseCount, price: Number(sub1Price) },
-          { name: sub2Name, count: 1, price: Number(sub2Price) },
-        ];
-      } else {
-        finalQty = Number(formData.qty) * s1Count;
+        const s2Price = Number(sub2Price);
+
+        if (!sub2Count || isNaN(s2Count) || s2Count <= 0) {
+          newErrors.sub2Count = language === 'en' ? `Please enter count of ${sub2Name} in ${sub1Name}` : `يرجى إدخال عدد الـ ${sub2Name} في الـ ${sub1Name}`;
+        }
+        if (!sub2Price || isNaN(s2Price) || s2Price <= 0) {
+          newErrors.sub2Price = language === 'en' ? `Please enter price for ${sub2Name}` : `يرجى إدخال سعر الـ ${sub2Name}`;
+        }
+
+        if (s1Count > 0 && s2Count > 0) {
+          const boxBaseCount = s1Count * s2Count;
+          const stripBaseCount = s2Count;
+          finalQty = (Number(formData.qty) || 0) * boxBaseCount;
+          unitsArr = [
+            {
+              name: "علبة",
+              count: boxBaseCount,
+              price: Number(formData.price_sell),
+            },
+            { name: sub1Name, count: stripBaseCount, price: s1Price },
+            { name: sub2Name, count: 1, price: s2Price },
+          ];
+        }
+      } else if (s1Count > 0) {
+        finalQty = (Number(formData.qty) || 0) * s1Count;
         unitsArr = [
           { name: "علبة", count: s1Count, price: Number(formData.price_sell) },
-          { name: sub1Name, count: 1, price: Number(sub1Price) },
+          { name: sub1Name, count: 1, price: s1Price },
         ];
       }
     }
 
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error(language === 'en' ? 'Please fix the fields highlighted in red' : 'يرجى تصحيح الحقول المحددة باللون الأحمر');
+      return;
+    }
+
+    setLoading(true);
+    setErrors({});
+
+    const itemId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `item_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const eventId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `evt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
     const payload = {
       ...formData,
+      id: itemId,
+      eventId: eventId,
       qty: finalQty,
       units: unitsArr ? JSON.stringify(unitsArr) : null,
     };
@@ -147,20 +249,34 @@ export default function AddItem() {
         `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/inventory`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Idempotency-Key": eventId,
+          },
           body: JSON.stringify(payload),
         },
       );
 
       const data = await res.json();
-      if (!data.success) throw new Error(data.error);
+      if (!data.success) {
+        throw new Error(data.error || (language === 'en' ? "Error adding item" : "حدث خطأ أثناء الإضافة"));
+      }
 
       setLoading(false);
       toast.success(language === 'en' ? "Item added successfully!" : "تمت إضافة الصنف بنجاح!");
       router.push("/inventory");
-    } catch (error) {
+    } catch (error: any) {
       setLoading(false);
-      toast.error(error instanceof Error ? error.message : (language === 'en' ? "Error adding item" : "حدث خطأ أثناء الإضافة"));
+      const rawMsg = error instanceof Error ? error.message : String(error);
+      if (rawMsg.includes("INVENTORY_NAME_CONFLICT") || rawMsg.includes("يوجد منتج بنفس هذا الاسم")) {
+        setErrors((prev) => ({
+          ...prev,
+          name: language === 'en' ? 'A medicine with this name already exists in this branch' : 'عذراً، يوجد صنف مسجل بنفس هذا الاسم بالفعل في هذا الفرع',
+        }));
+        toast.error(language === 'en' ? 'Medicine with this name already exists' : 'عذراً، يوجد صنف مسجل بنفس هذا الاسم بالفعل');
+      } else {
+        toast.error(rawMsg || (language === 'en' ? "Error adding item" : "حدث خطأ أثناء الإضافة"));
+      }
     }
   };
 
@@ -168,15 +284,18 @@ export default function AddItem() {
     <div className="max-w-2xl mx-auto">
       <AppBar title={language === 'en' ? 'Add New Item' : 'إضافة صنف جديد'} showLogo={false} />
 
-      <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4 mt-6">
         <div className="flex gap-4">
           <div className="flex-1">
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
-              {language === 'en' ? 'Medicine Name (Trade)' : 'اسم الدواء (التجاري)'}
+              {language === 'en' ? 'Medicine Name (Trade) *' : 'اسم الدواء (التجاري) *'}
             </label>
-            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
+            <div className={`bg-card border-2 rounded-xl p-3.5 transition-all ${
+              errors.name 
+                ? 'border-red-500 bg-red-500/5 ring-2 ring-red-500/20' 
+                : 'border-mint-line focus-within:border-teal'
+            }`}>
               <input
-                required
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
@@ -185,12 +304,18 @@ export default function AddItem() {
                 dir="auto"
               />
             </div>
+            {errors.name && (
+              <p className="text-red-500 text-[12px] font-bold mt-1.5 flex items-center gap-1">
+                <span>⚠️</span>
+                <span>{errors.name}</span>
+              </p>
+            )}
           </div>
           <div className="flex-1">
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
               {language === 'en' ? 'Scientific Name' : 'الاسم العلمي'}
             </label>
-            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
+            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5 focus-within:border-teal transition-all">
               <input
                 name="scientificName"
                 value={formData.scientificName}
@@ -208,7 +333,7 @@ export default function AddItem() {
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
               {language === 'en' ? 'Manufacturer' : 'الشركة المصنّعة'}
             </label>
-            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
+            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5 focus-within:border-teal transition-all">
               <input
                 name="manufacturer"
                 value={formData.manufacturer}
@@ -223,7 +348,7 @@ export default function AddItem() {
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
               {language === 'en' ? 'Therapeutic Category' : 'الفئة العلاجية'}
             </label>
-            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
+            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5 focus-within:border-teal transition-all">
               <input
                 name="category"
                 value={formData.category}
@@ -241,7 +366,11 @@ export default function AddItem() {
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
               {language === 'en' ? 'Purchase Price (₪)' : 'سعر الشراء (₪)'}
             </label>
-            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
+            <div className={`bg-card border-2 rounded-xl p-3.5 transition-all ${
+              errors.price_buy 
+                ? 'border-red-500 bg-red-500/5 ring-2 ring-red-500/20' 
+                : 'border-mint-line focus-within:border-teal'
+            }`}>
               <input
                 type="number"
                 step="0.01"
@@ -253,14 +382,23 @@ export default function AddItem() {
                 style={{ direction: "ltr", textAlign: "left" }}
               />
             </div>
+            {errors.price_buy && (
+              <p className="text-red-500 text-[12px] font-bold mt-1.5 flex items-center gap-1">
+                <span>⚠️</span>
+                <span>{errors.price_buy}</span>
+              </p>
+            )}
           </div>
           <div className="flex-1">
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
-              {language === 'en' ? 'Selling Price (₪)' : 'سعر البيع (₪)'}
+              {language === 'en' ? 'Selling Price (₪) *' : 'سعر البيع (₪) *'}
             </label>
-            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
+            <div className={`bg-card border-2 rounded-xl p-3.5 transition-all ${
+              errors.price_sell 
+                ? 'border-red-500 bg-red-500/5 ring-2 ring-red-500/20' 
+                : 'border-mint-line focus-within:border-teal'
+            }`}>
               <input
-                required
                 type="number"
                 step="0.01"
                 name="price_sell"
@@ -271,6 +409,12 @@ export default function AddItem() {
                 style={{ direction: "ltr", textAlign: "left" }}
               />
             </div>
+            {errors.price_sell && (
+              <p className="text-red-500 text-[12px] font-bold mt-1.5 flex items-center gap-1">
+                <span>⚠️</span>
+                <span>{errors.price_sell}</span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -279,7 +423,11 @@ export default function AddItem() {
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
               {language === 'en' ? 'Initial Quantity' : 'الكمية الابتدائية'}
             </label>
-            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
+            <div className={`bg-card border-2 rounded-xl p-3.5 transition-all ${
+              errors.qty 
+                ? 'border-red-500 bg-red-500/5 ring-2 ring-red-500/20' 
+                : 'border-mint-line focus-within:border-teal'
+            }`}>
               <input
                 type="number"
                 name="qty"
@@ -290,13 +438,19 @@ export default function AddItem() {
                 style={{ direction: "ltr", textAlign: "left" }}
               />
             </div>
+            {errors.qty && (
+              <p className="text-red-500 text-[12px] font-bold mt-1.5 flex items-center gap-1">
+                <span>⚠️</span>
+                <span>{errors.qty}</span>
+              </p>
+            )}
           </div>
           {user?.role === "صيدلي" ? null : (
             <div className="flex-1">
               <label className="block text-[14px] font-semibold text-ink-soft mb-2">
                 {language === 'en' ? 'Target Branch' : 'الفرع المضاف إليه'}
               </label>
-              <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
+              <div className="bg-card border-2 border-mint-line rounded-xl p-3.5 focus-within:border-teal transition-all">
                 <select
                   name="branch_id"
                   value={formData.branch_id}
@@ -319,7 +473,7 @@ export default function AddItem() {
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
               {language === 'en' ? 'Batch Number' : 'رقم الدفعة'}
             </label>
-            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
+            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5 focus-within:border-teal transition-all">
               <input
                 name="batch_number"
                 value={formData.batch_number}
@@ -334,7 +488,7 @@ export default function AddItem() {
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
               {language === 'en' ? 'Expiry Date' : 'تاريخ الصلاحية'}
             </label>
-            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5">
+            <div className="bg-card border-2 border-mint-line rounded-xl p-3.5 focus-within:border-teal transition-all">
               <input
                 type="month"
                 name="expiry_date"
@@ -346,7 +500,6 @@ export default function AddItem() {
             </div>
           </div>
         </div>
-
 
         {/* Controlled Medicine Section */}
         <div className="bg-card border-2 border-mint-line rounded-xl p-5 mt-6">
@@ -377,7 +530,17 @@ export default function AddItem() {
               checked={hasSubUnit}
               onChange={(e) => {
                 setHasSubUnit(e.target.checked);
-                if (!e.target.checked) setHasSubUnit2(false);
+                if (!e.target.checked) {
+                  setHasSubUnit2(false);
+                  setErrors((prev) => {
+                    const updated = { ...prev };
+                    delete updated.sub1Count;
+                    delete updated.sub1Price;
+                    delete updated.sub2Count;
+                    delete updated.sub2Price;
+                    return updated;
+                  });
+                }
               }}
               className="w-5 h-5 accent-teal cursor-pointer"
             />
@@ -396,7 +559,7 @@ export default function AddItem() {
                   <select
                     value={sub1Name}
                     onChange={(e) => setSub1Name(e.target.value)}
-                    className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px]"
+                    className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] outline-none focus:border-teal"
                   >
                     <option value="شريط">{language === 'en' ? 'Strip' : 'شريط'}</option>
                     <option value="حبة">{language === 'en' ? 'Pill / Capsule' : 'حبة / كبسولة'}</option>
@@ -408,30 +571,50 @@ export default function AddItem() {
                 </div>
                 <div className="flex-1">
                   <label className="block text-[12px] font-bold text-ink-soft mb-1">
-                    {language === 'en' ? `How many ${sub1Name === 'شريط' ? (language === 'en' ? 'Strips' : 'شريط') : sub1Name} in the box?` : `كم ${sub1Name} في العلبة؟`}
+                    {language === 'en' ? `How many ${sub1Name === 'شريط' ? (language === 'en' ? 'Strips' : 'شريط') : sub1Name} in the box? *` : `كم ${sub1Name} في العلبة؟ *`}
                   </label>
                   <input
                     type="number"
                     value={sub1Count}
-                    onChange={(e) => setSub1Count(e.target.value)}
+                    onChange={(e) => handleSub1CountChange(e.target.value)}
                     placeholder={language === 'en' ? 'Example: 3' : 'مثال: 3'}
-                    className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-start"
+                    className={`w-full bg-white border rounded-lg p-2 text-[14px] font-mono text-start outline-none transition-all ${
+                      errors.sub1Count 
+                        ? 'border-red-500 bg-red-500/5 ring-2 ring-red-500/20' 
+                        : 'border-mint-line focus:border-teal'
+                    }`}
                     dir="ltr"
                   />
+                  {errors.sub1Count && (
+                    <p className="text-red-500 text-[11px] font-bold mt-1 flex items-center gap-1">
+                      <span>⚠️</span>
+                      <span>{errors.sub1Count}</span>
+                    </p>
+                  )}
                 </div>
                 <div className="flex-1">
                   <label className="block text-[12px] font-bold text-ink-soft mb-1">
-                    {language === 'en' ? `Price of ${sub1Name === 'شريط' ? (language === 'en' ? 'Strip' : 'شريط') : sub1Name}` : `سعر ${sub1Name}`}
+                    {language === 'en' ? `Price of ${sub1Name === 'شريط' ? (language === 'en' ? 'Strip' : 'شريط') : sub1Name} *` : `سعر ${sub1Name} *`}
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     value={sub1Price}
-                    onChange={(e) => setSub1Price(e.target.value)}
+                    onChange={(e) => handleSub1PriceChange(e.target.value)}
                     placeholder={language === 'en' ? 'Example: 12.00' : 'مثال: 12.00'}
-                    className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-start"
+                    className={`w-full bg-white border rounded-lg p-2 text-[14px] font-mono text-start outline-none transition-all ${
+                      errors.sub1Price 
+                        ? 'border-red-500 bg-red-500/5 ring-2 ring-red-500/20' 
+                        : 'border-mint-line focus:border-teal'
+                    }`}
                     dir="ltr"
                   />
+                  {errors.sub1Price && (
+                    <p className="text-red-500 text-[11px] font-bold mt-1 flex items-center gap-1">
+                      <span>⚠️</span>
+                      <span>{errors.sub1Price}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -446,7 +629,17 @@ export default function AddItem() {
                     <input
                       type="checkbox"
                       checked={hasSubUnit2}
-                      onChange={(e) => setHasSubUnit2(e.target.checked)}
+                      onChange={(e) => {
+                        setHasSubUnit2(e.target.checked);
+                        if (!e.target.checked) {
+                          setErrors((prev) => {
+                            const updated = { ...prev };
+                            delete updated.sub2Count;
+                            delete updated.sub2Price;
+                            return updated;
+                          });
+                        }
+                      }}
                       className="w-5 h-5 accent-teal cursor-pointer"
                     />
                   </div>
@@ -466,7 +659,7 @@ export default function AddItem() {
                       <select
                         value={sub2Name}
                         onChange={(e) => setSub2Name(e.target.value)}
-                        className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px]"
+                        className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] outline-none focus:border-teal"
                       >
                         <option value="حبة">{language === 'en' ? 'Pill' : 'حبة'}</option>
                         <option value="ملي">{language === 'en' ? 'ml' : 'ملي'}</option>
@@ -475,30 +668,50 @@ export default function AddItem() {
                     </div>
                     <div className="flex-1">
                       <label className="block text-[12px] font-bold text-ink-soft mb-1">
-                        {language === 'en' ? `How many ${sub2Name === 'حبة' ? (language === 'en' ? 'Pills' : 'حبة') : sub2Name} in ${sub1Name === 'شريط' ? (language === 'en' ? 'Strip' : 'شريط') : sub1Name}?` : `كم ${sub2Name} في الـ ${sub1Name}؟`}
+                        {language === 'en' ? `How many ${sub2Name === 'حبة' ? (language === 'en' ? 'Pills' : 'حبة') : sub2Name} in ${sub1Name === 'شريط' ? (language === 'en' ? 'Strip' : 'شريط') : sub1Name}? *` : `كم ${sub2Name} في الـ ${sub1Name}؟ *`}
                       </label>
                       <input
                         type="number"
                         value={sub2Count}
-                        onChange={(e) => setSub2Count(e.target.value)}
+                        onChange={(e) => handleSub2CountChange(e.target.value)}
                         placeholder={language === 'en' ? 'Example: 10' : 'مثال: 10'}
-                        className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-start"
+                        className={`w-full bg-white border rounded-lg p-2 text-[14px] font-mono text-start outline-none transition-all ${
+                          errors.sub2Count 
+                            ? 'border-red-500 bg-red-500/5 ring-2 ring-red-500/20' 
+                            : 'border-mint-line focus:border-teal'
+                        }`}
                         dir="ltr"
                       />
+                      {errors.sub2Count && (
+                        <p className="text-red-500 text-[11px] font-bold mt-1 flex items-center gap-1">
+                          <span>⚠️</span>
+                          <span>{errors.sub2Count}</span>
+                        </p>
+                      )}
                     </div>
                     <div className="flex-1">
                       <label className="block text-[12px] font-bold text-ink-soft mb-1">
-                        {language === 'en' ? `Price of ${sub2Name === 'حبة' ? (language === 'en' ? 'Pill' : 'حبة') : sub2Name}` : `سعر ${sub2Name}`}
+                        {language === 'en' ? `Price of ${sub2Name === 'حبة' ? (language === 'en' ? 'Pill' : 'حبة') : sub2Name} *` : `سعر ${sub2Name} *`}
                       </label>
                       <input
                         type="number"
                         step="0.01"
                         value={sub2Price}
-                        onChange={(e) => setSub2Price(e.target.value)}
+                        onChange={(e) => handleSub2PriceChange(e.target.value)}
                         placeholder={language === 'en' ? 'Example: 1.50' : 'مثال: 1.50'}
-                        className="w-full bg-white border border-mint-line rounded-lg p-2 text-[14px] font-mono text-start"
+                        className={`w-full bg-white border rounded-lg p-2 text-[14px] font-mono text-start outline-none transition-all ${
+                          errors.sub2Price 
+                            ? 'border-red-500 bg-red-500/5 ring-2 ring-red-500/20' 
+                            : 'border-mint-line focus:border-teal'
+                        }`}
                         dir="ltr"
                       />
+                      {errors.sub2Price && (
+                        <p className="text-red-500 text-[11px] font-bold mt-1 flex items-center gap-1">
+                          <span>⚠️</span>
+                          <span>{errors.sub2Price}</span>
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

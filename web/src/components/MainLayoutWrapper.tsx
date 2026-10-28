@@ -92,9 +92,13 @@ export default function MainLayoutWrapper({
           headers.set('Authorization', `Bearer ${token}`);
         }
         
-        if (init.method && ['POST', 'PUT', 'PATCH'].includes(init.method.toUpperCase()) && !(init.body instanceof FormData)) {
+        if (init.method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(init.method.toUpperCase()) && !(init.body instanceof FormData)) {
           if (!headers.has('Content-Type')) {
             headers.set('Content-Type', 'application/json');
+          }
+          if (!headers.has('Idempotency-Key')) {
+            const uuid = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `evt_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+            headers.set('Idempotency-Key', uuid);
           }
         }
         init.headers = headers;
