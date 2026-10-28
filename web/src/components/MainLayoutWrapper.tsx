@@ -7,6 +7,7 @@ import { useStore } from "@/store";
 import { useState, useEffect } from "react";
 import useSWR from "swr";
 import toast from "react-hot-toast";
+import "@/lib/errorTranslations";
 
 function isJwtExpired(token: string): boolean {
   if (!token || typeof token !== "string") return false;

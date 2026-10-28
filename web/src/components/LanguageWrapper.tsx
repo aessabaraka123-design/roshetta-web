@@ -2,12 +2,14 @@
 
 import { useStore } from "@/store";
 import { useEffect, useState } from "react";
+import { installToastLocalization } from "@/lib/errorTranslations";
 
 export default function LanguageWrapper({ children }: { children: React.ReactNode }) {
   const language = useStore((state: any) => state.language);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    installToastLocalization();
     setMounted(true);
     document.documentElement.dir = language === "en" ? "ltr" : "rtl";
     document.documentElement.lang = language || "ar";
