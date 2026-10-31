@@ -28,6 +28,7 @@ interface Props {
   inventory?: any[];
   pharmacyId?: string;
   branches?: any[];
+  currentBranchId?: string;
   onItemAdded?: () => void;
   onSelectDrug?: (drug: MasterDrug) => void;
 }
@@ -38,10 +39,25 @@ export default function MasterCatalogModal({
   inventory = [],
   pharmacyId,
   branches = [],
+  currentBranchId,
   onItemAdded,
   onSelectDrug,
 }: Props) {
+  const user = useStore((state: any) => state.user);
   const language = useStore((state: any) => state.language) || "ar";
+
+  // Smartly determine the active branch based on current filter or assigned branch
+  const getSmartDefaultBranch = () => {
+    if (currentBranchId && currentBranchId !== "all" && currentBranchId !== "PENDING") {
+      const match = branches.find((b: any) => b.id === currentBranchId || b.name === currentBranchId);
+      if (match) return match.id;
+    }
+    if (user?.branch && user.branch !== "all") {
+      const match = branches.find((b: any) => b.id === user.branch || b.name === user.branch);
+      if (match) return match.id;
+    }
+    return branches && branches.length > 0 ? branches[0].id : "";
+  };
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("الكل");
   const [statusFilter, setStatusFilter] = useState<"all" | "in_stock" | "not_in_stock">("all");
@@ -114,7 +130,7 @@ export default function MasterCatalogModal({
 
   // Open Quick Add
   const handleOpenQuickAdd = (drug: MasterDrug) => {
-    const defaultBranch = branches && branches.length > 0 ? branches[0].id : "";
+    const defaultBranch = getSmartDefaultBranch();
     setQuickDrug(drug);
     setQuickForm({
       price_sell: "",
@@ -202,7 +218,7 @@ export default function MasterCatalogModal({
         reorder_level: parseFloat(quickForm.minQty) || 5,
         batch_number: quickForm.batch_number,
         expiry_date: quickForm.expiry_date,
-        branch_id: quickForm.branch_id || (branches[0]?.id ?? ""),
+        branch_id: quickForm.branch_id || getSmartDefaultBranch(),
         isControlled: quickDrug.isControlled ? 1 : 0,
         units,
       };
@@ -575,9 +591,11 @@ export default function MasterCatalogModal({
 
               {branches.length > 1 && (
                 <div>
-                  <label className="text-xs font-bold text-ink block mb-1">الفرع المورد له</label>
+                  <label className="text-xs font-bold text-ink block mb-1">
+                    {language === "en" ? "Target Branch" : "الفرع المورد له"}
+                  </label>
                   <select
-                    value={quickForm.branch_id}
+                    value={quickForm.branch_id || getSmartDefaultBranch()}
                     onChange={(e) => setQuickForm({ ...quickForm, branch_id: e.target.value })}
                     className="w-full bg-card border-2 border-mint-line rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-primary text-ink"
                   >

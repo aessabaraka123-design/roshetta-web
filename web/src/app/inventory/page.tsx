@@ -1176,6 +1176,7 @@ export default function Inventory() {
         inventory={meds}
         pharmacyId={user?.pharmacy_id}
         branches={branches}
+        currentBranchId={branchFilter !== "all" ? branchFilter : (userBranchObj?.id || user?.branch)}
         onItemAdded={mutate}
       />
     </div>
