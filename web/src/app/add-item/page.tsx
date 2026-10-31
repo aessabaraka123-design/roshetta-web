@@ -542,7 +542,7 @@ export default function AddItem() {
           </div>
           <div className="flex-1">
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
-              {language === 'en' ? 'Expiry Date' : 'تاريخ الصلاحية'}
+              {language === 'en' ? 'Expiry Date (Optional)' : 'تاريخ الصلاحية (اختياري)'}
             </label>
             <div className="bg-card border-2 border-mint-line rounded-xl p-3.5 focus-within:border-teal transition-all">
               <input

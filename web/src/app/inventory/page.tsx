@@ -782,6 +782,7 @@ export default function Inventory() {
                   <div className="flex-1">
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
                       {language === 'en' ? 'Expiry Date' : 'تاريخ الصلاحية'}
+                      <span className="text-xs font-normal ms-1 text-ink-soft/80">({language === 'en' ? 'Optional' : 'اختياري'})</span>
                     </label>
                     <input
                       type="month"
@@ -1122,6 +1123,7 @@ export default function Inventory() {
                 <div>
                   <label className="block text-[13px] font-bold text-ink mb-1">
                     {language === 'en' ? 'Expiry Date' : 'تاريخ الصلاحية'}
+                    <span className="text-xs font-normal ms-1 text-ink-soft/80">({language === 'en' ? 'Optional' : 'اختياري'})</span>
                   </label>
                   <input
                     type="date"

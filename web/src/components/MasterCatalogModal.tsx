@@ -123,7 +123,7 @@ export default function MasterCatalogModal({
       minQty: "5",
       branch_id: defaultBranch,
       batch_number: `B-${Math.floor(1000 + Math.random() * 9000)}`,
-      expiry_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      expiry_date: "",
       sub1Price: "",
       sub2Price: "",
     });
@@ -546,7 +546,24 @@ export default function MasterCatalogModal({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-ink block mb-1">تاريخ الصلاحية</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-ink">
+                      {language === "en" ? "Expiry Date" : "تاريخ الصلاحية"}
+                      <span className="text-[11px] font-normal text-ink-soft ms-1">
+                        ({language === "en" ? "Optional" : "اختياري"})
+                      </span>
+                    </label>
+                    {quickForm.expiry_date && (
+                      <button
+                        type="button"
+                        onClick={() => setQuickForm({ ...quickForm, expiry_date: "" })}
+                        className="text-[10px] text-red-500 hover:text-red-700 font-bold hover:underline transition-colors"
+                        title={language === "en" ? "Clear date" : "مسح التاريخ"}
+                      >
+                        {language === "en" ? "Clear" : "مسح"}
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="date"
                     value={quickForm.expiry_date}
