@@ -122,11 +122,11 @@ export default function MainLayoutWrapper({
     window.fetch = async (input, init) => {
       const url = typeof input === 'string' ? input : (input instanceof URL ? input.toString() : input.url);
       
-      if (url && url.includes('/api/') && !url.includes('/api/auth/') && !url.includes('/api/admin/')) {
+      if (url && url.includes('/api/') && !url.includes('/api/auth/')) {
         init = init || {};
         const headers = new Headers(init.headers);
         const token = useStore.getState().token || (typeof window !== 'undefined' ? localStorage.getItem('roshetta_token') : '');
-        if (token) {
+        if (token && !headers.has('Authorization')) {
           headers.set('Authorization', `Bearer ${token}`);
         }
         
