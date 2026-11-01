@@ -119,6 +119,7 @@ export default function Reports() {
 
   const report = data?.data || {
     totalRevenue: 0,
+    totalCost: 0,
     totalProfit: 0,
     totalExpenses: 0,
     totalDiscount: 0,
@@ -128,7 +129,7 @@ export default function Reports() {
     dailyTrend: [],
     branchPerformance: [],
     topItems: [],
-    paymentBreakdown: { cash: 0, card: 0, credit: 0, insurance: 0, other: 0 },
+    paymentBreakdown: { cash: 0, card: 0, bank: 0, jawwal: 0, palpay: 0, maalchat: 0, credit: 0, insurance: 0, other: 0 },
   };
 
   const pb = report.paymentBreakdown || {};
@@ -257,21 +258,29 @@ export default function Reports() {
           )}
         </div>
 
-        {/* 6 Summary Cards (Revenue, Gross Profit, Expenses, Discounts, VAT, Net Profit) */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print:grid-cols-6">
+        {/* 7 Summary Cards (Revenue, COGS, Gross Profit, Expenses, Discounts, VAT, Net Profit) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3.5 print:grid-cols-7">
           <div className="bg-primary text-white rounded-2xl p-4 shadow-lg shadow-primary/20 transform hover:-translate-y-1 transition-all">
             <div className="text-[12px] font-bold text-white/80 mb-1">
               {language === "en" ? "Total Revenue" : "إجمالي المبيعات"}
             </div>
-            <div className="font-mono text-[20px] md:text-[24px] font-black">
+            <div className="font-mono text-[18px] md:text-[22px] font-black">
               ₪{report.totalRevenue.toLocaleString()}
+            </div>
+          </div>
+          <div className="bg-slate-700 text-white rounded-2xl p-4 shadow-lg shadow-slate-700/20 transform hover:-translate-y-1 transition-all">
+            <div className="text-[12px] font-bold text-white/80 mb-1">
+              {language === "en" ? "Cost of Goods (COGS)" : "تكلفة المبيعات (COGS)"}
+            </div>
+            <div className="font-mono text-[18px] md:text-[22px] font-black text-slate-100">
+              ₪{(report.totalCost || 0).toLocaleString()}
             </div>
           </div>
           <div className="bg-teal text-white rounded-2xl p-4 shadow-lg shadow-teal/20 transform hover:-translate-y-1 transition-all">
             <div className="text-[12px] font-bold text-white/80 mb-1">
               {language === "en" ? "Gross Profit" : "الربح الإجمالي"}
             </div>
-            <div className="font-mono text-[20px] md:text-[24px] font-black">
+            <div className="font-mono text-[18px] md:text-[22px] font-black">
               ₪{report.totalProfit.toLocaleString()}
             </div>
           </div>
@@ -279,7 +288,7 @@ export default function Reports() {
             <div className="text-[12px] font-bold text-white/80 mb-1">
               {language === "en" ? "Total Expenses" : "إجمالي المصروفات"}
             </div>
-            <div className="font-mono text-[20px] md:text-[24px] font-black">
+            <div className="font-mono text-[18px] md:text-[22px] font-black">
               ₪{(report.totalExpenses || 0).toLocaleString()}
             </div>
           </div>
@@ -287,7 +296,7 @@ export default function Reports() {
             <div className="text-[12px] font-bold text-ink-soft mb-1">
               {language === "en" ? "Total Discounts" : "إجمالي الخصومات"}
             </div>
-            <div className="font-mono text-[20px] md:text-[24px] font-black text-amber-700">
+            <div className="font-mono text-[18px] md:text-[22px] font-black text-amber-700">
               ₪{(report.totalDiscount || 0).toLocaleString()}
             </div>
           </div>
@@ -295,19 +304,19 @@ export default function Reports() {
             <div className="text-[12px] font-bold text-emerald-600 mb-1">
               {language === "en" ? "Total VAT" : "ضريبة القيمة المضافة"}
             </div>
-            <div className="font-mono text-[20px] md:text-[24px] font-black text-emerald-800">
+            <div className="font-mono text-[18px] md:text-[22px] font-black text-emerald-800">
               ₪{(report.totalVat || 0).toLocaleString()}
             </div>
           </div>
           <div className="bg-white border-2 border-primary/20 rounded-2xl p-4 shadow-sm transform hover:-translate-y-1 transition-all">
             <div className="text-[12px] font-bold text-primary mb-1 flex items-center justify-between">
               {language === "en" ? "Net Profit" : "صافي الربح"}
-              <span className="text-[10px] bg-primary/10 px-1.5 py-0.5 rounded-full">
+              <span className="text-[10px] bg-primary/10 px-1.5 py-0.5 rounded-full font-bold">
                 {report.profitMargin}%
               </span>
             </div>
             <div
-              className={`font-mono text-[20px] md:text-[24px] font-black ${(report.netProfit || 0) >= 0 ? "text-primary" : "text-coral"}`}
+              className={`font-mono text-[18px] md:text-[22px] font-black ${(report.netProfit || 0) >= 0 ? "text-primary" : "text-coral"}`}
             >
               ₪{(report.netProfit || 0).toLocaleString()}
             </div>

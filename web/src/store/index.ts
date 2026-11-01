@@ -21,6 +21,7 @@ interface PosCartItem extends Med {
   unitCount: number;
   unitPrice: number;
   unitCost?: number;
+  proportionalCost?: number;
   displayName: string;
 }
 
@@ -165,13 +166,16 @@ export const useStore = create<StoreState>()(
           }
 
           const baseCost = med.cost != null ? Number(med.cost) : (Number(med.price || 0) * 0.7);
-          const itemUnitCost = u.cost !== undefined ? Number(u.cost) : (baseCost * (u.ratio || 1));
+          const itemUnitCost = (u.cost !== undefined && u.cost !== null && Number(u.cost) > 0)
+            ? Number(u.cost)
+            : (baseCost * (u.ratio !== undefined ? u.ratio : 1));
 
           const newItem: PosCartItem = {
             ...med,
             price: u.price,
             cost: itemUnitCost,
             unitCost: itemUnitCost,
+            proportionalCost: itemUnitCost,
             cartQty: 1,
             cartItemId,
             unitName: u.name,

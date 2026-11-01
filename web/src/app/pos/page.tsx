@@ -275,11 +275,18 @@ function POSContent() {
           const baseCost = med.cost != null ? Number(med.cost) : (Number(med.price || 0) * 0.7);
           const unitsWithPrices = parsed.map((u: any) => {
             const ratio = (u.count || 1) / boxCount;
+            const unitPrice = (u.price !== undefined && u.price !== null && Number(u.price) > 0)
+              ? Number(u.price)
+              : (Number(med.price || 0) * ratio);
+            const unitCost = (u.cost !== undefined && u.cost !== null && Number(u.cost) > 0)
+              ? Number(u.cost)
+              : (baseCost * ratio);
             return {
               ...u,
               ratio,
-              price: med.price * ratio,
-              cost: baseCost * ratio,
+              price: unitPrice,
+              cost: unitCost,
+              proportionalCost: unitCost,
             };
           });
           setUnitModal({ visible: true, med, units: unitsWithPrices });
@@ -466,10 +473,23 @@ function POSContent() {
       const selectedCustomer =
         customers.find((c: any) => c.id === selectedCustomerId) || null;
 
-      const payloadItems = cart.map((item: any) => ({
-        ...item,
-        deductQty: item.cartQty * (item.unitCount || 1),
-      }));
+      const payloadItems = cart.map((item: any) => {
+        const pCost = item.proportionalCost !== undefined && item.proportionalCost !== null
+          ? Number(item.proportionalCost)
+          : (item.unitCost !== undefined && item.unitCost !== null
+            ? Number(item.unitCost)
+            : (item.cost !== undefined && item.cost !== null
+              ? Number(item.cost)
+              : (Number(item.price || 0) * 0.7)));
+
+        return {
+          ...item,
+          cost: pCost,
+          unitCost: pCost,
+          proportionalCost: pCost,
+          deductQty: item.cartQty * (item.unitCount || 1),
+        };
+      });
 
       const res = await fetch(
         `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/sales`,

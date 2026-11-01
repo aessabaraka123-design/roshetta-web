@@ -434,58 +434,77 @@ export const exportComprehensivePDF = async (
         <!-- Executive Summary -->
         <h3 style="color: #0f3d2e; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center; gap: 8px;">
           <span style="width: 4px; height: 18px; background: #0f3d2e; border-radius: 4px; display: inline-block;"></span>
-          ${language === "en" ? "Financial Summary" : "الملخص المالي"}
+          ${language === "en" ? "Financial Summary" : "الملخص المالي ومؤشرات الأداء"}
         </h3>
-        <div style="display: flex; gap: 15px; margin-bottom: 30px;">
-          <div style="flex: 1; background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #10b981; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">${language === "en" ? "Total Sales" : "إجمالي المبيعات"}</div>
-            <div style="font-size: 26px; font-weight: 900; color: #0f3d2e;">₪${(report.totalRevenue || 0).toLocaleString()}</div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #10b981; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 6px;">${language === "en" ? "Total Sales" : "إجمالي المبيعات"}</div>
+            <div style="font-size: 22px; font-weight: 900; color: #0f3d2e;">₪${(report.totalRevenue || 0).toLocaleString()}</div>
           </div>
-          <div style="flex: 1; background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #3b82f6; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">${language === "en" ? "Gross Profit" : "الربح الإجمالي"}</div>
-            <div style="font-size: 26px; font-weight: 900; color: #0f3d2e;">₪${(report.totalProfit || 0).toLocaleString()}</div>
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #475569; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 6px;">${language === "en" ? "Cost of Goods (COGS)" : "تكلفة المبيعات (COGS)"}</div>
+            <div style="font-size: 22px; font-weight: 900; color: #334155;">₪${(report.totalCost || 0).toLocaleString()}</div>
           </div>
-          <div style="flex: 1; background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #ef4444; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">${language === "en" ? "Total Expenses" : "إجمالي المصروفات"}</div>
-            <div style="font-size: 26px; font-weight: 900; color: #0f3d2e;">₪${(report.totalExpenses || 0).toLocaleString()}</div>
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #0d9488; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 6px;">${language === "en" ? "Gross Profit" : "الربح الإجمالي"}</div>
+            <div style="font-size: 22px; font-weight: 900; color: #0f766e;">₪${(report.totalProfit || 0).toLocaleString()}</div>
           </div>
-          <div style="flex: 1; background: #f0fdf4; border: 1px solid #bbf7d0; border-right: 4px solid #0f3d2e; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 13px; color: #166534; margin-bottom: 8px; font-weight: bold;">${language === "en" ? "Net Profit" : "صافي الربح"}</div>
-            <div style="font-size: 26px; font-weight: 900; color: #166534;">₪${(report.netProfit || 0).toLocaleString()}</div>
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #ef4444; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 6px;">${language === "en" ? "Total Expenses" : "إجمالي المصروفات"}</div>
+            <div style="font-size: 22px; font-weight: 900; color: #b91c1c;">₪${(report.totalExpenses || 0).toLocaleString()}</div>
           </div>
         </div>
-        <div style="display: flex; gap: 15px; margin-bottom: 30px;">
-          <div style="flex: 1; background: #f0fdf4; border: 1px solid #bbf7d0; border-right: 4px solid #16a34a; padding: 15px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 13px; color: #166534; margin-bottom: 6px; font-weight: bold;">${language === "en" ? "Total Collected (Cash & Bank)" : "المحصل (نقداً وبنكياً)"}</div>
-            <div style="font-size: 22px; font-weight: 900; color: #166534;">₪${Math.max(0, (report.totalRevenue || 0) - (report.paymentBreakdown?.credit || 0)).toLocaleString()}</div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px;">
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #d97706; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 6px;">${language === "en" ? "Total Discounts" : "إجمالي الخصومات"}</div>
+            <div style="font-size: 20px; font-weight: 900; color: #b45309;">₪${(report.totalDiscount || 0).toLocaleString()}</div>
           </div>
-          <div style="flex: 1; background: #fffbeb; border: 1px solid #fde68a; border-right: 4px solid #f59e0b; padding: 15px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 13px; color: #b45309; margin-bottom: 6px; font-weight: bold;">${language === "en" ? "Credit Sales (Debts / Receivables)" : "المبيعات الآجلة (ذمم وديون)"}</div>
-            <div style="font-size: 22px; font-weight: 900; color: #b45309;">₪${(report.paymentBreakdown?.credit || 0).toLocaleString()}</div>
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #059669; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 6px;">${language === "en" ? "Total VAT" : "ضريبة القيمة المضافة"}</div>
+            <div style="font-size: 20px; font-weight: 900; color: #047857;">₪${(report.totalVat || 0).toLocaleString()}</div>
+          </div>
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-right: 4px solid #15803d; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size: 12px; color: #166534; margin-bottom: 6px; font-weight: bold; display: flex; justify-content: space-between;">
+              <span>${language === "en" ? "Net Profit" : "صافي الربح"}</span>
+              <span style="font-size: 11px; background: rgba(22,101,52,0.1); padding: 1px 6px; border-radius: 10px;">${report.profitMargin || 0}%</span>
+            </div>
+            <div style="font-size: 22px; font-weight: 900; color: #15803d;">₪${(report.netProfit || 0).toLocaleString()}</div>
+          </div>
+          <div style="background: #fffbeb; border: 1px solid #fde68a; border-right: 4px solid #f59e0b; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size: 12px; color: #b45309; margin-bottom: 6px; font-weight: bold;">${language === "en" ? "Credit Sales (Debts)" : "مبيعات بالذمة (ديون)"}</div>
+            <div style="font-size: 20px; font-weight: 900; color: #b45309;">₪${(report.paymentBreakdown?.credit || 0).toLocaleString()}</div>
           </div>
         </div>
 
         <!-- Payment Breakdown -->
         <h3 style="color: #0f3d2e; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center; gap: 8px;">
           <span style="width: 4px; height: 18px; background: #0f3d2e; border-radius: 4px; display: inline-block;"></span>
-          ${language === "en" ? "Payment Methods Analysis" : "تحليل طرق الدفع"}
+          ${language === "en" ? "Payment Methods Analysis" : "تحليل طرق الدفع والتحصيل"}
         </h3>
-        <div style="display: flex; gap: 15px; margin-bottom: 40px;">
-          <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 13px; color: #64748b; margin-bottom: 5px;">${language === "en" ? "Cash" : "كاش"}</div>
-            <div style="font-size: 18px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.cash || 0).toLocaleString()}</div>
+        <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 35px;">
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">${language === "en" ? "Cash" : "كاش"}</div>
+            <div style="font-size: 16px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.cash || 0).toLocaleString()}</div>
           </div>
-          <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 13px; color: #64748b; margin-bottom: 5px;">${language === "en" ? "Credit Card" : "بطاقة بنكية"}</div>
-            <div style="font-size: 18px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.card || 0).toLocaleString()}</div>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">${language === "en" ? "Bank" : "تحويل بنكي"}</div>
+            <div style="font-size: 16px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.bank || 0).toLocaleString()}</div>
           </div>
-          <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 13px; color: #64748b; margin-bottom: 5px;">${language === "en" ? "Credit (Receivables)" : "آجل (ذمم)"}</div>
-            <div style="font-size: 18px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.credit || 0).toLocaleString()}</div>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">${language === "en" ? "Jawwal Pay" : "جوال باي"}</div>
+            <div style="font-size: 16px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.jawwal || 0).toLocaleString()}</div>
           </div>
-          <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 13px; color: #64748b; margin-bottom: 5px;">${language === "en" ? "Insurance" : "تأمين"}</div>
-            <div style="font-size: 18px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.insurance || 0).toLocaleString()}</div>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">${language === "en" ? "PalPay" : "بال باي"}</div>
+            <div style="font-size: 16px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.palpay || 0).toLocaleString()}</div>
+          </div>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">${language === "en" ? "Credit Card" : "بطاقة بنكية"}</div>
+            <div style="font-size: 16px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.card || 0).toLocaleString()}</div>
+          </div>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">${language === "en" ? "Credit (Receivables)" : "آجل (ذمم)"}</div>
+            <div style="font-size: 16px; font-weight: bold; color: #b45309;">₪${(report.paymentBreakdown?.credit || 0).toLocaleString()}</div>
           </div>
         </div>
 
