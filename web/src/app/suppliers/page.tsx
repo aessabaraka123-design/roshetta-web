@@ -135,6 +135,44 @@ export default function SuppliersPage() {
     }, 0);
   }, [transactions]);
 
+  // Clean sequential payment voucher numbering (#001, #002...)
+  const formattedTransactions = useMemo(() => {
+    const paymentList = [...(transactions || [])]
+      .filter((tx: any) => {
+        const hasInvoiceNumber = tx.invoice_number && String(tx.invoice_number).trim() && !String(tx.invoice_number).startsWith('STX-') && !String(tx.invoice_number).startsWith('EXP-');
+        return !hasInvoiceNumber && tx.type !== 'invoice';
+      })
+      .sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime());
+
+    const voucherNumMap = new Map<string, string>();
+    paymentList.forEach((tx, index) => {
+      const serial = String(index + 1).padStart(3, '0');
+      voucherNumMap.set(String(tx.id), language === 'en' ? `PV-${serial}` : `سند #${serial}`);
+    });
+
+    return (transactions || []).map((tx: any) => {
+      const hasInvoiceNumber = tx.invoice_number && String(tx.invoice_number).trim() && !String(tx.invoice_number).startsWith('STX-') && !String(tx.invoice_number).startsWith('EXP-');
+      
+      let displayRef = "";
+      let isVoucherSerial = false;
+      if (hasInvoiceNumber) {
+        displayRef = tx.invoice_number;
+      } else {
+        displayRef = voucherNumMap.get(String(tx.id)) || (language === 'en' ? 'PV-001' : 'سند #001');
+        isVoucherSerial = true;
+      }
+
+      const rawRef = tx.invoice_number || tx.reference_id || tx.id || "—";
+
+      return {
+        ...tx,
+        displayRef,
+        isVoucherSerial,
+        rawRef
+      };
+    });
+  }, [transactions, language]);
+
   const totalSuppliers = suppliers?.length || 0;
   const totalDebt =
     suppliers?.reduce(
@@ -1238,7 +1276,7 @@ export default function SuppliersPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E2E8F0]/70 text-[13px]">
-                      {transactions.map((tx: any) => {
+                      {formattedTransactions.map((tx: any) => {
                         const isCreditOffset = tx.type === 'credit_settlement';
                         const isPayment = tx.type === 'payment';
                         const isPartial = tx.type === 'partial_payment';
@@ -1287,8 +1325,23 @@ export default function SuppliersPage() {
                                   : (language === 'en' ? 'Purchase Invoice' : 'فاتورة مشتريات')}
                               </span>
                             </td>
-                            <td className="p-3 font-mono font-bold text-primary whitespace-nowrap">
-                              {tx.invoice_number || tx.reference_id || '—'}
+                            <td className="p-3 font-mono font-bold whitespace-nowrap">
+                              {tx.isVoucherSerial ? (
+                                <span
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs cursor-help transition-all hover:bg-indigo-100"
+                                  title={`${language === 'en' ? 'Full System Reference ID' : 'معرف العملية الأصلي'}: ${tx.rawRef}`}
+                                >
+                                  <span>🧾</span>
+                                  <span>{tx.displayRef}</span>
+                                </span>
+                              ) : (
+                                <span
+                                  className="text-primary font-black hover:underline cursor-pointer"
+                                  title={`${language === 'en' ? 'Invoice Number' : 'رقم الفاتورة'}: ${tx.rawRef}`}
+                                >
+                                  {tx.displayRef}
+                                </span>
+                              )}
                             </td>
                             <td className="p-3 font-mono font-bold text-[#0F172A]" dir="ltr">
                               ₪{totalAmt.toFixed(2)}
