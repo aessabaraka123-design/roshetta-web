@@ -103,7 +103,7 @@ export default function PurchasesPage() {
   );
   const { data: invoicesData, mutate } = useSWR(
     user
-      ? `${API}/api/pharmacies/${user.pharmacy_id}/purchase-invoices?branch_id=${branchFilter}`
+      ? `${API}/api/pharmacies/${user.pharmacy_id}/purchases?branch_id=${branchFilter}`
       : null,
     fetcher,
   );
@@ -117,7 +117,7 @@ export default function PurchasesPage() {
   );
 
   const branches = branchesData?.branches || [];
-  const invoices = invoicesData?.invoices || [];
+  const invoices = invoicesData?.purchases || invoicesData?.invoices || [];
   const inventory = inventoryData?.inventory || [];
   const suppliers = suppliersData?.suppliers || [];
 
@@ -173,11 +173,12 @@ export default function PurchasesPage() {
     const isMain = ["Main", "main", "الفرع الرئيسي", "الصيدلية الرئيسية"].includes(bName) || ["Main", "main", "الفرع الرئيسي", "الصيدلية الرئيسية"].includes(bId);
 
     return invoices.filter((inv: any) => {
-      const invB = inv.branch_id ? String(inv.branch_id).trim() : "";
-      if (isMain && (!invB || invB === "all" || invB === "Main" || invB === "main" || invB === "الفرع الرئيسي" || invB === bId)) {
+      const invBId = inv.branch_id ? String(inv.branch_id).trim() : "";
+      const invBName = inv.branch ? String(inv.branch).trim() : (inv.branchName ? String(inv.branchName).trim() : "");
+      if (isMain && (!invBId || invBId === "all" || invBId === "Main" || invBId === "main" || invBId === "الفرع الرئيسي" || invBId === bId || invBName === "الفرع الرئيسي" || invBName === bName)) {
         return true;
       }
-      return invB === bId || invB === bName;
+      return invBId === bId || invBId === bName || invBName === bName || invBName === bId;
     });
   }, [invoices, branchFilter, branches]);
 
@@ -363,17 +364,27 @@ export default function PurchasesPage() {
     try {
       if (editingId) {
         await fetch(
-          `${API}/api/pharmacies/${user?.pharmacy_id}/purchase-invoices/${editingId}`,
+          `${API}/api/pharmacies/${user?.pharmacy_id}/purchases/${editingId}`,
           { method: "DELETE" },
         );
       }
+      const selectedBranchObj = branches.find((b: any) =>
+        String(b.id) === String(form.branch_id) ||
+        String(b.name).trim() === String(form.branch_id).trim()
+      );
+      const finalBranchId = selectedBranchObj ? selectedBranchObj.id : (form.branch_id || branches[0]?.id || "Main");
+      const finalBranchName = selectedBranchObj ? selectedBranchObj.name.trim() : (branches[0]?.name?.trim() || "الفرع الرئيسي");
+
       const res = await fetch(
-        `${API}/api/pharmacies/${user?.pharmacy_id}/purchase-invoices`,
+        `${API}/api/pharmacies/${user?.pharmacy_id}/purchases`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ...form,
+            branch_id: finalBranchId,
+            branch: finalBranchName,
+            branchName: finalBranchName,
             items: cartItems.map((item: any) => ({
               ...item,
               qty: parseFloat(item.qty) || 1,
@@ -502,7 +513,7 @@ export default function PurchasesPage() {
   const executeDelete = async (id: string) => {
     const r = await (
       await fetch(
-        `${API}/api/pharmacies/${user?.pharmacy_id}/purchase-invoices/${id}`,
+        `${API}/api/pharmacies/${user?.pharmacy_id}/purchases/${id}`,
         { method: "DELETE" },
       )
     ).json();
@@ -728,6 +739,11 @@ export default function PurchasesPage() {
                             {inv.invoice_number && (
                               <span className="text-[12px] font-mono text-ink-soft bg-bg px-2 py-0.5 rounded-lg border border-mint-line">
                                 #{inv.invoice_number}
+                              </span>
+                            )}
+                            {(inv.branch || inv.branch_id) && (
+                              <span className="text-[12px] font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-lg border border-primary/20">
+                                📍 {inv.branch || branches.find((b: any) => String(b.id) === String(inv.branch_id) || String(b.name).trim() === String(inv.branch_id).trim())?.name || inv.branch_id}
                               </span>
                             )}
                           </div>
@@ -2642,7 +2658,7 @@ export default function PurchasesPage() {
                 }
                 setIsPayingInvoice(true);
                 try {
-                  const res = await fetch(`${API}/api/pharmacies/${user.pharmacy_id}/purchase-invoices/${payingInvoice.id}/pay`, {
+                  const res = await fetch(`${API}/api/pharmacies/${user.pharmacy_id}/purchases/${payingInvoice.id}/pay`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
