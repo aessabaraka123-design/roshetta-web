@@ -163,9 +163,27 @@ export default function PurchasesPage() {
     (s, i) => s + (parseFloat(i.qty) || 0) * (parseFloat(i.purchase_price) || 0),
     0,
   );
+  const filteredInvoices = useMemo(() => {
+    if (branchFilter === "all") return invoices;
+    const selBranch = branches.find(
+      (b: any) => String(b.id) === String(branchFilter) || String(b.name).trim() === String(branchFilter).trim()
+    );
+    const bId = selBranch ? String(selBranch.id) : String(branchFilter);
+    const bName = selBranch ? String(selBranch.name).trim() : String(branchFilter).trim();
+    const isMain = ["Main", "main", "الفرع الرئيسي", "الصيدلية الرئيسية"].includes(bName) || ["Main", "main", "الفرع الرئيسي", "الصيدلية الرئيسية"].includes(bId);
+
+    return invoices.filter((inv: any) => {
+      const invB = inv.branch_id ? String(inv.branch_id).trim() : "";
+      if (isMain && (!invB || invB === "all" || invB === "Main" || invB === "main" || invB === "الفرع الرئيسي" || invB === bId)) {
+        return true;
+      }
+      return invB === bId || invB === bName;
+    });
+  }, [invoices, branchFilter, branches]);
+
   const actualInvoices = useMemo(
-    () => invoices.filter((i: any) => i.status !== "draft"),
-    [invoices]
+    () => filteredInvoices.filter((i: any) => i.status !== "draft"),
+    [filteredInvoices]
   );
   const totalCost = actualInvoices.reduce(
     (s: number, i: any) => s + (Number(i.total_cost) || 0),
@@ -638,7 +656,7 @@ export default function PurchasesPage() {
         </div>
 
         {/* Invoices List */}
-        {invoices.length === 0 ? (
+        {filteredInvoices.length === 0 ? (
           <div className="text-center py-24 bg-white rounded-3xl border-2 border-dashed border-mint-line">
             <div className="w-20 h-20 bg-primary-pale rounded-3xl flex items-center justify-center mx-auto mb-5">
               <svg
@@ -664,7 +682,7 @@ export default function PurchasesPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {invoices.map((inv: any) => {
+            {filteredInvoices.map((inv: any) => {
               const items = parseItems(inv.items);
               const isDraft = inv.status === "draft";
               return (
