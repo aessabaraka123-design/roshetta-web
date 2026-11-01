@@ -228,7 +228,7 @@ export default function PurchasesPage() {
       supplier_name: "",
       invoice_number: "",
       notes: "",
-      branch_id: branchFilter,
+      branch_id: branchFilter !== "all" ? branchFilter : (branches[0]?.id || "all"),
       status: "completed",
       paid_amount: "",
     });
@@ -239,12 +239,19 @@ export default function PurchasesPage() {
 
   const openEdit = (inv: any) => {
     setEditingId(inv.id);
+    const matchingBranch = branches.find((b: any) =>
+      String(b.id) === String(inv.branch_id) ||
+      String(b.name).trim() === String(inv.branch_id).trim() ||
+      ((inv.branch_id === "all" || inv.branch_id === "Main" || inv.branch_id === "الفرع الرئيسي") &&
+       ["الفرع الرئيسي", "Main", "main"].includes(String(b.name).trim()))
+    );
+
     setForm({
       supplier_id: inv.supplier_id || "",
       supplier_name: inv.supplier_name || "",
       invoice_number: inv.invoice_number || "",
       notes: inv.notes || "",
-      branch_id: inv.branch_id || "all",
+      branch_id: matchingBranch ? matchingBranch.id : (inv.branch_id || branches[0]?.id || ""),
       status: inv.status || "completed",
       paid_amount: inv.paid_amount || "",
     });
@@ -1034,7 +1041,9 @@ export default function PurchasesPage() {
                           }
                           className="w-full bg-white border border-mint-line rounded-xl px-4 py-3 text-[14px] font-bold text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                         >
-                          <option value="all">المخزن الرئيسي</option>
+                          {branches.length === 0 && (
+                            <option value="all">{language === 'en' ? 'Main Branch' : 'الفرع الرئيسي'}</option>
+                          )}
                           {branches.map((b: any) => (
                             <option key={b.id} value={b.id}>
                               {b.name}
