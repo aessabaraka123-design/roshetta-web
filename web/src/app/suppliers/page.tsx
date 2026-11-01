@@ -1,6 +1,6 @@
 "use client";
 import { API_BASE_URL } from "@/lib/config";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import useSWR from "swr";
 import { useStore } from "@/store";
 import toast from "react-hot-toast";
@@ -89,7 +89,51 @@ export default function SuppliersPage() {
       : null,
     fetcher,
   );
-  const transactions = statementData?.transactions || [];
+
+  const serverTransactions = statementData?.transactions || [];
+  const transactions = useMemo(() => {
+    if (!statementSupplier) return [];
+    if (serverTransactions && serverTransactions.length > 0) return serverTransactions;
+
+    // Fallback directly from invoices loaded on the page to mirror mobile app logic
+    const suppId = statementSupplier.id;
+    const suppName = (statementSupplier.name || "").trim().toLowerCase();
+    const fallbackList: any[] = [];
+
+    (invoices || []).forEach((inv: any) => {
+      const matchId = inv.supplier_id && String(inv.supplier_id) === String(suppId);
+      const matchName = suppName && (inv.supplier_name || "").toLowerCase().includes(suppName);
+      if (matchId || matchName) {
+        const total = Number(inv.total_cost || inv.total || 0);
+        const paid = Number(inv.paid_amount != null ? inv.paid_amount : (inv.paid || 0));
+        const rem = Number(inv.remaining != null ? inv.remaining : Math.max(0, total - paid));
+        const invNum = inv.invoice_number || inv.id;
+        const branch = inv.branch_id || inv.branch || "";
+
+        fallbackList.push({
+          id: `PURCH-${inv.id}`,
+          type: paid >= total && total > 0 ? "payment" : (paid > 0 ? "partial_payment" : "invoice"),
+          invoice_number: invNum,
+          amount: total,
+          paid_amount: paid,
+          remaining: rem,
+          notes: `فاتورة مشتريات #${invNum} (الإجمالي: ₪${total.toFixed(2)}${paid > 0 ? ` - المسدد: ₪${paid.toFixed(2)}` : ""}${rem > 0 ? ` - المتبقي: ₪${rem.toFixed(2)}` : ""})${branch ? ` [${branch}]` : ""}`,
+          date: inv.date || new Date().toISOString(),
+          method: inv.paymentMethod || inv.payment_method || "كاش",
+          branch: branch,
+        });
+      }
+    });
+
+    return fallbackList.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+  }, [statementSupplier, serverTransactions, invoices]);
+
+  const totalPaidInStatement = useMemo(() => {
+    return (transactions || []).reduce((sum: number, tx: any) => {
+      const p = tx.paid_amount != null ? Number(tx.paid_amount) : (tx.type === 'payment' || tx.type === 'voucher' ? Number(tx.amount || 0) : 0);
+      return sum + (p > 0 ? p : 0);
+    }, 0);
+  }, [transactions]);
 
   const totalSuppliers = suppliers?.length || 0;
   const totalDebt =
@@ -1072,109 +1116,196 @@ export default function SuppliersPage() {
         );
       })()}
 
-      {/* Supplier Statement / Transactions Modal */}
+      {/* Supplier Statement / Transactions Modal (Matched with Mobile and Backend) */}
       {statementSupplier && (
-        <div className="fixed inset-0 bg-ink/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[88vh] border border-mint-line">
-            <div className="p-5 border-b border-mint-line flex justify-between items-center bg-bg/60">
-              <div>
-                <h3 className="font-bold text-[18px] text-primary flex items-center gap-2">
-                  <span>{language === 'en' ? 'Supplier Statement & Ledger: ' : "كشف حساب وسجل حركات المورد: "}</span>
-                  <span className="text-teal font-extrabold">{statementSupplier.name}</span>
-                </h3>
-                <div className="text-xs font-mono text-ink-soft mt-1 flex items-center gap-3">
-                  <span>{statementSupplier.company || ""}</span>
-                  {Number(statementSupplier.balance || 0) > 0 ? (
-                    <span className="text-coral font-bold">
-                      {language === 'en' ? 'Owed: ' : 'مطلوب للمورد: '}
-                      ₪{Number(statementSupplier.balance || 0).toFixed(2)}
-                    </span>
-                  ) : Number(statementSupplier.balance || 0) < 0 ? (
-                    <span className="text-teal font-bold">
-                      {language === 'en' ? 'Credit: ' : 'رصيد دائن لنا: '}
-                      ₪{Math.abs(Number(statementSupplier.balance || 0)).toFixed(2)}
-                    </span>
-                  ) : (
-                    <span className="text-ink-soft font-bold">
-                      {language === 'en' ? 'Settled (0.00 ₪)' : 'الرصيد خالص (0.00 ₪)'}
-                    </span>
-                  )}
+        <div className="fixed inset-0 bg-ink/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh] border border-[#CBD5E1]">
+            {/* Header */}
+            <div className="p-5 border-b border-[#E2E8F0] flex justify-between items-center bg-[#F8FAFC]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-xl font-black">
+                  📋
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-[18px] text-[#0F172A] flex items-center gap-2">
+                    <span>{language === 'en' ? 'Supplier Statement & Ledger: ' : "كشف حساب وسجل حركات المورد: "}</span>
+                    <span className="text-primary font-black">{statementSupplier.name}</span>
+                  </h3>
+                  <div className="text-xs font-mono text-[#64748B] mt-0.5">
+                    {statementSupplier.company || (language === 'en' ? 'No company specified' : 'بدون شركة محددة')}
+                  </div>
                 </div>
               </div>
               <button
                 onClick={() => setStatementSupplier(null)}
-                className="text-ink-soft hover:text-coral transition-colors bg-white hover:bg-coral-pale/30 w-8 h-8 flex items-center justify-center rounded-lg border border-mint-line font-bold"
+                className="text-[#64748B] hover:text-[#EF4444] transition-colors bg-white hover:bg-[#FEE2E2] w-9 h-9 flex items-center justify-center rounded-xl border border-[#CBD5E1] font-bold text-lg"
               >
                 &times;
               </button>
             </div>
 
-            <div className="p-6 overflow-auto flex-1 bg-white">
+            {/* 3 KPI Cards matching Mobile App */}
+            <div className="p-5 bg-[#F8FAFC]/80 border-b border-[#E2E8F0] grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              {/* KPI 1: Total Paid */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-emerald-800">
+                    {language === 'en' ? 'Total Paid / Settled' : 'إجمالي المسدد والمصروف'}
+                  </div>
+                  <div className="font-mono text-xl font-black text-emerald-700 mt-1" dir="ltr">
+                    ₪{totalPaidInStatement.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg font-black">
+                  ✓
+                </div>
+              </div>
+
+              {/* KPI 2: Current Balance */}
+              <div className={`rounded-xl p-3.5 border flex items-center justify-between ${
+                Number(statementSupplier.balance || 0) > 0
+                  ? 'bg-rose-50 border-rose-200 text-rose-800'
+                  : Number(statementSupplier.balance || 0) < 0
+                  ? 'bg-teal-50 border-teal-200 text-teal-800'
+                  : 'bg-slate-50 border-slate-200 text-slate-700'
+              }`}>
+                <div>
+                  <div className="text-xs font-bold">
+                    {Number(statementSupplier.balance || 0) > 0
+                      ? (language === 'en' ? 'Owed to Supplier (Debt)' : 'مطلوب للمورد (دين علينا)')
+                      : Number(statementSupplier.balance || 0) < 0
+                      ? (language === 'en' ? 'Credit Balance (Our Excess)' : 'رصيد دائن لنا (فائض)')
+                      : (language === 'en' ? 'Current Balance' : 'الرصيد الحالي')}
+                  </div>
+                  <div className={`font-mono text-xl font-black mt-1 ${
+                    Number(statementSupplier.balance || 0) > 0
+                      ? 'text-rose-700'
+                      : Number(statementSupplier.balance || 0) < 0
+                      ? 'text-teal-700'
+                      : 'text-slate-700'
+                  }`} dir="ltr">
+                    ₪{Math.abs(Number(statementSupplier.balance || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="text-xl">
+                  {Number(statementSupplier.balance || 0) > 0 ? '⚠️' : Number(statementSupplier.balance || 0) < 0 ? '💰' : '✨'}
+                </div>
+              </div>
+
+              {/* KPI 3: Movements Count */}
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3.5 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-indigo-800">
+                    {language === 'en' ? 'Total Transactions' : 'عدد الحركات والفواتير'}
+                  </div>
+                  <div className="font-mono text-xl font-black text-indigo-700 mt-1">
+                    {transactions.length} {language === 'en' ? 'ops' : 'حركة'}
+                  </div>
+                </div>
+                <div className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-lg font-black">
+                  📑
+                </div>
+              </div>
+            </div>
+
+            {/* Transactions Table Body */}
+            <div className="p-5 overflow-auto flex-1 bg-white">
               {transactions.length === 0 ? (
-                <div className="text-center py-12 text-ink-soft bg-bg/50 rounded-2xl border border-dashed border-mint-line">
-                  <p className="text-[15px] font-bold">
+                <div className="text-center py-16 text-[#64748B] bg-[#F8FAFC] rounded-2xl border border-dashed border-[#CBD5E1]">
+                  <div className="text-4xl mb-3">📭</div>
+                  <p className="text-[16px] font-bold text-[#0F172A] mb-1">
                     {language === 'en' ? 'No transactions logged for this supplier yet.' : "لا يوجد حركات مسجلة في كشف حساب هذا المورد حتى الآن."}
+                  </p>
+                  <p className="text-xs text-[#64748B]">
+                    {language === 'en'
+                      ? 'Purchase invoices and payment vouchers will automatically populate here.'
+                      : 'ستظهر فواتير الشراء وسندات الصرف والدفعات هنا تلقائياً مع السجل المالي الكامل.'}
                   </p>
                 </div>
               ) : (
-                <div className="border border-mint-line rounded-xl overflow-hidden shadow-sm">
+                <div className="border border-[#E2E8F0] rounded-xl overflow-hidden shadow-sm">
                   <table className="w-full text-start">
                     <thead>
-                      <tr className="bg-bg border-b border-mint-line text-[13px] text-ink-soft font-bold">
-                        <th className="p-3 text-start">{language === 'en' ? 'Date & Time' : 'التاريخ والوقت'}</th>
+                      <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[13px] text-[#475569] font-bold">
+                        <th className="p-3 text-start">{language === 'en' ? 'Date & Time' : 'التاريخ'}</th>
                         <th className="p-3 text-start">{language === 'en' ? 'Type' : 'نوع الحركة'}</th>
-                        <th className="p-3 text-start">{language === 'en' ? 'Invoice / Ref' : 'رقم المرجع / الفاتورة'}</th>
-                        <th className="p-3 text-start">{language === 'en' ? 'Amount' : 'المبلغ'}</th>
-                        <th className="p-3 text-start">{language === 'en' ? 'Balance Before' : 'الرصيد قبل'}</th>
-                        <th className="p-3 text-start">{language === 'en' ? 'Balance After' : 'الرصيد بعد'}</th>
-                        <th className="p-3 text-start">{language === 'en' ? 'Notes' : 'ملاحظات'}</th>
+                        <th className="p-3 text-start">{language === 'en' ? 'Invoice / Ref' : 'رقم الفاتورة / المرجع'}</th>
+                        <th className="p-3 text-start">{language === 'en' ? 'Total (₪)' : 'الإجمالي (₪)'}</th>
+                        <th className="p-3 text-start">{language === 'en' ? 'Paid (₪)' : 'المسدد (₪)'}</th>
+                        <th className="p-3 text-start">{language === 'en' ? 'Remaining (₪)' : 'المتبقي (₪)'}</th>
+                        <th className="p-3 text-start">{language === 'en' ? 'Branch / Method' : 'الفرع / طريقة الدفع'}</th>
+                        <th className="p-3 text-start">{language === 'en' ? 'Details' : 'تفاصيل وملاحظات'}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-mint-line/40 text-[13px]">
+                    <tbody className="divide-y divide-[#E2E8F0]/70 text-[13px]">
                       {transactions.map((tx: any) => {
                         const isCreditOffset = tx.type === 'credit_settlement';
                         const isPayment = tx.type === 'payment';
+                        const isPartial = tx.type === 'partial_payment';
+                        const isVoucher = tx.type === 'voucher';
                         const isReversal = tx.type === 'reversal';
 
+                        const totalAmt = Number(tx.amount || 0);
+                        const paidAmt = Number(tx.paid_amount != null ? tx.paid_amount : (isPayment || isVoucher ? totalAmt : 0));
+                        const remAmt = Number(tx.remaining != null ? tx.remaining : Math.max(0, totalAmt - paidAmt));
+
                         return (
-                          <tr key={tx.id} className="hover:bg-bg/40 transition-colors">
-                            <td className="p-3 font-mono text-ink-soft text-xs">
-                              {new Date(tx.date).toLocaleString(language === 'en' ? 'en-US' : 'ar-SA')}
+                          <tr key={tx.id} className="hover:bg-[#F8FAFC] transition-colors">
+                            <td className="p-3 font-mono text-[#64748B] text-xs whitespace-nowrap">
+                              {new Date(tx.date).toLocaleDateString(language === 'en' ? 'en-US' : 'ar-EG', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
                             </td>
-                            <td className="p-3">
-                              <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${
+                            <td className="p-3 whitespace-nowrap">
+                              <span className={`inline-block px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
                                 isCreditOffset
-                                  ? 'bg-teal-pale/40 text-teal border border-teal/20'
+                                  ? 'bg-teal-50 text-teal-700 border-teal-200'
                                   : isPayment
-                                  ? 'bg-primary-pale text-primary border border-primary/20'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : isPartial
+                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                  : isVoucher
+                                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                                   : isReversal
-                                  ? 'bg-coral-pale/40 text-coral border border-coral/20'
-                                  : 'bg-bg text-ink border border-mint-line'
+                                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                  : 'bg-slate-100 text-slate-700 border-slate-300'
                               }`}>
                                 {isCreditOffset
                                   ? (language === 'en' ? 'Credit Offset' : 'خصم من الرصيد')
                                   : isPayment
-                                  ? (language === 'en' ? 'Payment' : 'سداد دفعة')
+                                  ? (language === 'en' ? 'Paid / Settled' : 'سداد / فاتورة مسددة')
+                                  : isPartial
+                                  ? (language === 'en' ? 'Partially Paid' : 'سداد جزئي')
+                                  : isVoucher
+                                  ? (language === 'en' ? 'Payment Voucher' : 'سند صرف وسداد')
                                   : isReversal
                                   ? (language === 'en' ? 'Reversal / Cancel' : 'إلغاء / استرجاع')
-                                  : (language === 'en' ? 'Purchase Invoice' : 'فاتورة شراء')}
+                                  : (language === 'en' ? 'Purchase Invoice' : 'فاتورة مشتريات')}
                               </span>
                             </td>
-                            <td className="p-3 font-mono font-bold text-primary">
+                            <td className="p-3 font-mono font-bold text-primary whitespace-nowrap">
                               {tx.invoice_number || tx.reference_id || '—'}
                             </td>
-                            <td className="p-3 font-mono font-bold text-ink" dir="ltr">
-                              ₪{Number(tx.amount || 0).toFixed(2)}
+                            <td className="p-3 font-mono font-bold text-[#0F172A]" dir="ltr">
+                              ₪{totalAmt.toFixed(2)}
                             </td>
-                            <td className="p-3 font-mono text-ink-soft" dir="ltr">
-                              ₪{Number(tx.balance_before || 0).toFixed(2)}
+                            <td className="p-3 font-mono font-bold text-emerald-700" dir="ltr">
+                              ₪{paidAmt.toFixed(2)}
                             </td>
-                            <td className="p-3 font-mono font-bold text-ink" dir="ltr">
-                              <span className={Number(tx.balance_after || 0) > 0 ? 'text-coral' : Number(tx.balance_after || 0) < 0 ? 'text-teal' : 'text-ink'}>
-                                ₪{Number(tx.balance_after || 0).toFixed(2)}
+                            <td className="p-3 font-mono font-bold" dir="ltr">
+                              <span className={remAmt > 0 ? 'text-rose-600' : 'text-[#64748B]'}>
+                                ₪{remAmt.toFixed(2)}
                               </span>
                             </td>
-                            <td className="p-3 text-ink-soft text-xs max-w-[200px] truncate" title={tx.notes || ''}>
+                            <td className="p-3 text-xs text-[#475569] whitespace-nowrap">
+                              <div className="font-semibold text-[#0F172A]">{tx.branch || (language === 'en' ? 'Main' : 'الفرع الرئيسي')}</div>
+                              <div className="text-[11px] text-[#64748B]">{tx.method || 'كاش'}</div>
+                            </td>
+                            <td className="p-3 text-[#64748B] text-xs max-w-[280px] truncate" title={tx.notes || ''}>
                               {tx.notes || '—'}
                             </td>
                           </tr>
@@ -1186,11 +1317,26 @@ export default function SuppliersPage() {
               )}
             </div>
 
-            <div className="p-4 border-t border-mint-line bg-bg/50 flex justify-end">
+            {/* Footer with Quick Action (New Payment) matching Mobile */}
+            <div className="p-4 border-t border-[#E2E8F0] bg-[#F8FAFC] flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  const s = statementSupplier;
+                  setStatementSupplier(null);
+                  setPayingSupplier(s);
+                  setPaymentAmount("");
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md flex items-center gap-2 transition-all hover:scale-105"
+              >
+                <span>💳</span>
+                <span>{language === 'en' ? 'New Payment for this Supplier' : 'سداد دفعة جديدة للمورد'}</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setStatementSupplier(null)}
-                className="bg-white hover:bg-bg border border-mint-line text-ink px-8 py-2 rounded-xl transition-all font-bold text-sm shadow-sm"
+                className="bg-white hover:bg-bg border border-[#CBD5E1] text-[#0F172A] px-8 py-2.5 rounded-xl transition-all font-bold text-sm shadow-sm hover:shadow"
               >
                 {language === 'en' ? 'Close' : 'إغلاق'}
               </button>
