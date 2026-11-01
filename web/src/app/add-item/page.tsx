@@ -33,6 +33,7 @@ export default function AddItem() {
       name: drug.name,
       scientificName: drug.scientificName || "",
       category: drug.category || "",
+      barcode: drug.barcode || prev.barcode || "",
       batch_number: prev.batch_number || `B-${Math.floor(1000 + Math.random() * 9000)}`,
       isControlled: Boolean(drug.isControlled),
     }));
