@@ -20,13 +20,49 @@ export default function SuppliersPage() {
   );
   const suppliers = data?.suppliers;
 
-  const { data: invoicesData } = useSWR(
+  const { data: invoicesData, mutate: mutateInvoices } = useSWR(
     pharmacyId
       ? `${API_BASE}/api/pharmacies/${pharmacyId}/purchase-invoices`
       : null,
     fetcher,
   );
   const invoices = invoicesData?.invoices || [];
+
+  const getInvoiceEffectiveRemaining = (inv: any, supplier?: any) => {
+    if (!inv || inv.status === "draft") return 0;
+    const supp =
+      supplier ||
+      (inv.supplier_id
+        ? suppliers?.find((s: any) => s.id === inv.supplier_id)
+        : inv.supplier_name
+        ? suppliers?.find((s: any) => s.name === inv.supplier_name)
+        : null);
+    if (supp && Number(supp.balance) <= 0) {
+      return 0;
+    }
+    const rawRem = Number(
+      inv.remaining !== undefined && inv.remaining !== null
+        ? inv.remaining
+        : Number(inv.total_cost || 0) - Number(inv.paid_amount || 0)
+    );
+    return Math.max(0, rawRem);
+  };
+
+  const getInvoiceEffectivePaid = (inv: any, supplier?: any) => {
+    if (!inv) return 0;
+    if (inv.status === "draft") return Number(inv.paid_amount || 0);
+    const supp =
+      supplier ||
+      (inv.supplier_id
+        ? suppliers?.find((s: any) => s.id === inv.supplier_id)
+        : inv.supplier_name
+        ? suppliers?.find((s: any) => s.name === inv.supplier_name)
+        : null);
+    if (supp && Number(supp.balance) <= 0) {
+      return Number(inv.total_cost || 0);
+    }
+    return Number(inv.paid_amount || 0);
+  };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -154,6 +190,7 @@ export default function SuppliersPage() {
 
       toast.success(language === 'en' ? 'Payment processed successfully' : "تم تسجيل الدفعة بنجاح");
       mutate();
+      mutateInvoices();
       setIsPaymentModalOpen(false);
       setPayingSupplier(null);
     } catch (err) {
@@ -635,68 +672,107 @@ export default function SuppliersPage() {
                   </p>
                 </div>
               ) : (
-                <div className="border border-[#CBD5E1] rounded-2xl overflow-hidden">
-                  <table className={`w-full text-start`}>
+                <div className="border border-[#CBD5E1] rounded-2xl overflow-hidden shadow-xs">
+                  <table className="w-full table-fixed border-collapse">
+                    <colgroup>
+                      <col className="w-[28%]" />
+                      <col className="w-[24%]" />
+                      <col className="w-[16%]" />
+                      <col className="w-[16%]" />
+                      <col className="w-[16%]" />
+                    </colgroup>
                     <thead>
-                      <tr className="bg-[#F8FAFC] border-b border-[#CBD5E1]">
-                        <th className="p-4 text-[13px] text-ink-soft font-bold text-start">
+                      <tr className="bg-[#F8FAFC] border-b border-[#CBD5E1] text-[13px] font-bold text-ink-soft">
+                        <th className="py-3.5 px-4 text-start">
                           {language === 'en' ? 'Invoice Number' : "رقم الفاتورة"}
                         </th>
-                        <th className="p-4 text-[13px] text-ink-soft font-bold text-start">
+                        <th className="py-3.5 px-4 text-start">
                           {language === 'en' ? 'Date' : "التاريخ"}
                         </th>
-                        <th className="p-4 text-[13px] text-ink-soft font-bold text-center">
+                        <th className="py-3.5 px-2 text-center">
                           {language === 'en' ? 'Status' : "الحالة"}
                         </th>
-                        <th className="p-4 text-[13px] text-ink-soft font-bold text-start">
+                        <th className="py-3.5 px-4 text-end">
                           {language === 'en' ? 'Total' : "الإجمالي"}
                         </th>
-                        <th className="p-4 text-[13px] text-ink-soft font-bold text-start">
+                        <th className="py-3.5 px-4 text-end">
                           {language === 'en' ? 'Remaining (Debt)' : "المتبقي (دين)"}
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#F1F5F9]">
+                    <tbody className="divide-y divide-[#E2E8F0]">
                       {invoices
                         .filter(
                           (inv: any) =>
-                            inv.supplier_id === viewingSupplierInvoices.id,
+                            inv.supplier_id === viewingSupplierInvoices.id ||
+                            (inv.supplier_name &&
+                              inv.supplier_name.trim() ===
+                                viewingSupplierInvoices.name.trim()),
                         )
-                        .map((inv: any) => (
-                          <tr
-                            key={inv.id}
-                            onClick={() => setViewingInvoiceDetails(inv)}
-                            className="hover:bg-[#F8FAFC] transition-colors cursor-pointer group"
-                          >
-                            <td className="p-4 text-[14px] font-bold text-primary group-hover:underline">
-                              {inv.id}
-                            </td>
-                            <td className="p-4 text-[14px] text-ink-soft font-mono text-sm">
-                              {new Date(inv.date).toLocaleString(language === 'en' ? 'en-US' : "ar-SA")}
-                            </td>
-                            <td className="p-4 text-center">
-                              <span
-                                className={`inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-[12px] font-bold ${inv.status === "completed" ? "bg-mint-pale text-teal border border-teal/20" : "bg-bg text-ink-soft border border-ink-soft/20"}`}
-                              >
-                                {inv.status === "completed"
-                                  ? (language === 'en' ? 'Actual' : "فعلية")
-                                  : (language === 'en' ? 'Proforma' : "مبدئية")}
-                              </span>
-                            </td>
-                            <td
-                              className="p-4 text-[15px] font-bold text-ink"
-                              dir="ltr"
+                        .map((inv: any) => {
+                          const rem = getInvoiceEffectiveRemaining(
+                            inv,
+                            viewingSupplierInvoices,
+                          );
+                          return (
+                            <tr
+                              key={inv.id}
+                              onClick={() => setViewingInvoiceDetails(inv)}
+                              className="hover:bg-primary/[0.03] transition-colors cursor-pointer group odd:bg-white even:bg-[#FAFCFF]"
                             >
-                              ₪{(inv.total_cost || 0).toFixed(2)}
-                            </td>
-                            <td
-                              className="p-4 text-[15px] font-bold text-coral"
-                              dir="ltr"
-                            >
-                              ₪{(inv.remaining || 0).toFixed(2)}
-                            </td>
-                          </tr>
-                        ))}
+                              <td className="py-3.5 px-4 text-[14px] font-bold text-primary group-hover:underline text-start">
+                                <span className="font-mono">
+                                  {inv.invoice_number
+                                    ? `#${inv.invoice_number}`
+                                    : inv.id}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-[13px] text-ink-soft font-mono text-start">
+                                {new Date(inv.date).toLocaleDateString(
+                                  language === 'en' ? 'en-US' : 'ar-EG',
+                                  {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                  },
+                                )}
+                              </td>
+                              <td className="py-3.5 px-2 text-center">
+                                <span
+                                  className={`inline-flex items-center justify-center px-3 py-1 rounded-lg text-[12px] font-bold ${
+                                    inv.status === 'completed'
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                      : 'bg-slate-100 text-slate-600 border border-slate-200'
+                                  }`}
+                                >
+                                  {inv.status === 'completed'
+                                    ? language === 'en'
+                                      ? 'Actual'
+                                      : 'فعلية'
+                                    : language === 'en'
+                                    ? 'Proforma'
+                                    : 'مبدئية'}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-[14px] font-black font-mono text-ink text-end">
+                                ₪{Number(inv.total_cost || 0).toFixed(2)}
+                              </td>
+                              <td className="py-3.5 px-4 text-[14px] font-black font-mono text-end">
+                                {rem > 0 ? (
+                                  <span className="text-coral">
+                                    ₪{rem.toFixed(2)}
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-700 text-[12px] font-bold">
+                                    {language === 'en'
+                                      ? 'Fully Paid ✓'
+                                      : 'مدفوعة بالكامل ✓'}
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>
@@ -717,227 +793,284 @@ export default function SuppliersPage() {
       )}
 
       {/* Invoice Details Modal */}
-      {viewingInvoiceDetails && (
-        <div className="fixed inset-0 bg-ink/70 flex items-center justify-center p-4 z-[60]">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[85vh]">
-            <div className="p-5 border-b border-[#CBD5E1] flex justify-between items-center bg-[#F8FAFC]">
-              <h3 className="font-bold text-[18px] text-primary">
-                {language === 'en' ? 'Invoice Details: ' : "تفاصيل الفاتورة: "}
-                <span className="text-teal font-mono">
-                  {viewingInvoiceDetails.id}
-                </span>
-              </h3>
-              <button
-                onClick={() => setViewingInvoiceDetails(null)}
-                className="text-ink-soft hover:text-coral transition-colors bg-white hover:bg-coral-pale w-8 h-8 flex items-center justify-center rounded-lg border border-[#CBD5E1]"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
+      {viewingInvoiceDetails && (() => {
+        const supp = suppliers?.find(
+          (s: any) =>
+            s.id === viewingInvoiceDetails.supplier_id ||
+            s.name === viewingInvoiceDetails.supplier_name
+        );
+        const totalCost = Number(viewingInvoiceDetails.total_cost || 0);
+        const paidAmount = getInvoiceEffectivePaid(viewingInvoiceDetails, supp);
+        const remaining = getInvoiceEffectiveRemaining(viewingInvoiceDetails, supp);
+        const creditSettled = Number(viewingInvoiceDetails.credit_settled || 0);
+        let items: any[] = [];
+        try {
+          items = typeof viewingInvoiceDetails.items === "string"
+            ? JSON.parse(viewingInvoiceDetails.items || "[]")
+            : viewingInvoiceDetails.items || [];
+        } catch (e) {
+          items = [];
+        }
 
-            <div className="p-6 overflow-auto flex-1 bg-white" dir={language === 'en' ? 'ltr' : 'rtl'}>
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-[#F8FAFC] p-4 rounded-xl border border-[#CBD5E1]">
-                  <p className="text-[12px] text-ink-soft mb-1 font-bold">
-                    {language === 'en' ? 'Invoice Date' : "تاريخ الفاتورة"}
-                  </p>
-                  <p className="text-[14px] font-bold text-ink">
-                    {new Date(viewingInvoiceDetails.date).toLocaleString(
-                      language === 'en' ? "en-US" : "ar-SA",
-                    )}
-                  </p>
-                </div>
-                <div className="bg-[#F8FAFC] p-4 rounded-xl border border-[#CBD5E1]">
-                  <p className="text-[12px] text-ink-soft mb-1 font-bold">
-                    {language === 'en' ? 'Status' : "الحالة"}
-                  </p>
-                  <p className="text-[14px] font-bold text-ink">
-                    {viewingInvoiceDetails.status === "completed"
-                      ? (language === 'en' ? 'Actual (Completed)' : "فعلية (مكتملة)")
-                      : (language === 'en' ? 'Proforma' : "مبدئية")}
-                  </p>
-                </div>
-              </div>
-
-              <h4 className="font-bold text-[16px] text-ink mb-4 border-b border-mint-line pb-2">
-                {language === 'en' ? 'Items (' : "الأصناف ("}
-                {(() => {
-                  try {
-                    const it =
-                      typeof viewingInvoiceDetails.items === "string"
-                        ? JSON.parse(viewingInvoiceDetails.items || "[]")
-                        : viewingInvoiceDetails.items || [];
-                    return it.length;
-                  } catch (e) {
-                    return 0;
-                  }
-                })()}
-                )
-              </h4>
-
-              <div className="border border-[#CBD5E1] rounded-xl overflow-hidden">
-                <table className={`w-full text-start`}>
-                  <thead>
-                    <tr className="bg-[#F8FAFC] border-b border-[#CBD5E1]">
-                      <th className="p-3 text-[12px] text-ink-soft font-bold text-start">
-                        {language === 'en' ? 'Item' : "الصنف"}
-                      </th>
-                      <th className="p-3 text-[12px] text-ink-soft font-bold text-start">
-                        {language === 'en' ? 'Quantity (Box)' : "الكمية (علبة)"}
-                      </th>
-                      <th className="p-3 text-[12px] text-ink-soft font-bold text-start">
-                        {language === 'en' ? 'Purchase Price' : "سعر الشراء"}
-                      </th>
-                      <th className="p-3 text-[12px] text-ink-soft font-bold text-start">
-                        {language === 'en' ? 'Sell Price' : "سعر البيع"}
-                      </th>
-                      <th className="p-3 text-[12px] text-ink-soft font-bold text-start">
-                        {language === 'en' ? 'Total' : "الإجمالي"}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#F1F5F9]">
-                    {(() => {
-                      try {
-                        const items =
-                          typeof viewingInvoiceDetails.items === "string"
-                            ? JSON.parse(viewingInvoiceDetails.items || "[]")
-                            : viewingInvoiceDetails.items || [];
-                        if (items.length === 0)
-                          return (
-                            <tr>
-                              <td
-                                colSpan={5}
-                                className="p-4 text-center text-ink-soft"
-                              >
-                                {language === 'en' ? 'No items found' : "لا يوجد أصناف"}
-                              </td>
-                            </tr>
-                          );
-                        return items.map((item: any, idx: number) => (
-                          <tr key={idx} className="hover:bg-[#F8FAFC]">
-                            <td className="p-3 text-[13px] font-bold text-ink">
-                              {item.name}
-                              {item.has_parts && (
-                                <div className="text-[11px] text-teal mt-1">
-                                  {language === 'en' ? 'Subdivided:' : 'مجزأ:'} {item.part1_qty} {item.part1_name} {language === 'en' ? 'in box' : 'في العلبة'}
-                                  {item.has_subparts &&
-                                    (language === 'en' ? ` - and ${item.part2_qty} ${item.part2_name} in the ${item.part1_name}` : ` - و ${item.part2_qty} ${item.part2_name} في الـ ${item.part1_name}`)}
-                                </div>
-                              )}
-                            </td>
-                            <td className="p-3 text-[14px] font-bold">
-                              {item.qty}
-                            </td>
-                            <td className="p-3 text-[13px]" dir="ltr">
-                              ₪
-                              {Number(
-                                item.purchase_price || item.cost || 0,
-                              ).toFixed(2)}
-                            </td>
-                            <td className="p-3 text-[13px]" dir="ltr">
-                              ₪
-                              {Number(
-                                item.sell_price || item.price || 0,
-                              ).toFixed(2)}
-                            </td>
-                            <td
-                              className="p-3 text-[14px] font-bold text-primary"
-                              dir="ltr"
-                            >
-                              ₪
-                              {(
-                                item.qty *
-                                (item.purchase_price || item.cost || 0)
-                              ).toFixed(2)}
-                            </td>
-                          </tr>
-                        ));
-                      } catch (e) {
-                        return (
-                          <tr>
-                            <td
-                              colSpan={5}
-                              className="p-4 text-center text-coral"
-                            >
-                              {language === 'en' ? 'Error reading items' : "خطأ في قراءة الأصناف"}
-                            </td>
-                          </tr>
-                        );
-                      }
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className={`mt-6 flex justify-end gap-6 border-t border-mint-line pt-4 bg-[#F8FAFC] p-4 rounded-xl border border-[#CBD5E1] ${language === 'en' ? 'flex-row-reverse' : ''}`}>
-                <div className="text-center">
-                  <p className="text-[12px] text-ink-soft font-bold">
-                    {language === 'en' ? 'Invoice Total' : "إجمالي الفاتورة"}
-                  </p>
-                  <p className="text-[18px] font-bold text-ink" dir="ltr">
-                    ₪{(viewingInvoiceDetails.total_cost || 0).toFixed(2)}
-                  </p>
-                </div>
-                <div className={`text-center ${language === 'en' ? 'border-l pl-6' : 'border-r pr-6'} border-[#CBD5E1]`}>
-                  <p className="text-[12px] text-ink-soft font-bold">
-                    {language === 'en' ? 'Amount Paid' : "المبلغ المدفوع"}
-                  </p>
-                  <p className="text-[18px] font-bold text-teal" dir="ltr">
-                    ₪{(viewingInvoiceDetails.paid_amount || 0).toFixed(2)}
-                  </p>
-                </div>
-                {(viewingInvoiceDetails.credit_settled || 0) > 0 && (
-                  <div className={`text-center ${language === 'en' ? 'border-l pl-6' : 'border-r pr-6'} border-[#CBD5E1]`}>
-                    <p className="text-[12px] text-teal font-bold">
-                      {language === 'en' ? 'Credit Settled' : "مخصوم من الرصيد"}
-                    </p>
-                    <p className="text-[18px] font-bold text-teal" dir="ltr">
-                      - ₪{(viewingInvoiceDetails.credit_settled || 0).toFixed(2)} ✓
+        return (
+          <div className="fixed inset-0 bg-ink/70 flex items-center justify-center p-4 z-[60] backdrop-blur-xs">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[88vh] border border-[#CBD5E1]">
+              {/* Header */}
+              <div className="p-5 border-b border-[#CBD5E1] flex justify-between items-center bg-[#F8FAFC]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-black text-[18px] text-ink flex items-center gap-2">
+                      <span>{language === 'en' ? 'Invoice Details:' : 'تفاصيل الفاتورة:'}</span>
+                      <span className="text-teal font-mono tracking-wide">
+                        {viewingInvoiceDetails.invoice_number ? `#${viewingInvoiceDetails.invoice_number}` : viewingInvoiceDetails.id}
+                      </span>
+                    </h3>
+                    <p className="text-[12px] text-ink-soft font-mono">
+                      ID: {viewingInvoiceDetails.id}
                     </p>
                   </div>
-                )}
-                <div className={`text-center ${language === 'en' ? 'border-l pl-6' : 'border-r pr-6'} border-[#CBD5E1]`}>
-                  <p className="text-[12px] text-ink-soft font-bold">
-                    {language === 'en' ? 'Remaining (Debt)' : "المتبقي (دين)"}
-                  </p>
-                  {(viewingInvoiceDetails.remaining || 0) > 0 ? (
-                    <p className="text-[18px] font-bold text-coral" dir="ltr">
-                      ₪{(viewingInvoiceDetails.remaining || 0).toFixed(2)}
+                </div>
+                <button
+                  onClick={() => setViewingInvoiceDetails(null)}
+                  className="text-ink-soft hover:text-coral transition-colors bg-white hover:bg-coral-pale w-9 h-9 flex items-center justify-center rounded-xl border border-[#CBD5E1] shadow-xs"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 overflow-y-auto flex-1 bg-white space-y-6" dir={language === 'en' ? 'ltr' : 'rtl'}>
+                {/* Metadata Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-[#F8FAFC] p-3.5 rounded-2xl border border-[#CBD5E1]">
+                    <span className="text-[12px] text-ink-soft mb-1 font-bold block flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      {language === 'en' ? 'Supplier' : "المورد"}
+                    </span>
+                    <p className="text-[14px] font-black text-ink truncate">
+                      {viewingInvoiceDetails.supplier_name || supp?.name || (language === 'en' ? 'Unspecified' : 'غير محدد')}
                     </p>
-                  ) : (
-                    <p className="text-[15px] font-black text-teal mt-0.5">
-                      {language === 'en' ? 'Fully Paid ✓' : "مدفوعة بالكامل ✓"}
+                  </div>
+
+                  <div className="bg-[#F8FAFC] p-3.5 rounded-2xl border border-[#CBD5E1]">
+                    <span className="text-[12px] text-ink-soft mb-1 font-bold block flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      {language === 'en' ? 'Invoice Date' : "تاريخ الفاتورة"}
+                    </span>
+                    <p className="text-[13px] font-bold font-mono text-ink">
+                      {new Date(viewingInvoiceDetails.date).toLocaleString(
+                        language === 'en' ? "en-US" : "ar-SA",
+                      )}
                     </p>
-                  )}
+                  </div>
+
+                  <div className="bg-[#F8FAFC] p-3.5 rounded-2xl border border-[#CBD5E1]">
+                    <span className="text-[12px] text-ink-soft mb-1 font-bold block flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {language === 'en' ? 'Status' : "الحالة"}
+                    </span>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-lg text-[12px] font-black mt-0.5 ${
+                        viewingInvoiceDetails.status === "completed"
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-amber-50 text-amber-700 border border-amber-200"
+                      }`}
+                    >
+                      {viewingInvoiceDetails.status === "completed"
+                        ? (language === 'en' ? 'Actual (Completed)' : "فعلية (مكتملة)")
+                        : (language === 'en' ? 'Proforma (Draft)' : "مبدئية")}
+                    </span>
+                  </div>
+
+                  <div className="bg-[#F8FAFC] p-3.5 rounded-2xl border border-[#CBD5E1]">
+                    <span className="text-[12px] text-ink-soft mb-1 font-bold block flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      </svg>
+                      {language === 'en' ? 'Total Items' : "عدد الأصناف"}
+                    </span>
+                    <p className="text-[14px] font-black text-ink">
+                      {items.length} {language === 'en' ? 'items' : 'أصناف'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Items Section */}
+                <div>
+                  <h4 className="font-black text-[16px] text-ink mb-3 flex items-center gap-2">
+                    <span>{language === 'en' ? 'Invoice Items' : 'أصناف الفاتورة'}</span>
+                    <span className="text-[12px] font-bold text-ink-soft bg-slate-100 px-2 py-0.5 rounded-full font-mono">
+                      {items.length}
+                    </span>
+                  </h4>
+
+                  <div className="border border-[#CBD5E1] rounded-2xl overflow-hidden shadow-xs">
+                    <table className="w-full table-fixed border-collapse">
+                      <colgroup>
+                        <col className="w-[36%]" />
+                        <col className="w-[14%]" />
+                        <col className="w-[17%]" />
+                        <col className="w-[17%]" />
+                        <col className="w-[16%]" />
+                      </colgroup>
+                      <thead>
+                        <tr className="bg-[#F8FAFC] border-b border-[#CBD5E1] text-[13px] font-bold text-ink-soft">
+                          <th className="py-3 px-4 text-start">
+                            {language === 'en' ? 'Item' : "الصنف"}
+                          </th>
+                          <th className="py-3 px-2 text-center">
+                            {language === 'en' ? 'Quantity' : "الكمية (علبة)"}
+                          </th>
+                          <th className="py-3 px-2 text-center">
+                            {language === 'en' ? 'Purchase Price' : "سعر الشراء"}
+                          </th>
+                          <th className="py-3 px-2 text-center">
+                            {language === 'en' ? 'Sell Price' : "سعر البيع"}
+                          </th>
+                          <th className="py-3 px-4 text-end">
+                            {language === 'en' ? 'Total' : "الإجمالي"}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#E2E8F0]">
+                        {items.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="py-8 text-center text-ink-soft">
+                              {language === 'en' ? 'No items found' : "لا يوجد أصناف"}
+                            </td>
+                          </tr>
+                        ) : (
+                          items.map((item: any, idx: number) => {
+                            const buyPrice = Number(item.purchase_price !== undefined ? item.purchase_price : (item.cost || 0));
+                            const sellPrice = Number(item.sell_price !== undefined ? item.sell_price : (item.price || 0));
+                            const lineTotal = Number(item.qty || 0) * buyPrice;
+
+                            return (
+                              <tr key={idx} className="hover:bg-primary/[0.03] transition-colors odd:bg-white even:bg-[#FAFCFF]">
+                                <td className="py-3.5 px-4 text-start">
+                                  <div className="font-bold text-[14px] text-ink leading-snug">
+                                    {item.name}
+                                  </div>
+                                  {item.has_parts && (
+                                    <div className="inline-flex items-center gap-1 text-[11px] text-teal font-medium mt-1 bg-teal/10 px-2 py-0.5 rounded-md">
+                                      <span>{language === 'en' ? 'Subdivided:' : 'مجزأ:'}</span>
+                                      <span>{item.part1_qty} {item.part1_name} {language === 'en' ? 'in box' : 'في العلبة'}</span>
+                                      {item.has_subparts && (
+                                        <span>- {item.part2_qty} {item.part2_name} {language === 'en' ? 'in' : 'في'} {item.part1_name}</span>
+                                      )}
+                                    </div>
+                                  )}
+                                  {(item.expiry || item.expiry_date) && (
+                                    <div className="text-[11px] text-ink-soft font-mono mt-0.5">
+                                      {language === 'en' ? 'Exp: ' : 'الصلاحية: '}{item.expiry || item.expiry_date}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="py-3.5 px-2 text-center">
+                                  <span className="inline-block px-2.5 py-1 bg-slate-100 rounded-lg font-mono font-bold text-[14px] text-ink">
+                                    {item.qty}
+                                  </span>
+                                </td>
+                                <td className="py-3.5 px-2 text-center font-mono font-bold text-[14px] text-slate-700">
+                                  ₪{buyPrice.toFixed(2)}
+                                </td>
+                                <td className="py-3.5 px-2 text-center font-mono font-medium text-[14px] text-slate-600">
+                                  ₪{sellPrice.toFixed(2)}
+                                </td>
+                                <td className="py-3.5 px-4 text-end font-mono font-black text-[15px] text-primary">
+                                  ₪{lineTotal.toFixed(2)}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Financial Summary Stat Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  <div className="bg-[#F8FAFC] border border-[#CBD5E1] rounded-2xl p-4 text-center shadow-xs">
+                    <span className="text-[12px] font-bold text-ink-soft block mb-1">
+                      {language === 'en' ? 'Invoice Total' : 'إجمالي الفاتورة'}
+                    </span>
+                    <span className="text-[20px] font-black font-mono text-ink">
+                      ₪{totalCost.toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 text-center shadow-xs">
+                    <span className="text-[12px] font-bold text-emerald-800 block mb-1">
+                      {language === 'en' ? 'Amount Paid' : 'المبلغ المدفوع'}
+                    </span>
+                    <span className="text-[20px] font-black font-mono text-emerald-700">
+                      ₪{paidAmount.toFixed(2)}
+                    </span>
+                    {creditSettled > 0 && (
+                      <span className="block text-[11px] font-bold text-teal mt-0.5 font-mono">
+                        ({language === 'en' ? 'Credit: ' : 'مخصوم من الرصيد: '}₪{creditSettled.toFixed(2)})
+                      </span>
+                    )}
+                  </div>
+
+                  <div
+                    className={`border rounded-2xl p-4 text-center shadow-xs ${
+                      remaining > 0
+                        ? 'bg-rose-50/70 border-rose-200'
+                        : 'bg-emerald-50/70 border-emerald-200'
+                    }`}
+                  >
+                    <span
+                      className={`text-[12px] font-bold block mb-1 ${
+                        remaining > 0 ? 'text-rose-800' : 'text-emerald-800'
+                      }`}
+                    >
+                      {language === 'en' ? 'Remaining (Debt)' : 'المتبقي (دين)'}
+                    </span>
+                    {remaining > 0 ? (
+                      <span className="text-[20px] font-black font-mono text-rose-700">
+                        ₪{remaining.toFixed(2)}
+                      </span>
+                    ) : (
+                      <span className="text-[15px] font-black text-emerald-700 flex items-center justify-center gap-1 mt-1">
+                        <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                        </svg>
+                        {language === 'en' ? 'Fully Paid' : 'مدفوعة بالكامل'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="p-4 border-t border-[#CBD5E1] bg-[#F8FAFC] flex justify-end">
-              <button
-                type="button"
-                onClick={() => setViewingInvoiceDetails(null)}
-                className="bg-white hover:bg-bg border border-[#CBD5E1] text-ink px-8 py-2.5 rounded-xl transition-all font-bold text-[14px] shadow-sm hover:shadow"
-              >
-                {language === 'en' ? 'Close' : "إغلاق"}
-              </button>
+              {/* Footer */}
+              <div className="p-4 border-t border-[#CBD5E1] bg-[#F8FAFC] flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setViewingInvoiceDetails(null)}
+                  className="bg-white hover:bg-bg border border-[#CBD5E1] text-ink px-8 py-2.5 rounded-xl transition-all font-bold text-[14px] shadow-sm hover:shadow"
+                >
+                  {language === 'en' ? 'Close' : "إغلاق"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Supplier Statement / Transactions Modal */}
       {statementSupplier && (

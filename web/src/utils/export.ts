@@ -25,7 +25,7 @@ export const exportCorporateExcel = (
   const totalVat = Number(report.totalVat) || 0;
   const netProfit = Number(report.netProfit) || (grossProfit - totalExpenses);
   const netMargin = totalSales > 0 ? ((netProfit / totalSales) * 100).toFixed(1) : "0.0";
-  const cogs = Math.max(0, totalSales - grossProfit);
+  const cogs = report.totalCost != null ? Number(report.totalCost) : Math.max(0, (totalSales - totalVat) - grossProfit);
 
   const pb = report.paymentBreakdown || {};
   const cashCollected =

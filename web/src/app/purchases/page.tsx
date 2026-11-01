@@ -1,6 +1,6 @@
 "use client";
 import { API_BASE_URL } from "@/lib/config";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import AppBar from "@/components/AppBar";
 import useSWR from "swr";
 import { useStore } from "@/store";
@@ -32,6 +32,10 @@ export default function PurchasesPage() {
   const [showPreview, setShowPreview] = useState<any>(null);
   const [pdfInvoice, setPdfInvoice] = useState<any>(null);
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
+  const [payingInvoice, setPayingInvoice] = useState<any>(null);
+  const [invoicePaymentAmount, setInvoicePaymentAmount] = useState("");
+  const [invoicePaymentMethod, setInvoicePaymentMethod] = useState("كاش");
+  const [isPayingInvoice, setIsPayingInvoice] = useState(false);
 
   const downloadPDF = async (inv: any) => {
     setDownloadingPdf(inv.id);
@@ -107,7 +111,7 @@ export default function PurchasesPage() {
     user ? `${API}/api/pharmacies/${user.pharmacy_id}/inventory` : null,
     fetcher,
   );
-  const { data: suppliersData } = useSWR(
+  const { data: suppliersData, mutate: mutateSuppliers } = useSWR(
     user ? `${API}/api/pharmacies/${user.pharmacy_id}/suppliers` : null,
     fetcher,
   );
@@ -117,21 +121,62 @@ export default function PurchasesPage() {
   const inventory = inventoryData?.inventory || [];
   const suppliers = suppliersData?.suppliers || [];
 
+  const supplierMap = useMemo(() => {
+    const map = new Map<string, any>();
+    suppliers.forEach((s: any) => {
+      if (s.id) map.set(s.id, s);
+      if (s.name) map.set(s.name.trim(), s);
+    });
+    return map;
+  }, [suppliers]);
+
+  const getEffectiveRemaining = useCallback((inv: any) => {
+    if (!inv || inv.status === "draft") return 0;
+    const supp = inv.supplier_id
+      ? supplierMap.get(inv.supplier_id)
+      : (inv.supplier_name ? supplierMap.get(inv.supplier_name.trim()) : null);
+    if (supp && Number(supp.balance) <= 0) {
+      return 0;
+    }
+    const rawRem = Number(
+      inv.remaining !== undefined && inv.remaining !== null
+        ? inv.remaining
+        : (Number(inv.total_cost || 0) - Number(inv.paid_amount || 0))
+    );
+    return Math.max(0, rawRem);
+  }, [supplierMap]);
+
+  const getEffectivePaid = useCallback((inv: any) => {
+    if (!inv) return 0;
+    if (inv.status === "draft") return Number(inv.paid_amount || 0);
+    const supp = inv.supplier_id
+      ? supplierMap.get(inv.supplier_id)
+      : (inv.supplier_name ? supplierMap.get(inv.supplier_name.trim()) : null);
+    if (supp && Number(supp.balance) <= 0) {
+      return Number(inv.total_cost || 0);
+    }
+    return Number(inv.paid_amount || 0);
+  }, [supplierMap]);
+
   // --- Computed ---
   const cartTotal = cartItems.reduce(
     (s, i) => s + (parseFloat(i.qty) || 0) * (parseFloat(i.purchase_price) || 0),
     0,
   );
-  const totalCost = invoices.reduce(
-    (s: number, i: any) => s + (i.total_cost || 0),
+  const actualInvoices = useMemo(
+    () => invoices.filter((i: any) => i.status !== "draft"),
+    [invoices]
+  );
+  const totalCost = actualInvoices.reduce(
+    (s: number, i: any) => s + (Number(i.total_cost) || 0),
     0,
   );
-  const totalPaid = invoices.reduce(
-    (s: number, i: any) => s + (i.paid_amount || 0),
+  const totalPaid = actualInvoices.reduce(
+    (s: number, i: any) => s + getEffectivePaid(i),
     0,
   );
-  const totalRemaining = invoices.reduce(
-    (s: number, i: any) => s + (i.remaining || 0),
+  const totalRemaining = actualInvoices.reduce(
+    (s: number, i: any) => s + getEffectiveRemaining(i),
     0,
   );
 
@@ -680,17 +725,24 @@ export default function PurchasesPage() {
                             {language === 'en' ? 'Credit offset: ' : 'تسوية من الرصيد: '}₪{Number(inv.credit_settled).toFixed(2)}
                           </p>
                         )}
-                        {(inv.remaining || 0) > 0 && (
-                          <p className="text-[12px] font-bold text-coral text-start">
-                            {language === 'en' ? "Remaining" : "متبقي"} ₪{(inv.remaining || 0).toFixed(2)}
-                          </p>
-                        )}
-                        {(inv.remaining || 0) <= 0 &&
-                          inv.status !== "draft" && (
-                            <p className="text-[12px] font-bold text-teal text-start">
-                              {language === 'en' ? "Fully Paid ✓" : "مدفوعة بالكامل ✓"}
-                            </p>
-                          )}
+                        {(() => {
+                          const rem = getEffectiveRemaining(inv);
+                          if (rem > 0) {
+                            return (
+                              <p className="text-[12px] font-bold text-coral text-start font-mono">
+                                {language === 'en' ? "Remaining" : "متبقي"} ₪{rem.toFixed(2)}
+                              </p>
+                            );
+                          }
+                          if (inv.status !== "draft") {
+                            return (
+                              <p className="text-[12px] font-bold text-teal text-start">
+                                {language === 'en' ? "Fully Paid ✓" : "مدفوعة بالكامل ✓"}
+                              </p>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                     </div>
 
@@ -716,7 +768,21 @@ export default function PurchasesPage() {
                       </div>
                     )}
                     {/* Row 3: Action Buttons */}
-                    <div className="flex gap-2 pt-3 mt-1 border-t border-mint-line justify-end">
+                    <div className="flex gap-2 pt-3 mt-1 border-t border-mint-line justify-end items-center flex-wrap">
+                      {getEffectiveRemaining(inv) > 0 && inv.status !== "draft" && (
+                        <button
+                          onClick={() => {
+                            setPayingInvoice(inv);
+                            setInvoicePaymentAmount(String(getEffectiveRemaining(inv)));
+                          }}
+                          className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl text-[13px] font-bold transition-all flex items-center gap-1.5 shadow-xs border border-emerald-200/60"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                          {language === 'en' ? "Pay" : "تسديد"}
+                        </button>
+                      )}
                       <button
                         onClick={() => openEdit(inv)}
                         className={`px-4 py-2 rounded-xl text-[13px] font-bold transition-all ${isDraft ? "bg-primary text-white hover:opacity-90" : "bg-primary-pale text-primary hover:bg-primary hover:text-white"}`}
@@ -1949,13 +2015,13 @@ export default function PurchasesPage() {
                     ₪{(showPreview.total_cost || 0).toFixed(2)}
                   </span>
                 </div>
-                {(showPreview.paid_amount || 0) > 0 && (
+                {getEffectivePaid(showPreview) > 0 && (
                   <div className="flex justify-between">
                     <span className="text-[14px] font-bold text-ink-soft">
-                      المدفوع
+                      {language === "en" ? "Paid" : "المدفوع"}
                     </span>
                     <span className="text-[14px] font-mono font-bold text-teal">
-                      ₪{(showPreview.paid_amount || 0).toFixed(2)}
+                      ₪{getEffectivePaid(showPreview).toFixed(2)}
                     </span>
                   </div>
                 )}
@@ -1969,13 +2035,13 @@ export default function PurchasesPage() {
                     </span>
                   </div>
                 )}
-                {(showPreview.remaining || 0) > 0 ? (
+                {getEffectiveRemaining(showPreview) > 0 ? (
                   <div className="flex justify-between">
                     <span className="text-[14px] font-bold text-ink-soft">
                       {language === "en" ? "Remaining" : "المتبقي"}
                     </span>
                     <span className="text-[14px] font-mono font-bold text-coral">
-                      ₪{(showPreview.remaining || 0).toFixed(2)}
+                      ₪{getEffectiveRemaining(showPreview).toFixed(2)}
                     </span>
                   </div>
                 ) : (
@@ -2505,6 +2571,143 @@ export default function PurchasesPage() {
                 تم إصدار هذه الفاتورة من نظام روشتة لإدارة الصيدليات
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice Quick Payment Modal */}
+      {payingInvoice && (
+        <div className="fixed inset-0 bg-ink/70 flex items-center justify-center p-4 z-[70] backdrop-blur-xs">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col border border-slate-200">
+            <div className="p-5 border-b border-mint-line flex justify-between items-center bg-[#F8FAFC]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-black text-[17px] text-ink">
+                    {language === 'en' ? 'Settle Invoice Payment' : 'تسديد دفعة على الفاتورة'}
+                  </h3>
+                  <p className="text-[12px] text-ink-soft font-mono">
+                    {payingInvoice.invoice_number ? `#${payingInvoice.invoice_number}` : payingInvoice.id}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPayingInvoice(null)}
+                className="text-ink-soft hover:text-coral transition-colors bg-white hover:bg-coral-pale w-8 h-8 flex items-center justify-center rounded-lg border border-mint-line"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!user || !payingInvoice) return;
+                const pAmt = parseFloat(invoicePaymentAmount);
+                if (!pAmt || pAmt <= 0) {
+                  return toast.error(language === 'en' ? "Please enter a valid amount" : "يرجى إدخال مبلغ صحيح");
+                }
+                setIsPayingInvoice(true);
+                try {
+                  const res = await fetch(`${API}/api/pharmacies/${user.pharmacy_id}/purchase-invoices/${payingInvoice.id}/pay`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      payment: pAmt,
+                      paymentMethod: invoicePaymentMethod,
+                    }),
+                  });
+                  if (!res.ok) throw new Error("Payment failed");
+                  toast.success(language === 'en' ? "Payment registered successfully" : "تم تسجيل الدفعة بنجاح");
+                  mutate();
+                  if (mutateSuppliers) mutateSuppliers();
+                  setPayingInvoice(null);
+                  setInvoicePaymentAmount("");
+                } catch (err) {
+                  toast.error(language === 'en' ? "Failed to register payment" : "فشل تسجيل الدفعة");
+                } finally {
+                  setIsPayingInvoice(false);
+                }
+              }}
+              className="p-6 space-y-4"
+              dir={language === 'en' ? 'ltr' : 'rtl'}
+            >
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex justify-between items-center">
+                <div>
+                  <span className="text-[12px] text-ink-soft font-bold block">
+                    {language === 'en' ? 'Remaining Debt' : 'المبلغ المتبقي الحالي'}
+                  </span>
+                  <span className="text-[18px] font-black font-mono text-coral">
+                    ₪{getEffectiveRemaining(payingInvoice).toFixed(2)}
+                  </span>
+                </div>
+                {payingInvoice.supplier_name && (
+                  <div className="text-end">
+                    <span className="text-[12px] text-ink-soft font-bold block">
+                      {language === 'en' ? 'Supplier' : 'المورد'}
+                    </span>
+                    <span className="text-[14px] font-black text-ink">
+                      {payingInvoice.supplier_name}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-[13px] font-bold text-ink mb-1.5 block">
+                  {language === 'en' ? 'Payment Amount (₪)' : 'المبلغ المراد سداده (₪)'}
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  value={invoicePaymentAmount}
+                  onChange={(e) => setInvoicePaymentAmount(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-teal outline-none font-mono text-[16px] font-bold"
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div>
+                <label className="text-[13px] font-bold text-ink mb-1.5 block">
+                  {language === 'en' ? 'Payment Method' : 'طريقة الدفع'}
+                </label>
+                <select
+                  value={invoicePaymentMethod}
+                  onChange={(e) => setInvoicePaymentMethod(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-teal outline-none font-bold text-[14px]"
+                >
+                  <option value="كاش">{language === 'en' ? 'Cash' : 'كاش / نقدي'}</option>
+                  <option value="شيك">{language === 'en' ? 'Cheque' : 'شيك'}</option>
+                  <option value="تحويل بنكي">{language === 'en' ? 'Bank Transfer' : 'تحويل بنكي'}</option>
+                  <option value="فيزا">{language === 'en' ? 'Card / Visa' : 'فيزا / بطاقة'}</option>
+                </select>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="submit"
+                  disabled={isPayingInvoice || !invoicePaymentAmount || parseFloat(invoicePaymentAmount) <= 0}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-xl transition-all shadow-sm disabled:opacity-50"
+                >
+                  {isPayingInvoice ? (language === 'en' ? 'Processing...' : 'جاري التسديد...') : (language === 'en' ? 'Confirm Payment' : 'تأكيد التسديد')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPayingInvoice(null)}
+                  className="px-5 py-3 rounded-xl border border-slate-200 text-ink-soft hover:bg-slate-50 font-bold"
+                >
+                  {language === 'en' ? 'Cancel' : 'إلغاء'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
