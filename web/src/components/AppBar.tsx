@@ -31,7 +31,7 @@ export default function AppBar({
 
   const user = useStore((state: any) => state.user);
   const toggleMobileMenu = useStore((state: any) => state.toggleMobileMenu);
-  const { t, language } = useTranslation();
+  const { t, language, setLanguage } = useTranslation();
 
   const isRtl = language !== "en";
   const actualTitle = title || t.appbar.title;
@@ -238,6 +238,17 @@ export default function AppBar({
             </div>
           )}
         </div>
+
+        {/* Language Switcher */}
+        <button
+          type="button"
+          onClick={() => setLanguage(language === "en" ? "ar" : "en")}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-full border border-mint-line/70 bg-white hover:bg-mint-bg active:scale-95 transition-all text-[13px] font-bold text-ink shadow-sm"
+          title={language === "en" ? "التبديل إلى العربية" : "Switch to English"}
+        >
+          <span className="text-[15px]">🌐</span>
+          <span>{language === "en" ? "العربية" : "English"}</span>
+        </button>
 
         <div className="relative" ref={menuRef}>
           <button

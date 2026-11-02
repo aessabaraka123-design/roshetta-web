@@ -26,7 +26,6 @@ export default function Sidebar() {
   const router = useRouter();
   const user = useStore((state) => state.user);
   const logout = useStore((state) => state.logout);
-  const language = useStore((state: any) => state.language);
   const isMobileMenuOpen = useStore((state: any) => state.isMobileMenuOpen);
   const setMobileMenuOpen = useStore((state: any) => state.setMobileMenuOpen);
 
@@ -34,7 +33,7 @@ export default function Sidebar() {
     setMobileMenuOpen(false);
   }, [pathname, setMobileMenuOpen]);
 
-  const { t } = useTranslation();
+  const { t, language, setLanguage } = useTranslation();
 
   const navGroups = [
     {
@@ -51,7 +50,7 @@ export default function Sidebar() {
       title: t.sidebar.inventory_meds,
       items: [
         { name: t.sidebar.inventory_meds, href: "/inventory", icon: InventoryIcon },
-        { name: language === 'en' ? "Master Drug Directory" : "دليل الأدوية الافتراضي", href: "/inventory?catalog=open", icon: InventoryIcon },
+        { name: t.sidebar.master_drug_directory || (language === 'en' ? "Master Drug Directory" : "دليل الأدوية الافتراضي"), href: "/inventory?catalog=open", icon: InventoryIcon },
         { name: t.sidebar.suppliers_management, href: "/suppliers", icon: CustomersIcon },
         { name: t.sidebar.purchase_invoices, href: "/purchases", icon: SalesIcon },
         { name: t.sidebar.batches_expiry, href: "/batches", icon: BoxIcon },
@@ -69,7 +68,7 @@ export default function Sidebar() {
     {
       title: t.sidebar.security_backup,
       items: [
-        { name: language === 'en' ? "Branch Operations & Scrap" : "إدارة الفرع والتوالف", href: "/manager", icon: ManagerIcon },
+        { name: t.sidebar.branch_ops || (language === 'en' ? "Branch Operations & Scrap" : "إدارة الفرع والتوالف"), href: "/manager", icon: ManagerIcon },
         { name: t.sidebar.staff_branches, href: "/branches", icon: ManagerIcon },
         { name: t.sidebar.security_backup, href: "/admin", icon: AdminIcon },
         { name: t.sidebar.print_settings, href: "/more", icon: MoreIcon },
@@ -232,6 +231,14 @@ export default function Sidebar() {
 
 
       <div className="p-4 border-t border-mint-line">
+        <button
+          type="button"
+          onClick={() => setLanguage(language === "en" ? "ar" : "en")}
+          className="w-full mb-3 flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-mint-line bg-mint-bg/50 hover:bg-mint-bg text-ink text-[13px] font-bold transition-all active:scale-98 shadow-sm"
+        >
+          <span>🌐</span>
+          <span>{language === "en" ? "العربية (Arabic)" : "English (الإنجليزية)"}</span>
+        </button>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-teal-pale text-teal w-10 h-10 rounded-full flex items-center justify-center font-bold text-[14px] shrink-0">

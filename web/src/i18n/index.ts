@@ -11,7 +11,9 @@ export type Locale = "ar" | "en";
 export type Dictionary = typeof ar;
 
 export const useTranslation = () => {
-  const language = useStore((state: any) => state.language || "ar");
-  const t = dictionaries[language as Locale] || dictionaries.ar;
-  return { t, language };
+  const language = useStore((state: any) => state.language || "ar") as Locale;
+  const setLanguage = useStore((state: any) => state.setLanguage);
+  const t = dictionaries[language] || dictionaries.ar;
+  const isRtl = language !== "en";
+  return { t, language, setLanguage, isRtl };
 };

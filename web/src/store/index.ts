@@ -105,7 +105,13 @@ export const useStore = create<StoreState>()(
   persist(
     (set) => ({
       language: 'ar',
-      setLanguage: (lang) => set({ language: lang }),
+      setLanguage: (lang) => {
+        if (typeof document !== 'undefined') {
+          document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
+          document.documentElement.lang = lang;
+        }
+        set({ language: lang });
+      },
       isMaintenanceMode: false,
       setIsMaintenanceMode: (isMaint: boolean) => set({ isMaintenanceMode: isMaint }),
       isMobileMenuOpen: false,
