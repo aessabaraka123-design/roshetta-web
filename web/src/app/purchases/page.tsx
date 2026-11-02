@@ -103,7 +103,7 @@ export default function PurchasesPage() {
   );
   const { data: invoicesData, mutate } = useSWR(
     user
-      ? `${API}/api/pharmacies/${user.pharmacy_id}/purchases?branch_id=${branchFilter}`
+      ? `${API}/api/pharmacies/${user.pharmacy_id}/purchases`
       : null,
     fetcher,
   );
@@ -168,17 +168,31 @@ export default function PurchasesPage() {
     const selBranch = branches.find(
       (b: any) => String(b.id) === String(branchFilter) || String(b.name).trim() === String(branchFilter).trim()
     );
-    const bId = selBranch ? String(selBranch.id) : String(branchFilter);
+    const bId = selBranch ? String(selBranch.id).trim() : String(branchFilter).trim();
     const bName = selBranch ? String(selBranch.name).trim() : String(branchFilter).trim();
-    const isMain = ["Main", "main", "الفرع الرئيسي", "الصيدلية الرئيسية"].includes(bName) || ["Main", "main", "الفرع الرئيسي", "الصيدلية الرئيسية"].includes(bId);
+    const isMain = ["main", "الفرع الرئيسي", "الصيدلية الرئيسية"].includes(bName.toLowerCase()) ||
+                   ["main", "الفرع الرئيسي", "الصيدلية الرئيسية"].includes(bId.toLowerCase());
 
     return invoices.filter((inv: any) => {
       const invBId = inv.branch_id ? String(inv.branch_id).trim() : "";
       const invBName = inv.branch ? String(inv.branch).trim() : (inv.branchName ? String(inv.branchName).trim() : "");
-      if (isMain && (!invBId || invBId === "all" || invBId === "Main" || invBId === "main" || invBId === "الفرع الرئيسي" || invBId === bId || invBName === "الفرع الرئيسي" || invBName === bName)) {
-        return true;
+
+      if (isMain) {
+        if (!invBId && !invBName) return true;
+        if (["all", "main", "الفرع الرئيسي", "الصيدلية الرئيسية", "المخزن الرئيسي"].includes(invBId.toLowerCase())) return true;
+        if (["all", "main", "الفرع الرئيسي", "الصيدلية الرئيسية", "المخزن الرئيسي"].includes(invBName.toLowerCase())) return true;
+        if (bId && (invBId === bId || invBName === bId)) return true;
+        if (bName && (invBId === bName || invBName === bName)) return true;
+        return false;
       }
-      return invBId === bId || invBId === bName || invBName === bName || invBName === bId;
+
+      // Non-main branch (e.g., وسطى)
+      return (
+        (bId && (invBId === bId || invBName === bId)) ||
+        (bName && (invBId === bName || invBName === bName)) ||
+        (bName && (invBId.includes(bName) || bName.includes(invBId))) ||
+        (bName && (invBName.includes(bName) || bName.includes(invBName)))
+      );
     });
   }, [invoices, branchFilter, branches]);
 
