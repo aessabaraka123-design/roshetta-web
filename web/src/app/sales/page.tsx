@@ -709,7 +709,11 @@ export default function SalesLog() {
 
             <div id="invoice-modal-actions" className="flex flex-col sm:flex-row gap-2 mt-6">
               <button
-                onClick={() => setThermalInvoice(selectedInvoice)}
+                onClick={() => {
+                  const inv = selectedInvoice;
+                  setSelectedInvoice(null);
+                  setThermalInvoice(inv);
+                }}
                 className="w-full sm:flex-1 bg-amber text-white font-bold py-3 sm:py-3.5 rounded-xl hover:bg-amber/90 transition-all text-[13px] flex items-center justify-center gap-1.5 shadow-sm"
               >
                 <span>🖨️</span>
@@ -723,6 +727,10 @@ export default function SalesLog() {
                   const actions = document.getElementById("invoice-modal-actions");
                   const closeBtn = document.getElementById("invoice-modal-close");
                   
+                  const loadingToast = toast.loading(
+                    language === 'en' ? 'Exporting PDF...' : 'جاري تصدير PDF...'
+                  );
+
                   if (actions) actions.style.display = "none";
                   if (closeBtn) closeBtn.style.display = "none";
                   
@@ -730,12 +738,22 @@ export default function SalesLog() {
                     const html2pdf = (await import("html2pdf.js")).default;
                     await html2pdf().set({
                       margin: 0.5,
-                      filename: `invoice_${selectedInvoice.id}.pdf`,
+                      filename: `invoice_${selectedInvoice.id || Date.now()}.pdf`,
                       image: { type: 'jpeg', quality: 0.98 },
-                      html2canvas: { scale: 2 },
+                      html2canvas: { scale: 2, useCORS: true, logging: false },
                       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
                     }).from(element).save();
-                  } catch(e) {
+
+                    toast.success(
+                      language === 'en' ? 'PDF exported successfully!' : 'تم تصدير الفاتورة بنجاح!',
+                      { id: loadingToast }
+                    );
+                  } catch(e: any) {
+                    console.error("PDF export error:", e);
+                    toast.error(
+                      language === 'en' ? 'Failed to export PDF' : 'تعذر تصدير PDF',
+                      { id: loadingToast }
+                    );
                   } finally {
                     if (actions) actions.style.display = "flex";
                     if (closeBtn) closeBtn.style.display = "block";
@@ -768,7 +786,7 @@ export default function SalesLog() {
 
       {/* Thermal Receipt Modal for Reprinting */}
       {thermalInvoice && (
-        <div className="fixed inset-0 bg-ink/50 z-50 overflow-y-auto print:overflow-visible print:p-0 print:bg-white print:static print:block">
+        <div className="fixed inset-0 bg-ink/50 z-[60] overflow-y-auto print:overflow-visible print:p-0 print:bg-white print:static print:block">
           <div className="min-h-screen py-10 flex flex-col items-center justify-center print:py-0 print:block">
             <div
               id="sales-thermal-receipt-content"
@@ -821,7 +839,7 @@ export default function SalesLog() {
                 <div className="flex justify-between items-center text-[12px]">
                   <span className="text-ink-soft font-bold">{language === 'en' ? "Date:" : "التاريخ:"}</span>
                   <span className="text-ink font-bold font-mono text-[11px]" dir="ltr">
-                    {new Date(thermalInvoice.date).toLocaleString(language === "en" ? "en-US" : "ar-EG")}
+                    {new Date(thermalInvoice.date || thermalInvoice.created_at || Date.now()).toLocaleString(language === "en" ? "en-US" : "ar-EG")}
                   </span>
                 </div>
                 {thermalInvoice.cashierName && (
@@ -845,31 +863,53 @@ export default function SalesLog() {
               </div>
 
               <div className="space-y-2 mb-1 px-1">
-                {(thermalInvoice.items || []).map((item: any, i: number) => {
-                  const cleanName = (item.displayName || item.name || "")
-                    .replace(/\s*\(القديم\)|\s*\(الجديد\)|\s*\(دفعة قديمة\)|\s*\(دفعة جديدة\)/g, "")
-                    .trim();
-                  const qty = item.cartQty || item.qty || 1;
-                  const unitPrice = Number(item.unitPrice || item.price || 0);
-                  const rowTotal = (unitPrice * Number(qty)).toFixed(2);
+                {(() => {
+                  let items: any[] = [];
+                  if (Array.isArray(thermalInvoice?.items)) {
+                    items = thermalInvoice.items;
+                  } else if (typeof thermalInvoice?.items === "string") {
+                    try {
+                      const parsed = JSON.parse(thermalInvoice.items);
+                      if (Array.isArray(parsed)) items = parsed;
+                    } catch (_) {}
+                  }
 
-                  return (
-                    <div
-                      key={i}
-                      className="flex text-[12px] text-ink items-start py-1 border-b border-dashed border-[#94A3B8]/20 last:border-0"
-                    >
-                      <div className="flex-1 text-start font-bold leading-snug break-words pr-1 pl-1 min-w-0">
-                        <bdi dir="auto">{cleanName}</bdi>
+                  if (items.length === 0) {
+                    return (
+                      <div className="text-center py-2 text-[11px] text-ink-soft">
+                        {language === 'en' ? 'No items' : 'لا توجد أصناف'}
                       </div>
-                      <div className="w-[45px] text-center font-mono shrink-0 pt-0.5">
-                        {qty}
+                    );
+                  }
+
+                  return items.map((item: any, i: number) => {
+                    const cleanName = String(item.displayName || item.name || "")
+                      .replace(/\s*\(القديم\)|\s*\(الجديد\)|\s*\(دفعة قديمة\)|\s*\(دفعة جديدة\)/g, "")
+                      .trim();
+                    const qty = item.cartQty !== undefined && item.cartQty !== null 
+                      ? item.cartQty 
+                      : (item.qty !== undefined && item.qty !== null ? item.qty : 1);
+                    const unitPrice = Number(item.unitPrice || item.price || 0) || 0;
+                    const rowTotal = (unitPrice * Number(qty || 0)).toFixed(2);
+
+                    return (
+                      <div
+                        key={i}
+                        className="flex text-[12px] text-ink items-start py-1 border-b border-dashed border-[#94A3B8]/20 last:border-0"
+                      >
+                        <div className="flex-1 text-start font-bold leading-snug break-words pr-1 pl-1 min-w-0">
+                          <bdi dir="auto">{cleanName}</bdi>
+                        </div>
+                        <div className="w-[45px] text-center font-mono shrink-0 pt-0.5">
+                          {qty}
+                        </div>
+                        <div className="w-[65px] text-end font-mono font-bold shrink-0 pt-0.5">
+                          {rowTotal}
+                        </div>
                       </div>
-                      <div className="w-[65px] text-end font-mono font-bold shrink-0 pt-0.5">
-                        {rowTotal}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </div>
 
               <div className="text-center text-[#94A3B8] tracking-widest my-3">
@@ -922,7 +962,7 @@ export default function SalesLog() {
                 )}
               </div>
 
-              <LocalBarcode value={thermalInvoice?.id || "INV-000000"} />
+              <LocalBarcode value={String(thermalInvoice?.id || "INV-000000")} />
 
               <div className="mt-5 flex flex-col items-center justify-center gap-1 opacity-50 grayscale">
                 <RoshettaLogo className="w-4 h-4" />

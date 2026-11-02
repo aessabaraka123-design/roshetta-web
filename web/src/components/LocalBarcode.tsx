@@ -15,8 +15,8 @@ const CODE39: Record<string, string> = {
   "-": "bWbwbwBwB", ".": "BWbwbwBwb", " ": "bWBwbwBwb", "*": "bWbwBwBwb",
 };
 
-export default function LocalBarcode({ value }: { value: string }) {
-  const cleanVal = (value || "").toUpperCase().replace(/[^A-Z0-9-. ]/g, "");
+export default function LocalBarcode({ value }: { value: string | number }) {
+  const cleanVal = String(value || "").toUpperCase().replace(/[^A-Z0-9-. ]/g, "");
   const text = "*" + cleanVal + "*";
   const bars: { isBlack: boolean; isWide: boolean; key: string }[] = [];
 
