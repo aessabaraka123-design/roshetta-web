@@ -33,7 +33,7 @@ export default function Sidebar() {
     setMobileMenuOpen(false);
   }, [pathname, setMobileMenuOpen]);
 
-  const { t, language, setLanguage } = useTranslation();
+  const { t, language } = useTranslation();
 
   const navGroups = [
     {
@@ -231,14 +231,6 @@ export default function Sidebar() {
 
 
       <div className="p-4 border-t border-mint-line">
-        <button
-          type="button"
-          onClick={() => setLanguage(language === "en" ? "ar" : "en")}
-          className="w-full mb-3 flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-mint-line bg-mint-bg/50 hover:bg-mint-bg text-ink text-[13px] font-bold transition-all active:scale-98 shadow-sm"
-        >
-          <span>🌐</span>
-          <span>{language === "en" ? "العربية (Arabic)" : "English (الإنجليزية)"}</span>
-        </button>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-teal-pale text-teal w-10 h-10 rounded-full flex items-center justify-center font-bold text-[14px] shrink-0">
