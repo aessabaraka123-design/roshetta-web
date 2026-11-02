@@ -125,8 +125,53 @@ export default function SalesLog() {
     }
   }, [data?.sales, user?.pharmacy_id, queryBranch]);
 
+  const formatSaleId = (s: any, allSales: any[]) => {
+    if (!s || !s.id) return "";
+    if (/^[A-Z0-9]{5}-DP-\d{4}/.test(s.id) || /^[A-Z0-9]{5}-\d{4}/.test(s.id)) {
+      return s.id;
+    }
+    if (
+      s.status === "debt_payment" ||
+      s.paymentMethod === "debt_payment" ||
+      s.paymentMethod === "تسديد دين" ||
+      (typeof s.id === "string" && (s.id.startsWith("DP-") || s.id.startsWith("DP ")))
+    ) {
+      const appChar = "R";
+      const pharmChar = ((user?.pharmacy_id || "").replace(/[^A-Za-z0-9]/g, "")[0] || "P").toUpperCase();
+      const safeBranch = s.branchName || s.branch || user?.branch || "الفرع الرئيسي";
+      let branchHash = 0;
+      for (let i = 0; i < safeBranch.length; i++) {
+        branchHash = (branchHash << 5) - branchHash + safeBranch.charCodeAt(i);
+      }
+      const branchStr = Math.abs(branchHash).toString(36).substring(0, 3).toUpperCase().padStart(3, "X");
+      const prefix = `${appChar}${pharmChar}${branchStr}-DP-`;
+
+      const branchDps = allSales
+        .filter((item: any) => {
+          const itemBranch = item.branchName || item.branch || user?.branch || "الفرع الرئيسي";
+          return (
+            itemBranch === safeBranch &&
+            (item.status === "debt_payment" ||
+              item.paymentMethod === "debt_payment" ||
+              item.paymentMethod === "تسديد دين" ||
+              (typeof item.id === "string" && (item.id.startsWith("DP-") || item.id.startsWith("DP "))))
+          );
+        })
+        .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      const index = branchDps.findIndex((item: any) => item.id === s.id);
+      const seq = index >= 0 ? index + 1 : 1;
+      return `${prefix}${String(seq).padStart(4, "0")}`;
+    }
+    return s.id;
+  };
+
   const rawSales = (data?.sales && Array.isArray(data.sales)) ? data.sales : cachedSales;
-  const sales = rawSales.filter((s: any) => s.status !== "refund_proxy");
+  const nonProxySales = rawSales.filter((s: any) => s.status !== "refund_proxy");
+  const sales = nonProxySales.map((s: any) => ({
+    ...s,
+    displayId: formatSaleId(s, nonProxySales),
+  }));
 
   const { data: pharmacyData } = useSWR(
     user ? `${API_BASE_URL}/api/admin/pharmacies/${user.pharmacy_id}` : null,
@@ -313,7 +358,7 @@ export default function SalesLog() {
     .filter((s: any) => {
       if (!search.trim()) return true;
       const q = search.toLowerCase().trim();
-      const idMatch = s.id && s.id.toLowerCase().includes(q);
+      const idMatch = (s.id && s.id.toLowerCase().includes(q)) || (s.displayId && s.displayId.toLowerCase().includes(q));
       const custName = typeof s.customer === "object" ? s.customer?.name : typeof s.customer === "string" ? s.customer : "";
       const custMatch = custName && custName.toLowerCase().includes(q);
       const totalMatch = String(s.total || "").includes(q);
@@ -438,7 +483,7 @@ export default function SalesLog() {
                   <div className="flex items-center gap-1.5">
                     <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-mint-bg border border-mint-line rounded-lg text-primary font-mono font-bold text-[13px]">
                       <span className="text-primary/40 text-[11px]">#</span>
-                      <span dir="ltr">{sale.id}</span>
+                      <span dir="ltr">{sale.displayId || sale.id}</span>
                     </div>
                     {sale.status === "refunded" && (
                       <span className="text-[10px] bg-coral/10 text-coral border border-coral/20 px-1.5 py-0.5 rounded font-bold">
@@ -578,7 +623,7 @@ export default function SalesLog() {
                     <td className="py-4 px-5 text-start">
                       <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-mint-bg border border-mint-line rounded-xl text-primary font-mono font-bold text-[14px]">
                         <span className="text-primary/40 text-[12px]">#</span>
-                        <span dir="ltr">{sale.id}</span>
+                        <span dir="ltr">{sale.displayId || sale.id}</span>
                       </div>
                       {sale.status === "refunded" && (
                         <span
@@ -677,7 +722,7 @@ export default function SalesLog() {
                   {language === 'en' ? 'Invoice Details' : 'تفاصيل الفاتورة'}
                 </h3>
                 <div className="font-mono text-[14px] text-ink-soft font-bold mt-1" dir="ltr">
-                  {selectedInvoice.id && selectedInvoice.id.length > 18 ? `${selectedInvoice.id.substring(0, 16)}...` : selectedInvoice.id}
+                  {selectedInvoice.displayId || selectedInvoice.id}
                 </div>
               </div>
               <button
@@ -948,7 +993,7 @@ export default function SalesLog() {
                 <div className="flex justify-between items-center text-[12px]">
                   <span className="text-ink-soft font-bold">{language === 'en' ? "Invoice No:" : "رقم الفاتورة:"}</span>
                   <span className="text-ink font-bold font-mono text-[12px]" dir="ltr">
-                    {thermalInvoice.id}
+                    {thermalInvoice.displayId || thermalInvoice.id}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-[12px]">
@@ -1077,7 +1122,7 @@ export default function SalesLog() {
                 )}
               </div>
 
-              <LocalBarcode value={String(thermalInvoice?.id || "INV-000000")} />
+              <LocalBarcode value={String(thermalInvoice?.displayId || thermalInvoice?.id || "REC")} />
 
               <div className="mt-5 flex flex-col items-center justify-center gap-1 opacity-50 grayscale">
                 <RoshettaLogo className="w-4 h-4" />

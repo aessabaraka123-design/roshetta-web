@@ -92,7 +92,38 @@ export default function Customers() {
       const dataPayments = await resPayments.json();
 
       if (dataSales.success) setCustomerSales(dataSales.sales);
-      if (dataPayments.success) setCustomerPayments(dataPayments.payments);
+      if (dataPayments.success && Array.isArray(dataPayments.payments)) {
+        const appChar = "R";
+        const pharmChar = (
+          (user?.pharmacy_id || "").replace(/[^A-Za-z0-9]/g, "")[0] || "P"
+        ).toUpperCase();
+        const safeBranch = user?.branch || "الفرع الرئيسي";
+        let branchHash = 0;
+        for (let i = 0; i < safeBranch.length; i++) {
+          branchHash = (branchHash << 5) - branchHash + safeBranch.charCodeAt(i);
+        }
+        const branchStr = Math.abs(branchHash)
+          .toString(36)
+          .substring(0, 3)
+          .toUpperCase()
+          .padStart(3, "X");
+        const prefix = `${appChar}${pharmChar}${branchStr}-DP-`;
+
+        const sorted = [...dataPayments.payments].sort(
+          (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+
+        const mappedPayments = dataPayments.payments.map((p: any) => {
+          if (/^[A-Z0-9]{5}-DP-\d{4}/.test(p.id)) return p;
+          const idx = sorted.findIndex((item: any) => item.id === p.id);
+          return {
+            ...p,
+            displayId: `${prefix}${String(idx >= 0 ? idx + 1 : 1).padStart(4, "0")}`,
+          };
+        });
+
+        setCustomerPayments(mappedPayments);
+      }
     } catch (e) {
     }
   };
@@ -143,33 +174,96 @@ export default function Customers() {
 
     setIsLoading(true);
     try {
+      const appChar = "R";
+      const pharmChar = (
+        (user?.pharmacy_id || "").replace(/[^A-Za-z0-9]/g, "")[0] || "P"
+      ).toUpperCase();
+      const safeBranch =
+        user?.branch ||
+        selectedCustomer?.branchName ||
+        selectedCustomer?.branch ||
+        "الفرع الرئيسي";
+      let branchHash = 0;
+      for (let i = 0; i < safeBranch.length; i++) {
+        branchHash = (branchHash << 5) - branchHash + safeBranch.charCodeAt(i);
+      }
+      const branchStr = Math.abs(branchHash)
+        .toString(36)
+        .substring(0, 3)
+        .toUpperCase()
+        .padStart(3, "X");
+
+      const prefix = `${appChar}${pharmChar}${branchStr}-DP-`;
+
+      let nextSeq = 1;
+      try {
+        const checkRes = await fetch(
+          `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/sales?branchName=${encodeURIComponent(safeBranch)}&limit=150`,
+        );
+        const checkData = await checkRes.json();
+        if (checkData.success && Array.isArray(checkData.sales)) {
+          let countDps = 0;
+          checkData.sales.forEach((s: any) => {
+            const isDp =
+              s.status === "debt_payment" ||
+              s.paymentMethod === "debt_payment" ||
+              s.paymentMethod === "تسديد دين" ||
+              (typeof s.id === "string" &&
+                (s.id.startsWith("DP-") || s.id.startsWith("DP ")));
+            if (isDp) {
+              countDps++;
+            }
+            if (s.id && typeof s.id === "string" && s.id.startsWith(prefix)) {
+              const num = parseInt(s.id.substring(prefix.length), 10);
+              if (!isNaN(num) && num >= nextSeq) {
+                nextSeq = num + 1;
+              }
+            }
+          });
+          if (countDps >= nextSeq) {
+            nextSeq = countDps + 1;
+          }
+        }
+      } catch (err) {}
+
+      const customPaymentId = `${prefix}${String(nextSeq).padStart(4, "0")}`;
+
       const res = await fetch(
         `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/customers/${selectedCustomer.id}/debt`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            id: customPaymentId,
+            paymentId: customPaymentId,
             payment: Number(paymentAmount),
             paymentMethod: debtPaymentMethod,
             cashierName: user?.name || "مدير الصيدلية",
-            branchName: user?.branch || "الفرع الرئيسي",
+            branchName: safeBranch,
             customerName: selectedCustomer?.name,
           }),
         },
       );
       const result = await res.json();
       if (result.success) {
-        toast.success(language === 'en' ? 'Payment recorded successfully!' : 'تم تسجيل الدفعة بنجاح!');
+        toast.success(
+          language === "en"
+            ? `Payment recorded successfully! (${customPaymentId})`
+            : `تم تسجيل الدفعة بنجاح! (${customPaymentId})`,
+        );
         setShowPayModal(false);
         setPaymentAmount("");
         setDebtPaymentMethod("كاش");
         setSelectedCustomer(null);
         mutate();
       } else {
-        toast.error(result.error || (language === 'en' ? 'Registration failed' : 'فشل التسجيل'));
+        toast.error(
+          result.error ||
+            (language === "en" ? "Registration failed" : "فشل التسجيل"),
+        );
       }
     } catch (e) {
-      toast.error(language === 'en' ? 'Connection error' : 'خطأ في الاتصال');
+      toast.error(language === "en" ? "Connection error" : "خطأ في الاتصال");
     } finally {
       setIsLoading(false);
     }
@@ -644,7 +738,7 @@ export default function Customers() {
                         >
                           <div>
                             <div className="text-[14px] font-mono font-bold text-ink-soft mb-1">
-                              {payment.id}
+                              {payment.displayId || payment.id}
                             </div>
                             <div className="text-[15px] font-bold text-primary flex gap-2 items-center">
                               {new Date(payment.date).toLocaleString(language === 'en' ? 'en-US' : 'ar-EG')}
