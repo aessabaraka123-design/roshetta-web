@@ -31,18 +31,36 @@ export default function SalesLog() {
   }, [user, router]);
 
   const [search, setSearch] = useState("");
-  const [branches, setBranches] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const storedUser = localStorage.getItem("roshetta_user");
+        const u = storedUser ? JSON.parse(storedUser) : null;
+        if (u?.pharmacy_id) {
+          const cached = localStorage.getItem(`roshetta_branches_${u.pharmacy_id}`);
+          if (cached) return JSON.parse(cached);
+        }
+      } catch (_) {}
+    }
+    return [];
+  });
 
   useEffect(() => {
     async function fetchBranches() {
       if (!user?.pharmacy_id) return;
       try {
         const res = await fetch(
-          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`,
+          `${API_BASE_URL}/api/admin/pharmacies/${user.pharmacy_id}/branches`,
         );
         const data = await res.json();
         if (data.success && data.branches?.length > 0) {
           setBranches(data.branches);
+          try {
+            localStorage.setItem(
+              `roshetta_branches_${user.pharmacy_id}`,
+              JSON.stringify(data.branches),
+            );
+          } catch (_) {}
         }
       } catch (err) {}
     }
@@ -62,13 +80,53 @@ export default function SalesLog() {
       ? user?.branch || "all"
       : branchFilter;
 
-  const { data, mutate } = useSWR(
-    user
-      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales?branchName=${queryBranch}`
-      : null,
+  // Instant local cache restoration for 0ms initial load
+  const [cachedSales, setCachedSales] = useState<any[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const storedUser = localStorage.getItem("roshetta_user");
+        const u = storedUser ? JSON.parse(storedUser) : null;
+        if (u?.pharmacy_id) {
+          const stored = localStorage.getItem(`roshetta_sales_${u.pharmacy_id}`);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) return parsed;
+          }
+        }
+      } catch (_) {}
+    }
+    return [];
+  });
+
+  const salesEndpoint = user
+    ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales?branchName=${queryBranch}`
+    : null;
+
+  const { data, mutate, isLoading, isValidating } = useSWR(
+    salesEndpoint,
     fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 4000,
+    }
   );
-  const sales = (data?.sales || []).filter((s: any) => s.status !== "refund_proxy");
+
+  useEffect(() => {
+    if (data?.sales && Array.isArray(data.sales)) {
+      setCachedSales(data.sales);
+      if (user?.pharmacy_id && queryBranch === "all") {
+        try {
+          localStorage.setItem(
+            `roshetta_sales_${user.pharmacy_id}`,
+            JSON.stringify(data.sales),
+          );
+        } catch (_) {}
+      }
+    }
+  }, [data?.sales, user?.pharmacy_id, queryBranch]);
+
+  const rawSales = (data?.sales && Array.isArray(data.sales)) ? data.sales : cachedSales;
+  const sales = rawSales.filter((s: any) => s.status !== "refund_proxy");
 
   const { data: pharmacyData } = useSWR(
     user ? `${API_BASE_URL}/api/admin/pharmacies/${user.pharmacy_id}` : null,
@@ -247,6 +305,12 @@ export default function SalesLog() {
 
   const filteredSales = sales
     .filter((s: any) => {
+      if (queryBranch && queryBranch !== "all") {
+        return (s.branchName || s.branch) === queryBranch;
+      }
+      return true;
+    })
+    .filter((s: any) => {
       if (!search.trim()) return true;
       const q = search.toLowerCase().trim();
       const idMatch = s.id && s.id.toLowerCase().includes(q);
@@ -268,7 +332,15 @@ export default function SalesLog() {
       <AppBar />
       <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <div>
-          <h1 className="text-[20px] sm:text-[22px] font-bold text-primary">{language === 'en' ? 'Sales Log' : 'سجل المبيعات'}</h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-[20px] sm:text-[22px] font-bold text-primary">{language === 'en' ? 'Sales Log' : 'سجل المبيعات'}</h1>
+            {isValidating && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-primary/10 text-primary border border-primary/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
+                {language === 'en' ? 'Syncing...' : 'جاري المزامنة...'}
+              </span>
+            )}
+          </div>
           <p className="text-[13px] sm:text-[15px] text-ink-soft mt-0.5 sm:mt-1">
             {language === 'en' ? 'Track daily invoices and past revenue' : 'تتبع الفواتير اليومية والإيرادات السابقة'}
           </p>
@@ -332,7 +404,26 @@ export default function SalesLog() {
 
         {/* Mobile View: Cards Layout (Hidden on Desktop) */}
         <div className="block md:hidden divide-y divide-mint-line/50">
-          {filteredSales.length === 0 ? (
+          {(isLoading || (!data && cachedSales.length === 0)) && sales.length === 0 ? (
+            <div className="p-4 space-y-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="p-3.5 bg-white rounded-xl border border-mint-line/40 animate-pulse space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <div className="h-6 w-28 bg-gray-200 rounded-lg"></div>
+                    <div className="h-6 w-16 bg-gray-200 rounded"></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="h-5 w-20 bg-gray-100 rounded"></div>
+                    <div className="h-5 w-16 bg-gray-100 rounded"></div>
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                    <div className="h-4 w-28 bg-gray-100 rounded"></div>
+                    <div className="h-7 w-16 bg-gray-200 rounded-lg"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredSales.length === 0 ? (
             <div className="py-12 text-center text-ink-soft text-[14px]">
               {language === "en" ? "No invoices found" : "لا توجد فواتير مطابقة للبحث أو التاريخ المحدد"}
             </div>
@@ -448,7 +539,31 @@ export default function SalesLog() {
               </tr>
             </thead>
             <tbody>
-              {filteredSales.length === 0 ? (
+              {(isLoading || (!data && cachedSales.length === 0)) && sales.length === 0 ? (
+                [1, 2, 3, 4, 5].map((i) => (
+                  <tr key={i} className="border-b border-mint-line/30 animate-pulse">
+                    <td className="py-4 px-5">
+                      <div className="h-6 w-28 bg-gray-200 rounded-lg"></div>
+                    </td>
+                    <td className="py-4 px-5">
+                      <div className="h-4 w-24 bg-gray-200 rounded mb-1.5"></div>
+                      <div className="h-3 w-16 bg-gray-100 rounded"></div>
+                    </td>
+                    <td className="py-4 px-5">
+                      <div className="h-5 w-16 bg-gray-200 rounded"></div>
+                    </td>
+                    <td className="py-4 px-5">
+                      <div className="h-6 w-20 bg-gray-200 rounded-md"></div>
+                    </td>
+                    <td className="py-4 px-5">
+                      <div className="h-5 w-16 bg-gray-200 rounded"></div>
+                    </td>
+                    <td className="py-4 px-5 text-center">
+                      <div className="h-7 w-20 bg-gray-200 rounded-lg mx-auto"></div>
+                    </td>
+                  </tr>
+                ))
+              ) : filteredSales.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-ink-soft text-[15px]">
                     {language === "en" ? "No invoices found" : "لا توجد فواتير مطابقة للبحث أو التاريخ المحدد"}
