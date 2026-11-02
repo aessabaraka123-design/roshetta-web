@@ -561,8 +561,8 @@ export default function SalesLog() {
                 <h3 className="text-[20px] font-black text-primary">
                   {language === 'en' ? 'Invoice Details' : 'تفاصيل الفاتورة'}
                 </h3>
-                <div className="font-mono text-[14px] text-ink-soft font-bold mt-1">
-                  {selectedInvoice.id.substring(0, 13)}...
+                <div className="font-mono text-[14px] text-ink-soft font-bold mt-1" dir="ltr">
+                  {selectedInvoice.id && selectedInvoice.id.length > 18 ? `${selectedInvoice.id.substring(0, 16)}...` : selectedInvoice.id}
                 </div>
               </div>
               <button
