@@ -46,6 +46,7 @@ export default function BranchesAndStaff() {
     branch: "",
     role: "pharmacist",
     phone: "",
+    email: "",
     password: "123",
     controlledMedsAccess: false,
   });
@@ -97,6 +98,7 @@ export default function BranchesAndStaff() {
         branch: branches.length > 0 ? branches[0].name : "",
         role: "pharmacist",
         phone: "",
+        email: "",
         password: "",
         controlledMedsAccess: false,
       });
@@ -146,14 +148,16 @@ export default function BranchesAndStaff() {
         : `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff`;
 
       const payloadRole = normalizeRoleForBackend(newStaff.role);
+      const cleanEmail = (newStaff.email || "").trim().toLowerCase();
+      const cleanPhone = (newStaff.phone || "").trim();
 
       const res = await fetch(url, {
         method: editingStaffId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: newStaff.name,
-          email: (newStaff.phone || "").trim().toLowerCase(),
-          phone: (newStaff.phone || "").trim(),
+          email: cleanEmail || cleanPhone,
+          phone: cleanPhone,
           password: newStaff.password,
           role: payloadRole,
           branch: newStaff.branch,
@@ -172,6 +176,7 @@ export default function BranchesAndStaff() {
           branch: branches.length > 0 ? branches[0].name : "",
           role: "pharmacist",
           phone: "",
+          email: "",
           password: "",
           controlledMedsAccess: false,
         });
@@ -188,11 +193,28 @@ export default function BranchesAndStaff() {
 
   const handleEditStaff = (emp: any) => {
     setEditingStaffId(emp.id);
+
+    const rawEmail = (emp.email || "").trim();
+    const rawPhone = (emp.phone || "").trim();
+    const isEmail = rawEmail.includes("@");
+    const isPhone = (val: string) => /^[0-9+\-\s]{7,}$/.test(val);
+
+    let phone = rawPhone;
+    let email = rawEmail;
+
+    if (!phone && isPhone(rawEmail)) {
+      phone = rawEmail;
+      email = "";
+    } else if (!email && isEmail) {
+      email = rawEmail;
+    }
+
     setNewStaff({
       name: emp.name || "",
       branch: emp.branch || (branches.length > 0 ? branches[0].name : ""),
       role: resolveRoleId(emp.role),
-      phone: emp.phone || emp.email || "",
+      phone: phone,
+      email: email,
       password: emp.password || "",
       controlledMedsAccess: Boolean(emp.controlledMedsAccess),
     });
@@ -334,6 +356,13 @@ export default function BranchesAndStaff() {
                     </span> •{" "}
                     <span>{emp.branch}</span>
                   </div>
+                  {(emp.phone || (emp.email && emp.email.includes("@"))) && (
+                    <div className="text-[12px] text-ink-soft/80 flex items-center gap-2 mt-0.5">
+                      {emp.phone && <span dir="ltr">{emp.phone}</span>}
+                      {emp.phone && emp.email && emp.email.includes("@") && <span>•</span>}
+                      {emp.email && emp.email.includes("@") && <span>{emp.email}</span>}
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -518,6 +547,21 @@ export default function BranchesAndStaff() {
                       setNewStaff({ ...newStaff, phone: e.target.value })
                     }
                     placeholder="05X XXX XXXX"
+                    className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-start"
+                    dir="ltr"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[14px] font-bold text-ink mb-2">
+                    {language === 'en' ? 'Email Address' : "البريد الإلكتروني"}
+                  </label>
+                  <input
+                    type="email"
+                    value={newStaff.email}
+                    onChange={(e) =>
+                      setNewStaff({ ...newStaff, email: e.target.value })
+                    }
+                    placeholder={language === 'en' ? 'staff@example.com' : "example@domain.com"}
                     className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary text-start"
                     dir="ltr"
                   />
