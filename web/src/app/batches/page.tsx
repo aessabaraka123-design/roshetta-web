@@ -1,7 +1,7 @@
 "use client";
 
 import { API_BASE_URL } from "@/lib/config";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import AppBar from "@/components/AppBar";
 import useSWR from "swr";
 import { useStore } from "@/store";
@@ -10,41 +10,107 @@ import toast from "react-hot-toast";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-const getDaysUntilExpiry = (expiryDate: string | null | undefined) => {
-  if (!expiryDate) return null;
+export function parsePharmaceuticalExpiry(
+  dateStr: string | null | undefined,
+): Date | null {
+  if (!dateStr || typeof dateStr !== "string") return null;
+  const s = dateStr.trim();
+  if (!s) return null;
+
+  // Standard ISO or YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  // MM-YYYY or MM/YYYY (e.g. 11-2026 or 11/2026) -> end of month
+  const mmyyyy = s.match(/^(\d{1,2})[-/](\d{4})$/);
+  if (mmyyyy) {
+    const month = parseInt(mmyyyy[1], 10);
+    const year = parseInt(mmyyyy[2], 10);
+    if (month >= 1 && month <= 12) {
+      return new Date(year, month, 0, 23, 59, 59);
+    }
+  }
+
+  // YYYY-MM or YYYY/MM (e.g. 2026-11 or 2026/11) -> end of month
+  const yyyymm = s.match(/^(\d{4})[-/](\d{1,2})$/);
+  if (yyyymm) {
+    const year = parseInt(yyyymm[1], 10);
+    const month = parseInt(yyyymm[2], 10);
+    if (month >= 1 && month <= 12) {
+      return new Date(year, month, 0, 23, 59, 59);
+    }
+  }
+
+  // MM/YY or MM-YY (e.g. 12/26 or 11-26) -> end of month
+  const mmyy = s.match(/^(\d{1,2})[-/](\d{2})$/);
+  if (mmyy) {
+    const month = parseInt(mmyy[1], 10);
+    let year = parseInt(mmyy[2], 10);
+    year += year < 70 ? 2000 : 1900;
+    if (month >= 1 && month <= 12) {
+      return new Date(year, month, 0, 23, 59, 59);
+    }
+  }
+
+  // DD-MM-YYYY or DD/MM/YYYY (e.g. 15/11/2026)
+  const ddmmyyyy = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (ddmmyyyy) {
+    const day = parseInt(ddmmyyyy[1], 10);
+    const month = parseInt(ddmmyyyy[2], 10);
+    const year = parseInt(ddmmyyyy[3], 10);
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return new Date(year, month - 1, day, 23, 59, 59);
+    }
+  }
+
+  const fallback = new Date(s);
+  return isNaN(fallback.getTime()) ? null : fallback;
+}
+
+const getDaysUntilExpiry = (expiryDate: string | null | undefined): number | null => {
+  const expiry = parsePharmaceuticalExpiry(expiryDate);
+  if (!expiry) return null;
   const today = new Date();
-  const expiry = new Date(expiryDate);
+  today.setHours(0, 0, 0, 0);
   return Math.floor(
     (expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
   );
 };
 
 const getExpiryStyle = (days: number | null) => {
-  if (days === null || isNaN(days)) return { row: "bg-white", badge: "bg-gray-100 text-gray-500", labelAr: "غير محدد", labelEn: "Not Set" };
-  if (days !== null && days !== null && days < 0)
+  if (days === null || isNaN(days))
+    return {
+      row: "bg-white",
+      badge: "bg-gray-100 text-gray-500",
+      labelAr: "غير محدد",
+      labelEn: "Not Set",
+    };
+  if (days < 0)
     return {
       row: "bg-red-50",
-      badge: "bg-red-200 text-red-800",
+      badge: "bg-red-200 text-red-800 font-bold",
       labelAr: "منتهي الصلاحية",
       labelEn: "Expired",
     };
   if (days <= 30)
     return {
       row: "bg-coral-pale/20",
-      badge: "bg-coral-pale text-coral",
-      labelAr: `${days} يوم`,
-      labelEn: `${days} days`,
+      badge: "bg-coral-pale text-coral font-bold",
+      labelAr: days === 0 ? "ينتهي اليوم" : `${days} يوم`,
+      labelEn: days === 0 ? "Expires today" : `${days} days`,
     };
   if (days <= 60)
     return {
       row: "bg-amber-pale/20",
-      badge: "bg-amber-pale text-[#B9791C]",
+      badge: "bg-amber-pale text-[#B9791C] font-bold",
       labelAr: `${days} يوم`,
       labelEn: `${days} days`,
     };
   return {
     row: "bg-white",
-    badge: "bg-teal-pale text-teal",
+    badge: "bg-teal-pale text-teal font-bold",
     labelAr: `${days} يوم`,
     labelEn: `${days} days`,
   };
@@ -80,48 +146,114 @@ export default function BatchesPage() {
   const [showInvDropdown, setShowInvDropdown] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { data: batchData, mutate } = useSWR(
+  const { data: batchData, mutate: mutateBatches } = useSWR(
     user
       ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/batches`
       : null,
     fetcher,
   );
-  const { data: inventoryData } = useSWR(
+  const { data: inventoryData, mutate: mutateInventory } = useSWR(
     user
       ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/inventory`
       : null,
     fetcher,
   );
 
-  const batches = batchData?.batches || [];
-  const inventory = inventoryData?.drugs || [];
+  const rawBatches = Array.isArray(batchData?.batches) ? batchData.batches : [];
+  const inventoryList: any[] = useMemo(() => {
+    if (Array.isArray(inventoryData?.inventory)) return inventoryData.inventory;
+    if (Array.isArray(inventoryData?.drugs)) return inventoryData.drugs;
+    return [];
+  }, [inventoryData]);
 
-  const filtered = batches.filter((b: any) => {
-    const days = getDaysUntilExpiry(b.expiry_date);
-    const matchSearch =
-      !search ||
-      b.drug_name?.includes(search) ||
-      b.batch_number?.includes(search);
-    const matchFilter =
-      filterExpiring === "all"
-        ? true
-        : filterExpiring === "expired"
-          ? days !== null && days < 0
-          : days !== null && days !== null && days >= 0 && days <= 60;
-    return matchSearch && matchFilter;
-  });
+  // Aggregate explicit batches with pharmacy inventory items having expiry/stock
+  const batches = useMemo(() => {
+    const list: any[] = [...rawBatches];
+    const explicitDrugIds = new Set(
+      rawBatches.map((b: any) => String(b.drug_id || "")),
+    );
 
-  const expiredCount = batches.filter(
-    (b: any) => getDaysUntilExpiry(b.expiry_date) < 0,
-  ).length;
-  const expiringCount = batches.filter((b: any) => {
-    const d = getDaysUntilExpiry(b.expiry_date);
-    return d >= 0 && d <= 60;
-  }).length;
+    inventoryList.forEach((inv: any) => {
+      if (!inv || !inv.id) return;
+      // If this drug already has separate batch records in batches table, don't duplicate
+      if (explicitDrugIds.has(String(inv.id))) return;
+
+      // Include if it has an expiry date or active physical stock
+      const hasExpiry = Boolean(inv.expiry && String(inv.expiry).trim());
+      const hasStock = Number(inv.qty) > 0;
+      const hasBatchNo = Boolean(inv.batch_number && String(inv.batch_number).trim());
+
+      if (hasExpiry || hasStock || hasBatchNo) {
+        list.push({
+          id: `inv-${inv.id}`,
+          pharmacy_id: inv.pharmacy_id,
+          drug_id: inv.id,
+          drug_name: inv.name || "—",
+          batch_number: inv.batch_number || inv.barcode || "—",
+          expiry_date: inv.expiry || "",
+          qty: inv.qty ?? 0,
+          purchase_price: Number(inv.cost || inv.price_buy || 0),
+          isInventory: true,
+          barcode: inv.barcode || "",
+        });
+      }
+    });
+
+    // Sort: earliest expiring first, then items with no expiry
+    list.sort((a, b) => {
+      const daysA = getDaysUntilExpiry(a.expiry_date);
+      const daysB = getDaysUntilExpiry(b.expiry_date);
+      if (daysA === null && daysB === null) return 0;
+      if (daysA === null) return 1;
+      if (daysB === null) return -1;
+      return daysA - daysB;
+    });
+
+    return list;
+  }, [rawBatches, inventoryList]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return batches.filter((b: any) => {
+      const days = getDaysUntilExpiry(b.expiry_date);
+      const matchSearch =
+        !q ||
+        b.drug_name?.toLowerCase().includes(q) ||
+        b.batch_number?.toLowerCase().includes(q) ||
+        b.barcode?.toLowerCase().includes(q);
+
+      const matchFilter =
+        filterExpiring === "all"
+          ? true
+          : filterExpiring === "expired"
+            ? days !== null && days < 0
+            : days !== null && days >= 0 && days <= 60;
+
+      return matchSearch && matchFilter;
+    });
+  }, [batches, search, filterExpiring]);
+
+  const expiredCount = useMemo(() => {
+    return batches.filter((b: any) => {
+      const days = getDaysUntilExpiry(b.expiry_date);
+      return days !== null && days < 0;
+    }).length;
+  }, [batches]);
+
+  const expiringCount = useMemo(() => {
+    return batches.filter((b: any) => {
+      const d = getDaysUntilExpiry(b.expiry_date);
+      return d !== null && d >= 0 && d <= 60;
+    }).length;
+  }, [batches]);
 
   const handleAddBatch = async () => {
     if (!newBatch.drug_id || !newBatch.expiry_date || !newBatch.qty) {
-      toast.error(language === "en" ? "Please enter mandatory batch data" : "يرجى إدخال بيانات الدفعة الإلزامية");
+      toast.error(
+        language === "en"
+          ? "Please enter mandatory batch data"
+          : "يرجى إدخال بيانات الدفعة الإلزامية",
+      );
       return;
     }
     setIsLoading(true);
@@ -133,14 +265,18 @@ export default function BatchesPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ...newBatch,
-            qty: parseInt(newBatch.qty),
+            qty: parseInt(newBatch.qty, 10),
             purchase_price: parseFloat(newBatch.purchase_price) || 0,
           }),
         },
       );
       const result = await res.json();
       if (result.success) {
-        toast.success(language === "en" ? "Batch added and inventory updated!" : "تمت إضافة الدفعة وتحديث المخزون!");
+        toast.success(
+          language === "en"
+            ? "Batch added and inventory updated!"
+            : "تمت إضافة الدفعة وتحديث المخزون!",
+        );
         setShowAddModal(false);
         setNewBatch({
           drug_id: "",
@@ -151,8 +287,13 @@ export default function BatchesPage() {
           purchase_price: "",
         });
         setInventorySearch("");
-        mutate();
-      } else toast.error(result.error || (language === "en" ? "Add failed" : "فشل الإضافة"));
+        mutateBatches();
+        mutateInventory();
+      } else {
+        toast.error(
+          result.error || (language === "en" ? "Add failed" : "فشل الإضافة"),
+        );
+      }
     } catch {
       toast.error(language === "en" ? "Connection error" : "خطأ في الاتصال");
     } finally {
@@ -160,25 +301,64 @@ export default function BatchesPage() {
     }
   };
 
-  const [batchToDelete, setBatchToDelete] = useState<string | null>(null);
+  const [batchToDelete, setBatchToDelete] = useState<any | null>(null);
 
   const handleDelete = async () => {
     if (!batchToDelete) return;
-    const res = await fetch(
-      `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/batches/${batchToDelete}`,
-      { method: "DELETE" },
-    );
-    const result = await res.json();
-    if (result.success) {
-      toast.success(language === "en" ? "Deleted" : "تم الحذف");
-      mutate();
-    } else toast.error(result.error);
-    setBatchToDelete(null);
+    setIsLoading(true);
+    try {
+      if (batchToDelete.isInventory) {
+        const res = await fetch(
+          `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/inventory/${batchToDelete.drug_id}`,
+          { method: "DELETE" },
+        );
+        const result = await res.json();
+        if (result.success) {
+          toast.success(
+            language === "en"
+              ? "Item removed from inventory"
+              : "تم حذف الصنف من المخزون",
+          );
+          mutateInventory();
+          mutateBatches();
+        } else {
+          toast.error(
+            result.error || (language === "en" ? "Delete failed" : "فشل الحذف"),
+          );
+        }
+      } else {
+        const res = await fetch(
+          `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/batches/${batchToDelete.id}`,
+          { method: "DELETE" },
+        );
+        const result = await res.json();
+        if (result.success) {
+          toast.success(language === "en" ? "Deleted" : "تم الحذف");
+          mutateBatches();
+          mutateInventory();
+        } else {
+          toast.error(
+            result.error || (language === "en" ? "Delete failed" : "فشل الحذف"),
+          );
+        }
+      }
+    } catch {
+      toast.error(language === "en" ? "Connection error" : "خطأ في الاتصال");
+    } finally {
+      setIsLoading(false);
+      setBatchToDelete(null);
+    }
   };
 
-  const filteredInventory = inventory
-    .filter((d: any) => d.name?.includes(inventorySearch))
-    .slice(0, 8);
+  const filteredInventory = useMemo(() => {
+    const q = inventorySearch.trim().toLowerCase();
+    if (!q) return inventoryList.slice(0, 10);
+    return inventoryList
+      .filter((d: any) =>
+        d.name?.toLowerCase().includes(q) || d.barcode?.includes(q),
+      )
+      .slice(0, 10);
+  }, [inventoryList, inventorySearch]);
 
   return (
     <>
@@ -275,6 +455,15 @@ export default function BatchesPage() {
                     <div className="flex justify-between items-start gap-2 mb-2">
                       <div className="font-bold text-[14px] text-ink flex items-center gap-1.5 flex-wrap">
                         <span>{batch.drug_name}</span>
+                        {batch.isInventory ? (
+                          <span className="text-[10px] bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded font-bold border border-sky-200">
+                            {language === "en" ? "Inventory" : "مخزون أساسي"}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-bold border border-purple-200">
+                            {language === "en" ? "Batch" : "دفعة واردة"}
+                          </span>
+                        )}
                         {batch.drug_name?.includes("(القديم)") && (
                           <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold border border-amber-300">
                             {language === "en" ? "Old" : "القديم"}
@@ -312,7 +501,7 @@ export default function BatchesPage() {
                         <span className="font-mono font-bold text-ink">{batch.expiry_date || "—"}</span>
                       </div>
                       <button
-                        onClick={() => setBatchToDelete(batch.id)}
+                        onClick={() => setBatchToDelete(batch)}
                         className="text-coral hover:text-red-600 p-1 rounded-lg hover:bg-coral/10 transition-colors flex items-center gap-1 text-[12px] font-bold"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -361,6 +550,15 @@ export default function BatchesPage() {
                         <td className="px-4 py-3 font-bold text-[14px] text-ink">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span>{batch.drug_name}</span>
+                            {batch.isInventory ? (
+                              <span className="text-[10px] bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded font-bold border border-sky-200">
+                                {language === "en" ? "Inventory" : "مخزون أساسي"}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-bold border border-purple-200">
+                                {language === "en" ? "Batch" : "دفعة واردة"}
+                              </span>
+                            )}
                             {batch.drug_name?.includes("(القديم)") && (
                               <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold border border-amber-300">
                                 {language === "en" ? "Old" : "القديم"}
@@ -394,7 +592,7 @@ export default function BatchesPage() {
                         </td>
                         <td className="px-4 py-3">
                           <button
-                            onClick={() => setBatchToDelete(batch.id)}
+                            onClick={() => setBatchToDelete(batch)}
                             className="text-coral hover:text-red-600 p-1 transition-colors"
                           >
                             <svg
@@ -470,7 +668,7 @@ export default function BatchesPage() {
                   </div>
                 )}
                 {showInvDropdown && inventorySearch && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-mint-line rounded-xl shadow-lg z-50 max-h-40 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-mint-line rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
                     {filteredInventory.map((d: any) => (
                       <div
                         key={d.id}
@@ -479,13 +677,36 @@ export default function BatchesPage() {
                             ...p,
                             drug_id: d.id,
                             drug_name: d.name,
+                            purchase_price:
+                              d.cost !== undefined && d.cost !== null
+                                ? String(d.cost)
+                                : p.purchase_price,
+                            expiry_date: d.expiry || p.expiry_date,
                           }));
                           setInventorySearch(d.name);
                           setShowInvDropdown(false);
                         }}
-                        className="p-3 hover:bg-bg cursor-pointer border-b border-mint-line last:border-0 text-[14px] font-semibold"
+                        className="p-3 hover:bg-bg cursor-pointer border-b border-mint-line last:border-0 text-[14px] flex justify-between items-center"
                       >
-                        {d.name}
+                        <div>
+                          <div className="font-bold text-ink">{d.name}</div>
+                          {d.barcode && (
+                            <div className="text-[11px] font-mono text-ink-soft">
+                              {d.barcode}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-end text-[12px] text-ink-soft">
+                          <div>
+                            {language === "en" ? "Stock: " : "المخزون: "}
+                            <span className="font-bold text-primary">
+                              {d.qty ?? 0}
+                            </span>
+                          </div>
+                          {d.cost !== undefined && (
+                            <div>₪{Number(d.cost).toFixed(2)}</div>
+                          )}
+                        </div>
                       </div>
                     ))}
                     {filteredInventory.length === 0 && (
@@ -607,18 +828,34 @@ export default function BatchesPage() {
                 />
               </svg>
             </div>
-            <h3 className="text-[20px] font-black text-ink mb-2">
+            <h3 className="text-[20px] font-black text-ink mb-1">
               {language === "en" ? "Confirm Deletion" : "تأكيد الحذف"}
             </h3>
-            <p className="text-[14px] text-ink-soft font-bold mb-6">
-              {language === "en" ? "Are you sure? This batch will be deleted and its quantity deducted from inventory immediately." : "هل أنت متأكد؟ سيتم حذف هذه الدفعة وخصم كميتها من المخزون فوراً."}
+            <p className="text-[15px] font-bold text-primary mb-2">
+              {batchToDelete.drug_name}
+            </p>
+            <p className="text-[13px] text-ink-soft font-medium mb-6">
+              {batchToDelete.isInventory
+                ? language === "en"
+                  ? "Are you sure you want to delete this medicine and its batch from inventory?"
+                  : "هل أنت متأكد من حذف هذا الصنف ودفعة صلاحيته من المخزون نهائياً؟"
+                : language === "en"
+                  ? "Are you sure? This batch will be deleted and its quantity deducted from inventory immediately."
+                  : "هل أنت متأكد؟ سيتم حذف هذه الدفعة وخصم كميتها من المخزون فوراً."}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={handleDelete}
-                className="flex-1 bg-coral text-white font-bold py-3 rounded-xl shadow-md shadow-coral/20 hover:opacity-90 transition-all"
+                disabled={isLoading}
+                className="flex-1 bg-coral text-white font-bold py-3 rounded-xl shadow-md shadow-coral/20 hover:opacity-90 transition-all disabled:opacity-50"
               >
-                {language === "en" ? "Yes, delete" : "نعم، احذف"}
+                {isLoading
+                  ? language === "en"
+                    ? "Deleting..."
+                    : "جاري الحذف..."
+                  : language === "en"
+                    ? "Yes, delete"
+                    : "نعم، احذف"}
               </button>
               <button
                 onClick={() => setBatchToDelete(null)}
