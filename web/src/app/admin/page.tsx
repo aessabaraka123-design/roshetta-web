@@ -37,6 +37,62 @@ export default function PharmacyManager() {
   const [search, setSearch] = useState("");
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
+
+  const handleOpenAddStaff = () => {
+    setEditingStaff({
+      name: "",
+      role: "pharmacist",
+      branch: branches[0]?.name || "",
+      salary: "",
+      phone: "",
+      email: "",
+      password: "",
+    });
+    setShowAddStaffModal(true);
+  };
+
+  const handleOpenEditStaff = (st: any) => {
+    const resolveRoleId = (r?: string) => {
+      const lower = (r || "").toLowerCase().trim();
+      if (
+        lower === "branchmanager" ||
+        lower === "branch_manager" ||
+        r === "مدير فرع" ||
+        lower === "branch manager"
+      ) {
+        return "branchManager";
+      }
+      if (lower === "cashier" || r === "كاشير") return "cashier";
+      return "pharmacist";
+    };
+
+    const rawEmail = (st.email || "").trim();
+    const rawPhone = (st.phone || "").trim();
+    const isEmail = rawEmail.includes("@");
+    const isPhone = (val: string) => /^[0-9+\-\s]{7,}$/.test(val);
+
+    let phone = rawPhone;
+    let email = rawEmail;
+
+    if (!phone && isPhone(rawEmail)) {
+      phone = rawEmail;
+      email = "";
+    } else if (!email && isEmail) {
+      email = rawEmail;
+    }
+
+    setEditingStaff({
+      ...st,
+      name: st.name || "",
+      role: resolveRoleId(st.role),
+      branch: st.branch || (branches[0]?.name || ""),
+      salary: st.salary !== undefined && st.salary !== null && st.salary !== 0 ? st.salary : (st.salary === 0 ? "0" : ""),
+      phone: phone,
+      email: email,
+      password: "",
+    });
+    setShowAddStaffModal(true);
+  };
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [expenseData, setExpenseData] = useState({
     title: "",
@@ -225,7 +281,7 @@ export default function PharmacyManager() {
             </button>
           ) : (
             <button
-              onClick={() => setShowAddStaffModal(true)}
+              onClick={handleOpenAddStaff}
               className="bg-primary text-white px-5 py-2.5 rounded-xl font-bold text-[14px] shadow-sm hover:bg-teal transition-all"
             >
               {language === "en" ? "+ New Staff" : "+ موظف جديد"}
@@ -620,10 +676,7 @@ export default function PharmacyManager() {
                         <td className="py-4 px-5">
                           <div className="flex gap-3">
                             <button
-                              onClick={async () => {
-                                setEditingStaff(st);
-                                setShowAddStaffModal(true);
-                              }}
+                              onClick={() => handleOpenEditStaff(st)}
                               className="text-[13px] font-bold text-primary hover:underline hover:text-teal transition-colors"
                             >
                               {language === "en" ? "Edit" : "تعديل"}
@@ -970,10 +1023,7 @@ export default function PharmacyManager() {
                   </td>
                   <td className="py-4 px-5">
                     <button
-                      onClick={async () => {
-                        setEditingStaff(st);
-                        setShowAddStaffModal(true);
-                      }}
+                      onClick={() => handleOpenEditStaff(st)}
                       className="text-[13px] font-bold text-primary hover:underline hover:text-teal transition-colors"
                     >
                       {language === "en" ? "Edit Credentials" : "تعديل البيانات"}
@@ -1182,7 +1232,7 @@ export default function PharmacyManager() {
                   </label>
                   <input
                     type="text"
-                    value={editingStaff?.salary || ""}
+                    value={editingStaff?.salary !== undefined && editingStaff?.salary !== null ? editingStaff.salary : ""}
                     onFocus={(e) => {
                       if (e.target.value === "0") e.target.select();
                     }}
@@ -1202,7 +1252,7 @@ export default function PharmacyManager() {
                   </label>
                   <input
                     type="text"
-                    value={editingStaff?.phone || ""}
+                    value={editingStaff?.phone ?? ""}
                     onChange={(e) =>
                       setEditingStaff({
                         ...editingStaff,
@@ -1317,16 +1367,26 @@ export default function PharmacyManager() {
                     return;
                   }
 
-                  const staffPayload = {
+                  const staffPhone = (editingStaff?.phone || "").trim();
+                  const staffSalary =
+                    editingStaff?.salary === "" || editingStaff?.salary === undefined || editingStaff?.salary === null
+                      ? 0
+                      : parseFloat(editingStaff.salary) || 0;
+
+                  const staffPayload: any = {
                     ...editingStaff,
                     name: staffName,
-                    email: staffEmail,
-                    username: staffEmail,
-                    phone: (editingStaff?.phone || "").trim(),
-                    salary: editingStaff?.salary || 0,
+                    email: staffEmail || staffPhone,
+                    username: staffEmail || staffPhone,
+                    phone: staffPhone,
+                    salary: staffSalary,
                     role: normalizeRoleForBackend(editingStaff?.role || "pharmacist"),
                     branch: editingStaff?.branch || branches[0]?.name || (language === "en" ? "Main Branch" : "الفرع الرئيسي"),
                   };
+
+                  if (editingStaff?.id && (!editingStaff?.password || !editingStaff.password.trim())) {
+                    delete staffPayload.password;
+                  }
 
                   if (editingStaff?.id) {
                     try {

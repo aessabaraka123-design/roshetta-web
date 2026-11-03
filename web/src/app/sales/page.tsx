@@ -491,10 +491,15 @@ export default function SalesLog() {
                       </span>
                     )}
                   </div>
-                  <div className="font-mono font-black text-[16px] text-teal">
+                  <div className="font-mono font-black text-[16px] text-teal text-end">
                     <span className={sale.status === "refunded" ? "text-ink-soft line-through" : ""}>
                       {Number(sale.total || 0).toLocaleString()} ₪
                     </span>
+                    {Number(sale.discount || 0) > 0 && sale.status !== "refunded" && (
+                      <span className="block text-[10px] font-sans font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded mt-0.5">
+                        {language === 'en' ? `-${Number(sale.discount).toFixed(2)} ₪ discount` : `خصم -${Number(sale.discount).toFixed(2)} ₪`}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -685,6 +690,11 @@ export default function SalesLog() {
                       <span className={sale.status === "refunded" ? "text-ink-soft line-through" : "text-teal font-black"}>
                         {Number(sale.total || 0).toLocaleString()} ₪
                       </span>
+                      {Number(sale.discount || 0) > 0 && sale.status !== "refunded" && (
+                        <div className="text-[11px] font-sans font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded inline-block mt-0.5">
+                          {language === 'en' ? `-${Number(sale.discount).toFixed(2)} ₪ discount` : `خصم -${Number(sale.discount).toFixed(2)} ₪`}
+                        </div>
+                      )}
                     </td>
                     <td className="py-4 px-5">
                       <div className="flex justify-center gap-2">
