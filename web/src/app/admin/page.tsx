@@ -8,6 +8,7 @@ import SearchBar from "@/components/SearchBar";
 import { useStore } from "@/store";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
+import { DEFAULT_STAFF_ROLES, getRoleDisplayName, normalizeRoleForBackend } from "@/data/roles";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -593,7 +594,7 @@ export default function PharmacyManager() {
                           {st.name}
                         </td>
                         <td className="py-4 px-5 text-[14px] text-ink-soft">
-                          {st.role}
+                          {getRoleDisplayName(st.role, language)}
                         </td>
                         <td className="py-4 px-5 text-[14px]">{st.branch || (language === "en" ? "Main Branch" : "الفرع الرئيسي")}</td>
                         <td className="py-4 px-5 text-[14px] font-bold text-coral font-mono">
@@ -1142,16 +1143,17 @@ export default function PharmacyManager() {
                   {language === "en" ? "Job Title" : "المسمى الوظيفي"}
                 </label>
                 <select
-                  value={editingStaff?.role || (language === "en" ? "Pharmacist / Cashier" : "صيدلي / كاشير")}
+                  value={editingStaff?.role || "pharmacist"}
                   onChange={(e) =>
                     setEditingStaff({ ...editingStaff, role: e.target.value })
                   }
-                  className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary bg-white"
+                  className="w-full border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary bg-white font-medium"
                 >
-                  <option>{language === "en" ? "Pharmacist / Cashier" : "صيدلي / كاشير"}</option>
-                  <option>{language === "en" ? "Branch Manager" : "مدير فرع"}</option>
-                  <option>{language === "en" ? "Pharmacy Assistant" : "مساعد صيدلي"}</option>
-                  <option>{language === "en" ? "Warehouse" : "مستودع"}</option>
+                  {DEFAULT_STAFF_ROLES.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {language === "en" ? r.name_en : r.name_ar}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -1322,7 +1324,7 @@ export default function PharmacyManager() {
                     username: staffEmail,
                     phone: (editingStaff?.phone || "").trim(),
                     salary: editingStaff?.salary || 0,
-                    role: editingStaff?.role || (language === "en" ? "Pharmacist / Cashier" : "صيدلي / كاشير"),
+                    role: normalizeRoleForBackend(editingStaff?.role || "pharmacist"),
                     branch: editingStaff?.branch || branches[0]?.name || (language === "en" ? "Main Branch" : "الفرع الرئيسي"),
                   };
 

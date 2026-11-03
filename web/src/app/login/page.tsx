@@ -17,6 +17,67 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [showDevModal, setShowDevModal] = useState(false);
+  const [devLinks, setDevLinks] = useState({ whatsapp: "", instagram: "", website: "" });
+  const [devLinksLoaded, setDevLinksLoaded] = useState(false);
+
+  const loadDevLinks = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/settings`);
+      const d = await res.json();
+      if (d && d.success && d.settings) {
+        const w = d.settings.devWhatsapp;
+        const i = d.settings.devInstagram;
+        const web = d.settings.devWebsite;
+
+        const isValid = (type: string, val: any) => {
+          if (!val || typeof val !== "string") return false;
+          const clean = val.trim();
+          if (!clean) return false;
+          if (type === "whatsapp") {
+            const digits = clean.replace(/^https?:\/\/(wa\.me|api\.whatsapp\.com\/send\?phone=)\/?/i, "").replace(/[^0-9]/g, "");
+            return digits.length >= 7;
+          }
+          if (type === "instagram") {
+            const withoutBase = clean.replace(/^https?:\/\/(www\.)?instagram\.com\/?/i, "").replace(/^@/, "").trim();
+            return withoutBase.length > 0;
+          }
+          if (type === "website") {
+            const withoutBase = clean.replace(/^https?:\/\//i, "").replace(/\/+$/, "").trim();
+            return withoutBase.length >= 3 && withoutBase.includes(".");
+          }
+          return clean.length > 0;
+        };
+
+        const formatUrl = (type: string, val: any) => {
+          if (!val || typeof val !== "string") return "";
+          const clean = val.trim();
+          if (clean.startsWith("http://") || clean.startsWith("https://")) return clean;
+          if (type === "whatsapp") {
+            const digits = clean.replace(/[^0-9]/g, "");
+            return digits ? `https://wa.me/${digits}` : "";
+          }
+          if (type === "instagram") {
+            const handle = clean.replace(/^@/, "");
+            return handle ? `https://instagram.com/${handle}` : "";
+          }
+          if (type === "website") {
+            return `https://${clean}`;
+          }
+          return clean;
+        };
+
+        setDevLinks({
+          whatsapp: isValid("whatsapp", w) ? formatUrl("whatsapp", w) : "",
+          instagram: isValid("instagram", i) ? formatUrl("instagram", i) : "",
+          website: isValid("website", web) ? formatUrl("website", web) : ""
+        });
+      }
+      setDevLinksLoaded(true);
+    } catch (_) {
+      setDevLinksLoaded(true);
+    }
+  };
 
   useEffect(() => {
     const savedEmail = localStorage.getItem("roshetta_remembered_email");
@@ -435,7 +496,100 @@ export default function Login() {
           {language === "en" ? "By continuing you agree to " : "بالمتابعة أنت توافق على "} <Link href="#">{language === "en" ? "Terms of Use" : "شروط الاستخدام"}</Link> {language === "en" ? "and" : "و"}
           <Link href="#">{language === "en" ? "Privacy Policy" : "سياسة الخصوصية"}</Link>
         </div>
-        <div className="credit">{language === "en" ? "Developed by Eng. Aessa Baraka" : "تم التطوير بواسطة م. عيسى بركة"}</div>
+        <button
+          type="button"
+          onClick={() => {
+            loadDevLinks();
+            setShowDevModal(true);
+          }}
+          className="credit hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-0 inline-flex items-center justify-center gap-1.5"
+        >
+          <span>{language === "en" ? "Developed by Eng. Aessa Baraka" : "تم التطوير بواسطة م. عيسى بركة"}</span>
+          <span className="text-[11px] opacity-70">⚡</span>
+        </button>
+
+        {showDevModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in"
+            onClick={() => setShowDevModal(false)}
+          >
+            <div
+              className="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl border border-slate-100 flex flex-col gap-4 text-start"
+              onClick={(e) => e.stopPropagation()}
+              dir={language === "en" ? "ltr" : "rtl"}
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                    ⚡
+                  </span>
+                  <h3 className="font-bold text-[16px] text-slate-900">
+                    {language === "en" ? "Contact Developer" : "تواصل مع المطور"}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDevModal(false)}
+                  className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-500 leading-relaxed">
+                {language === "en"
+                  ? "This platform was crafted with passion and professionalism. Feel free to reach out directly:"
+                  : "تمت برمجة وتطوير هذا النظام بشغف واحترافية. يمكنك التواصل مباشرة لأي استفسار أو دعم فني:"}
+              </p>
+
+              <div className="flex flex-col gap-2.5 pt-1">
+                {Boolean(devLinks.whatsapp) && (
+                  <a
+                    href={devLinks.whatsapp}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-emerald-500 hover:bg-emerald-600 transition-all shadow-sm active:scale-95"
+                  >
+                    <span>💬</span>
+                    <span>{language === "en" ? "WhatsApp Chat" : "محادثة واتساب (WhatsApp)"}</span>
+                  </a>
+                )}
+
+                {Boolean(devLinks.instagram) && (
+                  <a
+                    href={devLinks.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90 transition-all shadow-sm active:scale-95"
+                  >
+                    <span>📸</span>
+                    <span>{language === "en" ? "Instagram Profile" : "إنستغرام (Instagram)"}</span>
+                  </a>
+                )}
+
+                {Boolean(devLinks.website) && (
+                  <a
+                    href={devLinks.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-slate-800 hover:bg-slate-900 transition-all shadow-sm active:scale-95"
+                  >
+                    <span>🌐</span>
+                    <span>{language === "en" ? "Official Website" : "الموقع الرسمي للمنصة"}</span>
+                  </a>
+                )}
+
+                {devLinksLoaded && !devLinks.whatsapp && !devLinks.instagram && !devLinks.website && (
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-500">
+                    {language === "en"
+                      ? "No developer contact links provided yet."
+                      : "لا توجد وسائل تواصل محددة حالياً من قبل الإدارة."}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

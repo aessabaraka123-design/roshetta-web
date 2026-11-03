@@ -1,14 +1,19 @@
 "use client";
 
 import { API_BASE_URL } from "@/lib/config";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import AppBar from "@/components/AppBar";
 import toast from "react-hot-toast";
 
 import useSWR from "swr";
 import { useStore } from "@/store";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import {
+  DEFAULT_STAFF_ROLES,
+  getRoleDisplayName,
+  normalizeRoleForBackend,
+  StaffRoleItem,
+} from "@/data/roles";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -40,12 +45,18 @@ export default function BranchesAndStaff() {
   const [newStaff, setNewStaff] = useState({
     name: "",
     branch: "",
-    role: "صيدلي أول",
+    role: "pharmacist",
     phone: "",
     password: "123",
+    controlledMedsAccess: false,
   });
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Custom roles management from pharmacy data
+  const [customRoles, setCustomRoles] = useState<StaffRoleItem[]>([]);
+  const [showCustomRoleInput, setShowCustomRoleInput] = useState(false);
+  const [newCustomRoleName, setNewCustomRoleName] = useState("");
 
   const { data: branchesData, mutate: mutateBranches } = useSWR(
     user
@@ -63,20 +74,136 @@ export default function BranchesAndStaff() {
   );
   const staff = staffData?.staff || [];
 
+  // Load pharmacy-custom roles from local persistence
+  useEffect(() => {
+    if (typeof window !== "undefined" && user?.pharmacy_id) {
+      try {
+        const saved = localStorage.getItem(`roshetta_roles_${user.pharmacy_id}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            setCustomRoles(parsed);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load custom roles:", e);
+      }
+    }
+  }, [user?.pharmacy_id]);
+
+  // Dynamically assemble available roles from:
+  // 1. System default roles dataset
+  // 2. Roles returned from server API (staffData.roles)
+  // 3. Custom roles created by the pharmacy
+  // 4. Any existing roles present in staff database records
+  const availableRoles = useMemo<StaffRoleItem[]>(() => {
+    const list: StaffRoleItem[] = [...DEFAULT_STAFF_ROLES];
+    const seen = new Set(list.map((r) => r.id.toLowerCase()));
+
+    // 1. Roles from server API
+    if (Array.isArray(staffData?.roles)) {
+      for (const r of staffData.roles) {
+        const id = typeof r === "string" ? r : r.id;
+        if (id && !seen.has(id.toLowerCase())) {
+          seen.add(id.toLowerCase());
+          list.push(
+            typeof r === "string"
+              ? {
+                  id,
+                  name_ar: getRoleDisplayName(id, "ar"),
+                  name_en: getRoleDisplayName(id, "en"),
+                }
+              : r
+          );
+        }
+      }
+    }
+
+    // 2. Pharmacy custom roles
+    for (const r of customRoles) {
+      if (r?.id && !seen.has(r.id.toLowerCase())) {
+        seen.add(r.id.toLowerCase());
+        list.push(r);
+      }
+    }
+
+    // 3. Any distinct role already in existing staff records
+    if (Array.isArray(staff)) {
+      for (const s of staff) {
+        const sRole = String(s.role || "").trim();
+        if (sRole && !seen.has(sRole.toLowerCase())) {
+          seen.add(sRole.toLowerCase());
+          list.push({
+            id: sRole,
+            name_ar: getRoleDisplayName(sRole, "ar"),
+            name_en: getRoleDisplayName(sRole, "en"),
+          });
+        }
+      }
+    }
+
+    return list;
+  }, [staffData?.roles, customRoles, staff]);
+
+  // Match any role alias / localized string to an available role ID
+  const resolveRoleId = (roleStr?: string): string => {
+    if (!roleStr) return availableRoles[0]?.id || "pharmacist";
+    const r = String(roleStr).trim();
+    const lower = r.toLowerCase();
+    const match = availableRoles.find(
+      (item) =>
+        item.id.toLowerCase() === lower ||
+        item.name_ar === r ||
+        item.name_en.toLowerCase() === lower
+    );
+    if (match) return match.id;
+    return r;
+  };
+
+  const handleAddCustomRole = () => {
+    const trimmed = newCustomRoleName.trim();
+    if (!trimmed) {
+      toast.error(language === 'en' ? 'Enter role title' : "يرجى كتابة المسمى الوظيفي");
+      return;
+    }
+    const exists = availableRoles.some(
+      (r) => r.id.toLowerCase() === trimmed.toLowerCase() || r.name_ar === trimmed
+    );
+    if (!exists) {
+      const newItem: StaffRoleItem = {
+        id: trimmed,
+        name_ar: trimmed,
+        name_en: trimmed,
+      };
+      const updated = [...customRoles, newItem];
+      setCustomRoles(updated);
+      if (typeof window !== "undefined" && user?.pharmacy_id) {
+        try {
+          localStorage.setItem(`roshetta_roles_${user.pharmacy_id}`, JSON.stringify(updated));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+    setNewStaff((prev) => ({ ...prev, role: trimmed }));
+    setNewCustomRoleName("");
+    setShowCustomRoleInput(false);
+    toast.success(language === 'en' ? 'New role added!' : "تمت إضافة المسمى الوظيفي بنجاح!");
+  };
+
   const handleAdd = () => {
     if (activeTab === "branches") {
       setShowAddBranchModal(true);
     } else {
-      if (branches.length > 0 && !newStaff.branch) {
-        setNewStaff({ ...newStaff, branch: branches[0].name });
-      }
+      setShowCustomRoleInput(false);
       setEditingStaffId(null);
       setNewStaff({
         name: "",
         branch: branches.length > 0 ? branches[0].name : "",
-        role: "صيدلي أول",
+        role: availableRoles[0]?.id || "pharmacist",
         phone: "",
         password: "",
+        controlledMedsAccess: false,
       });
       setShowAddStaffModal(true);
     }
@@ -122,15 +249,20 @@ export default function BranchesAndStaff() {
       const url = editingStaffId
         ? `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${editingStaffId}`
         : `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff`;
+
+      const payloadRole = normalizeRoleForBackend(newStaff.role);
+
       const res = await fetch(url, {
         method: editingStaffId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: newStaff.name,
-          email: (newStaff.email || newStaff.phone || "").trim().toLowerCase(),
+          email: (newStaff.phone || "").trim().toLowerCase(),
+          phone: (newStaff.phone || "").trim(),
           password: newStaff.password,
-          role: newStaff.role,
+          role: payloadRole,
           branch: newStaff.branch,
+          controlledMedsAccess: newStaff.controlledMedsAccess ? 1 : 0,
         }),
       });
       const data = await res.json();
@@ -143,9 +275,10 @@ export default function BranchesAndStaff() {
         setNewStaff({
           name: "",
           branch: branches.length > 0 ? branches[0].name : "",
-          role: "صيدلي أول",
+          role: availableRoles[0]?.id || "pharmacist",
           phone: "",
           password: "",
+          controlledMedsAccess: false,
         });
         mutateStaff();
       } else {
@@ -159,18 +292,20 @@ export default function BranchesAndStaff() {
   };
 
   const handleEditStaff = (emp: any) => {
+    setShowCustomRoleInput(false);
     setEditingStaffId(emp.id);
     setNewStaff({
-      name: emp.name,
+      name: emp.name || "",
       branch: emp.branch || (branches.length > 0 ? branches[0].name : ""),
-      role: emp.role || "صيدلي أول",
-      phone: emp.email || "",
+      role: resolveRoleId(emp.role),
+      phone: emp.phone || emp.email || "",
       password: emp.password || "",
+      controlledMedsAccess: Boolean(emp.controlledMedsAccess),
     });
     setShowAddStaffModal(true);
   };
 
-  const executeDeleteStaff = async (id: string) => {
+  const handleDeleteStaff = async (id: string) => {
     try {
       const res = await fetch(
         `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${id}`,
@@ -186,6 +321,8 @@ export default function BranchesAndStaff() {
       toast.error(language === 'en' ? 'Connection error' : "خطأ في الاتصال");
     }
   };
+
+  const executeDeleteStaff = handleDeleteStaff;
 
   return (
     <>
@@ -298,7 +435,9 @@ export default function BranchesAndStaff() {
                 <div className="flex-1">
                   <h3 className="font-bold text-ink text-[15px]">{emp.name}</h3>
                   <div className="text-[13px] text-ink-soft font-semibold flex items-center gap-2 mt-0.5">
-                    <span className="text-primary">{emp.role}</span> •{" "}
+                    <span className="text-primary font-bold">
+                      {getRoleDisplayName(emp.role, language)}
+                    </span> •{" "}
                     <span>{emp.branch}</span>
                   </div>
                 </div>
@@ -456,21 +595,66 @@ export default function BranchesAndStaff() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[14px] font-bold text-ink mb-2">
-                      {language === 'en' ? 'Role / Job' : "الدور / الوظيفة"}
-                    </label>
-                    <select
-                      value={newStaff.role}
-                      onChange={(e) =>
-                        setNewStaff({ ...newStaff, role: e.target.value })
-                      }
-                      className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary"
-                    >
-                      <option value="صيدلي أول">{language === 'en' ? 'Senior Pharmacist' : "صيدلي أول"}</option>
-                      <option value="كاشير">{language === 'en' ? 'Cashier' : "كاشير"}</option>
-                      <option value="صيدلي متدرب">{language === 'en' ? 'Trainee Pharmacist' : "صيدلي متدرب"}</option>
-                      <option value="مدير فرع">{language === 'en' ? 'Branch Manager' : "مدير فرع"}</option>
-                    </select>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-[14px] font-bold text-ink">
+                        {language === 'en' ? 'Role / Job' : "الدور / الوظيفة"}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomRoleInput(!showCustomRoleInput)}
+                        className="text-[12px] text-teal font-bold hover:underline"
+                      >
+                        {showCustomRoleInput
+                          ? (language === 'en' ? 'Select from list' : 'اختر من القائمة')
+                          : (language === 'en' ? '+ Custom Role' : '+ مسمى جديد')}
+                      </button>
+                    </div>
+
+                    {showCustomRoleInput ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newCustomRoleName}
+                          onChange={(e) => setNewCustomRoleName(e.target.value)}
+                          placeholder={language === 'en' ? 'Enter role title' : "اكتب المسمى الوظيفي"}
+                          className="flex-1 bg-bg border border-mint-line rounded-xl p-3 text-[14px] focus:outline-none focus:border-primary"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddCustomRole();
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddCustomRole}
+                          className="bg-primary text-white text-[13px] font-bold px-3 py-2 rounded-xl hover:bg-teal transition-colors"
+                        >
+                          {language === 'en' ? 'Add' : "إضافة"}
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        value={resolveRoleId(newStaff.role)}
+                        onChange={(e) => {
+                          if (e.target.value === "__add_new__") {
+                            setShowCustomRoleInput(true);
+                          } else {
+                            setNewStaff({ ...newStaff, role: e.target.value });
+                          }
+                        }}
+                        className="w-full bg-bg border border-mint-line rounded-xl p-3 focus:outline-none focus:border-primary font-medium"
+                      >
+                        {availableRoles.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {language === 'en' ? r.name_en : r.name_ar}
+                          </option>
+                        ))}
+                        <option value="__add_new__" className="text-teal font-bold">
+                          {language === 'en' ? '+ Add New Job Title...' : '+ إضافة مسمى وظيفي جديد...'}
+                        </option>
+                      </select>
+                    )}
                   </div>
                 </div>
                 <div>
