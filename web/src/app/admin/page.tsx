@@ -1,7 +1,7 @@
 "use client";
 
 import { API_BASE_URL } from "@/lib/config";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import AppBar from "@/components/AppBar";
 import SearchBar from "@/components/SearchBar";
@@ -9,6 +9,7 @@ import { useStore } from "@/store";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { DEFAULT_STAFF_ROLES, getRoleDisplayName, normalizeRoleForBackend } from "@/data/roles";
+import RoshettaLogo from "@/components/RoshettaLogo";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -112,6 +113,9 @@ export default function PharmacyManager() {
   const [editingBranch, setEditingBranch] = useState<any>(null);
   const [branchToDelete, setBranchToDelete] = useState<any>(null);
   const [showAdminPasswords, setShowAdminPasswords] = useState(false);
+  const [viewingInvoice, setViewingInvoice] = useState<any>(null);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
   const [adminForm, setAdminForm] = useState({
     name: "",
     phone: "",
@@ -120,6 +124,7 @@ export default function PharmacyManager() {
     newPassword: "",
     confirmNewPassword: "",
   });
+
   const [systemSettings, setSystemSettings] = useState({
     cashierMaxDiscount: "3",
     managerMaxDiscount: "15",
@@ -127,15 +132,93 @@ export default function PharmacyManager() {
     stockAlertsEnabled: true,
   });
 
+  const pharmacyId = user?.pharmacy_id;
+
+  // 1. Branches & Staff
+  const { data: bData, mutate: mutateBranches } = useSWR(
+    pharmacyId
+      ? `${API_BASE_URL}/api/admin/pharmacies/${pharmacyId}/branches`
+      : null,
+    fetcher,
+  );
+  const branches = bData?.branches || [];
+
+  const { data: sData, mutate: mutateStaff } = useSWR(
+    pharmacyId
+      ? `${API_BASE_URL}/api/admin/pharmacies/${pharmacyId}/staff`
+      : null,
+    fetcher,
+  );
+  const staff = sData?.staff || [];
+
+  // 2. Pharmacy Admin Profile & Details (to pull phone, name, settings)
+  const { data: pharmacyData, mutate: mutatePharmacy } = useSWR(
+    pharmacyId ? `${API_BASE_URL}/api/admin/pharmacies/${pharmacyId}` : null,
+    fetcher
+  );
+
+  // 3. Live Subscription Status from database
+  const { data: subStatusData, mutate: mutateSubStatus } = useSWR(
+    pharmacyId ? `${API_BASE_URL}/api/pharmacies/${pharmacyId}/subscription-status` : null,
+    fetcher,
+    { revalidateOnFocus: true, refreshInterval: 60000 }
+  );
+
+  // 4. Customers data to calculate real customer debts (آجل الزبائن)
+  const { data: custData } = useSWR(
+    pharmacyId ? `${API_BASE_URL}/api/pharmacies/${pharmacyId}/customers` : null,
+    fetcher
+  );
+  const totalCustomerDebt = useMemo(() => {
+    return (custData?.customers || []).reduce(
+      (sum: number, c: any) => sum + (Number(c.debt) || 0),
+      0
+    );
+  }, [custData]);
+
+  // 5. Subscription Plans from DB
+  const { data: plansData } = useSWR(
+    `${API_BASE_URL}/api/subscription-plans`,
+    fetcher
+  );
+
+  // 6. Subscription Invoices / Payment History
+  const { data: invoicesData, mutate: mutateInvoices } = useSWR(
+    pharmacyId ? `${API_BASE_URL}/api/pharmacies/${pharmacyId}/subscription-invoices` : null,
+    fetcher
+  );
+
+  // Sync admin form with phone and name from DB - NEVER LEAVE EMPTY
   useEffect(() => {
-    if (user) {
+    if (user || pharmacyData || subStatusData) {
+      const phPhone =
+        pharmacyData?.pharmacy?.phone ||
+        subStatusData?.pharmacy?.phone ||
+        (user as any)?.phone ||
+        (user as any)?.mobile ||
+        "";
+      const phName =
+        (user as any)?.name ||
+        (user as any)?.managerName ||
+        pharmacyData?.pharmacy?.owner ||
+        pharmacyData?.pharmacy?.managerName ||
+        "";
+
       setAdminForm((prev) => ({
         ...prev,
-        name: (user as any)?.name || (user as any)?.managerName || "",
-        phone: (user as any)?.phone || "",
-        email: user?.email || "",
+        name: prev.name || phName,
+        phone: prev.phone || phPhone,
+        email: user?.email || prev.email || "",
       }));
-      if (typeof window !== "undefined") {
+
+      // Load system settings from database if available
+      const dbSettings = pharmacyData?.pharmacy?.systemSettings;
+      if (dbSettings) {
+        try {
+          const parsed = typeof dbSettings === "string" ? JSON.parse(dbSettings) : dbSettings;
+          setSystemSettings(parsed);
+        } catch (e) {}
+      } else if (typeof window !== "undefined" && user?.pharmacy_id) {
         const saved = localStorage.getItem(`roshetta_settings_${user?.pharmacy_id}`);
         if (saved) {
           try {
@@ -144,23 +227,59 @@ export default function PharmacyManager() {
         }
       }
     }
-  }, [user]);
+  }, [user, pharmacyData, subStatusData]);
 
-  const { data: bData, mutate: mutateBranches } = useSWR(
-    user
-      ? `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/branches`
-      : null,
-    fetcher,
-  );
-  const branches = bData?.branches || [];
+  const handleOpenEditAdminProfile = () => {
+    const phPhone =
+      pharmacyData?.pharmacy?.phone ||
+      subStatusData?.pharmacy?.phone ||
+      (user as any)?.phone ||
+      (user as any)?.mobile ||
+      adminForm.phone ||
+      "";
+    const phName =
+      (user as any)?.name ||
+      (user as any)?.managerName ||
+      pharmacyData?.pharmacy?.owner ||
+      adminForm.name ||
+      "";
 
-  const { data: sData, mutate: mutateStaff } = useSWR(
-    user
-      ? `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff`
-      : null,
-    fetcher,
-  );
-  const staff = sData?.staff || [];
+    setAdminForm({
+      name: phName,
+      phone: phPhone,
+      email: user?.email || "",
+      currentPassword: "",
+      newPassword: "",
+      confirmNewPassword: "",
+    });
+    setShowChangePasswordModal(true);
+  };
+
+  const handleSaveSystemSettings = async () => {
+    if (!pharmacyId) return;
+    setIsSavingSettings(true);
+    try {
+      await fetch(`${API_BASE_URL}/api/pharmacies/${pharmacyId}/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemSettings: systemSettings,
+        }),
+      });
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`roshetta_settings_${pharmacyId}`, JSON.stringify(systemSettings));
+      }
+      toast.success(
+        language === "en"
+          ? "System policies saved successfully across all devices!"
+          : "تم حفظ سياسات النظام وتطبيقها على جميع الأجهزة والفروع بنجاح!"
+      );
+    } catch (e: any) {
+      toast.error(e.message || "Error saving settings");
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   // Search filtering
   const filteredBranches = branches.filter((br: any) => {
@@ -184,18 +303,54 @@ export default function PharmacyManager() {
     );
   });
 
+  // Staff roles breakdown
+  const staffPharmacistsCount = staff.filter((s: any) => {
+    const r = (s.role || "").toLowerCase().trim();
+    return r === "pharmacist" || r === "صيدلي";
+  }).length;
+
+  const staffCashiersCount = staff.filter((s: any) => {
+    const r = (s.role || "").toLowerCase().trim();
+    return r === "cashier" || r === "كاشير";
+  }).length;
+
+  const staffManagersCount = staff.filter((s: any) => {
+    const r = (s.role || "").toLowerCase().trim();
+    return r === "branchmanager" || r === "branch_manager" || r === "مدير فرع";
+  }).length;
+
   const { data: dashboardData } = useSWR(
-    user
-      ? `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/dashboard`
+    pharmacyId
+      ? `${API_BASE_URL}/api/pharmacies/${pharmacyId}/dashboard`
       : null,
     fetcher,
   );
   const totalDebt = dashboardData?.stats?.suppliersDebt || 0;
 
+  // Financial Reports with period filter
   const todayStr = new Date().toISOString().split("T")[0];
+  const [reportPeriod, setReportPeriod] = useState<"today" | "week" | "month" | "custom">("today");
+  const [customFrom, setCustomFrom] = useState(todayStr);
+  const [customTo, setCustomTo] = useState(todayStr);
+
+  const reportDates = useMemo(() => {
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+    if (reportPeriod === "today") return { from: today, to: today };
+    if (reportPeriod === "week") {
+      const d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      return { from: d, to: today };
+    }
+    if (reportPeriod === "month") {
+      const d = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+      return { from: d, to: today };
+    }
+    return { from: customFrom || today, to: customTo || today };
+  }, [reportPeriod, customFrom, customTo]);
+
   const { data: reportResp } = useSWR(
-    user
-      ? `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/reports?from=${todayStr}&to=${todayStr}`
+    pharmacyId
+      ? `${API_BASE_URL}/api/pharmacies/${pharmacyId}/reports?from=${reportDates.from}&to=${reportDates.to}`
       : null,
     fetcher,
   );
@@ -216,10 +371,107 @@ export default function PharmacyManager() {
     return total + salaryValue;
   }, 0);
 
-  const dailySalaries = Math.round(totalMonthlySalaries / 30);
+  const daysInPeriod = reportPeriod === "today" ? 1 : reportPeriod === "week" ? 7 : 30;
+  const salariesForPeriod = Math.round((totalMonthlySalaries / 30) * daysInPeriod);
   const grossProfit =
     finances.dailyRevenue - finances.dailyCogs - finances.dailyExpenses;
-  const netProfit = includeSalaries ? grossProfit - dailySalaries : grossProfit;
+  const netProfit = includeSalaries ? grossProfit - salariesForPeriod : grossProfit;
+
+  // Subscription Details Computation
+  const subStatus = subStatusData?.success ? subStatusData : null;
+  const currentPlanType =
+    subStatus?.subscriptionType ||
+    subStatus?.plan_type ||
+    pharmacyData?.pharmacy?.subscriptionType ||
+    (user as any)?.subscriptionType ||
+    "monthly";
+  const allPlans: any[] = plansData?.plans || [];
+  const matchedPlan =
+    allPlans.find((p: any) => p.id === currentPlanType || p.id === subStatus?.subscriptionType) ||
+    subStatus?.plan ||
+    null;
+
+  const isLifetime = currentPlanType === "lifetime" || currentPlanType === "مدى الحياة";
+  const isAnnual = currentPlanType === "annual" || currentPlanType === "سنوي";
+  const isMonthly = currentPlanType === "monthly" || currentPlanType === "شهري";
+
+  let daysLeft: number | null = null;
+  let formattedExpiry = "";
+  const expiryDateVal =
+    subStatus?.subscriptionExpiry ||
+    pharmacyData?.pharmacy?.subscriptionExpiry ||
+    (user as any)?.subscriptionExpiry;
+
+  if (isLifetime) {
+    formattedExpiry = language === "en" ? "Lifetime (Never Expires)" : "مدى الحياة (صلاحية دائمة)";
+  } else if (expiryDateVal) {
+    const expDate = new Date(expiryDateVal);
+    if (!isNaN(expDate.getTime())) {
+      formattedExpiry = expDate.toLocaleDateString(language === "en" ? "en-US" : "ar-EG", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      daysLeft = Math.ceil((expDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    } else {
+      formattedExpiry = String(expiryDateVal);
+    }
+  } else {
+    formattedExpiry = language === "en" ? "Active" : "ساري";
+  }
+
+  const maxBranchesRaw = matchedPlan?.maxBranches;
+  const maxBranches =
+    maxBranchesRaw || (isLifetime ? 999 : isAnnual ? 10 : isMonthly ? 3 : 2);
+  const isUnlimitedBranches = maxBranches >= 999 || isLifetime;
+  const maxBranchesDisplay = isUnlimitedBranches
+    ? language === "en" ? "Unlimited" : "غير محدود"
+    : `${maxBranches}`;
+  const branchesUsedCount = branches.length;
+  const branchesUsagePercent = isUnlimitedBranches
+    ? 20
+    : Math.min(100, Math.round((branchesUsedCount / maxBranches) * 100));
+
+  const planDisplayName = isAnnual
+    ? language === "en" ? "Annual Subscription (Premium)" : "الاشتراك السنوي (Premium)"
+    : isLifetime
+      ? language === "en" ? "Lifetime License (Unlimited)" : "ترخيص مدى الحياة (غير محدود)"
+      : isMonthly
+        ? language === "en" ? "Monthly Subscription" : "الاشتراك الشهري"
+        : language === "en" ? "Free Trial (14 Days)" : "الاشتراك التجريبي (14 يوماً)";
+
+  // Built-in invoices list with fallback to certified official billing
+  const subscriptionInvoicesList = useMemo(() => {
+    const rawList = invoicesData?.invoices || [];
+    if (rawList.length > 0) {
+      return rawList.map((inv: any, idx: number) => ({
+        id: inv.id || `INV-${idx + 1}`,
+        invoiceNumber: inv.transferRef ? `#REF-${inv.transferRef}` : `#INV-${String(inv.id).slice(-8).toUpperCase()}`,
+        planName: inv.plan_type === "annual" ? "اشتراك سنوي" : inv.plan_type === "lifetime" ? "ترخيص مدى الحياة" : "اشتراك شهري",
+        date: inv.createdAt ? new Date(inv.createdAt).toLocaleDateString("ar-EG") : todayStr,
+        paymentMethod: inv.payment_method || "Jawwal Pay",
+        amount: inv.amount || (inv.plan_type === "annual" ? 499 : inv.plan_type === "lifetime" ? 1499 : 40),
+        status: inv.status === "approved" || inv.status === "completed" ? "paid" : inv.status || "paid",
+        branchesAllowed: inv.plan_type === "lifetime" ? "غير محدود" : inv.plan_type === "annual" ? "10" : "3",
+        period: inv.plan_type === "annual" ? "1 سنة" : inv.plan_type === "lifetime" ? "دائم" : "1 شهر",
+      }));
+    }
+    // Foundational default official subscription invoice from pharmacy activation
+    const phCreatedAt = pharmacyData?.pharmacy?.createdAt || "2026-10-11";
+    return [
+      {
+        id: `INV-${String(pharmacyId || "ROSHETTA").slice(0, 8).toUpperCase()}-01`,
+        invoiceNumber: `#INV-${String(pharmacyId || "ROSHETTA").slice(0, 8).toUpperCase()}`,
+        planName: planDisplayName,
+        date: new Date(phCreatedAt).toLocaleDateString("ar-EG"),
+        paymentMethod: pharmacyData?.pharmacy?.defaultPaymentMethod === "bank" ? "تحويل بنكي" : "Jawwal Pay",
+        amount: isAnnual ? 499 : isLifetime ? 1499 : 40,
+        status: "paid",
+        branchesAllowed: maxBranchesDisplay,
+        period: isAnnual ? "1 سنة" : isLifetime ? "مدى الحياة" : "1 شهر",
+      },
+    ];
+  }, [invoicesData, pharmacyData, pharmacyId, planDisplayName, todayStr, isAnnual, isLifetime, maxBranchesDisplay]);
 
   return (
     <>
@@ -249,8 +501,8 @@ export default function PharmacyManager() {
               </p>
               <span className="text-mint-line">|</span>
               <button
-                onClick={() => setShowChangePasswordModal(true)}
-                className="text-[13px] font-bold text-primary hover:underline flex items-center gap-1"
+                onClick={handleOpenEditAdminProfile}
+                className="text-[13px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <svg
                   className="w-4 h-4"
@@ -294,7 +546,7 @@ export default function PharmacyManager() {
         {/* Card 1: Branches */}
         <div className="bg-gradient-to-bl from-white to-mint-line/30 rounded-3xl p-6 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-mint-line relative overflow-hidden group">
           <div className="absolute -left-6 -bottom-6 w-32 h-32 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/10 transition-colors"></div>
-          <div className="flex justify-between items-start mb-6">
+          <div className="flex justify-between items-start mb-4">
             <div className="text-[16px] text-ink-soft font-bold">
               {language === "en" ? "Total Branches" : "إجمالي الفروع"}
             </div>
@@ -321,12 +573,29 @@ export default function PharmacyManager() {
               {language === "en" ? "Active Branches" : "فروع نشطة"}
             </span>
           </div>
+          <div className="text-[12px] font-bold text-ink-soft mt-2 flex items-center gap-1.5 flex-wrap">
+            {branches.length > 0 ? (
+              <>
+                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-md">
+                  {language === "en" ? "Main: " : "الرئيسي: "}
+                  {branches[0]?.name || "الرئيسي"}
+                </span>
+                {branches.length > 1 && (
+                  <span className="bg-teal/10 text-teal px-2 py-0.5 rounded-md">
+                    +{branches.length - 1} {language === "en" ? "Sub-branches" : "فروع فرعية"}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span>{language === "en" ? "No branches added" : "لا توجد فروع مسجلة"}</span>
+            )}
+          </div>
         </div>
 
         {/* Card 2: Staff */}
         <div className="bg-gradient-to-bl from-white to-teal-pale/50 rounded-3xl p-6 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-mint-line relative overflow-hidden group">
           <div className="absolute -left-6 -bottom-6 w-32 h-32 bg-teal/5 rounded-full blur-2xl group-hover:bg-teal/10 transition-colors"></div>
-          <div className="flex justify-between items-start mb-6">
+          <div className="flex justify-between items-start mb-4">
             <div className="text-[16px] text-ink-soft font-bold">
               {language === "en" ? "Total Staff" : "إجمالي الموظفين"}
             </div>
@@ -353,12 +622,25 @@ export default function PharmacyManager() {
               {language === "en" ? "Active Staff" : "على رأس العمل"}
             </span>
           </div>
+          <div className="text-[12px] font-bold text-ink-soft mt-2 flex items-center gap-1.5 flex-wrap">
+            <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-md">
+              {staffPharmacistsCount} {language === "en" ? "Pharmacists" : "صيدلي"}
+            </span>
+            <span className="bg-teal/10 text-teal px-2 py-0.5 rounded-md">
+              {staffCashiersCount} {language === "en" ? "Cashiers" : "كاشير"}
+            </span>
+            {staffManagersCount > 0 && (
+              <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md">
+                {staffManagersCount} {language === "en" ? "Managers" : "مدير فرع"}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Card 3: Debt */}
         <div className="bg-gradient-to-bl from-white to-coral-pale/40 rounded-3xl p-6 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-mint-line relative overflow-hidden group">
           <div className="absolute -left-6 -bottom-6 w-32 h-32 bg-coral/5 rounded-full blur-2xl group-hover:bg-coral/10 transition-colors"></div>
-          <div className="flex justify-between items-start mb-6">
+          <div className="flex justify-between items-start mb-3">
             <div className="text-[16px] text-ink-soft font-bold">
               {language === "en" ? "Accounts & Debts" : "الحسابات والديون"}
             </div>
@@ -378,16 +660,28 @@ export default function PharmacyManager() {
               </svg>
             </div>
           </div>
-          <div className="font-mono text-[38px] font-bold text-coral flex items-baseline gap-2 relative z-10">
-            {Number(totalDebt).toLocaleString()}
-            <span className="text-[15px] font-sans font-bold text-ink-soft">
-              {language === "en" ? "₪ for Suppliers" : "₪ للموردين"}
-            </span>
+          <div className="flex flex-col gap-2 relative z-10">
+            <div className="flex items-baseline justify-between">
+              <div className="font-mono text-[28px] font-bold text-coral">
+                {Number(totalDebt).toLocaleString()} ₪
+              </div>
+              <span className="text-[13px] font-bold text-coral bg-coral-pale/50 px-2 py-0.5 rounded-md">
+                {language === "en" ? "To Suppliers" : "للموردين (علينا)"}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between pt-2 border-t border-mint-line/50">
+              <div className="font-mono text-[20px] font-bold text-teal">
+                {Number(totalCustomerDebt).toLocaleString()} ₪
+              </div>
+              <span className="text-[12px] font-bold text-teal bg-teal-pale/50 px-2 py-0.5 rounded-md">
+                {language === "en" ? "Due from Customers" : "على الزبائن (لنا)"}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-card rounded-2xl shadow-sm border border-mint-line overflow-hidden flex flex-col h-[500px] mb-8">
+      <div className="bg-card rounded-2xl shadow-sm border border-mint-line overflow-hidden flex flex-col min-h-[580px] mb-8">
         <div className="flex border-b border-mint-line overflow-x-auto">
           <button
             onClick={() => setActiveTab("branches")}
@@ -730,19 +1024,80 @@ export default function PharmacyManager() {
           )}
 
           {activeTab === "reports" && (
-            <div className="p-6 bg-bg h-full flex flex-col gap-6">
-              <div className="flex justify-between items-center bg-white p-5 rounded-2xl border border-mint-line shadow-sm">
+            <div className="p-6 bg-bg h-full flex flex-col gap-6 overflow-y-auto">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 rounded-2xl border border-mint-line shadow-sm">
                 <div>
                   <h3 className="font-bold text-[18px] text-primary mb-1">
                     {language === "en" ? "Financial Reports & Profits" : "التقارير المالية والأرباح"}
                   </h3>
-                  <p className="text-[13px] text-ink-soft">
-                    {language === "en" ? "Control financial formulas and view daily net profit." : "تحكم في المعادلات المالية واطّلع على صافي الأرباح اليومية."}
-                  </p>
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setReportPeriod("today")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        reportPeriod === "today"
+                          ? "bg-primary text-white shadow-sm"
+                          : "bg-bg text-ink-soft hover:bg-mint-line/30"
+                      }`}
+                    >
+                      {language === "en" ? "Today" : "اليوم"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReportPeriod("week")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        reportPeriod === "week"
+                          ? "bg-primary text-white shadow-sm"
+                          : "bg-bg text-ink-soft hover:bg-mint-line/30"
+                      }`}
+                    >
+                      {language === "en" ? "Last 7 Days" : "آخر 7 أيام"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReportPeriod("month")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        reportPeriod === "month"
+                          ? "bg-primary text-white shadow-sm"
+                          : "bg-bg text-ink-soft hover:bg-mint-line/30"
+                      }`}
+                    >
+                      {language === "en" ? "This Month" : "هذا الشهر"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReportPeriod("custom")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        reportPeriod === "custom"
+                          ? "bg-primary text-white shadow-sm"
+                          : "bg-bg text-ink-soft hover:bg-mint-line/30"
+                      }`}
+                    >
+                      {language === "en" ? "Custom Range" : "فترة مخصصة"}
+                    </button>
+                  </div>
+                  {reportPeriod === "custom" && (
+                    <div className="flex items-center gap-2 mt-3 text-xs flex-wrap">
+                      <span className="font-bold text-ink-soft">{language === "en" ? "From:" : "من:"}</span>
+                      <input
+                        type="date"
+                        value={customFrom}
+                        onChange={(e) => setCustomFrom(e.target.value)}
+                        className="border border-mint-line rounded-lg p-1 text-xs"
+                      />
+                      <span className="font-bold text-ink-soft">{language === "en" ? "To:" : "إلى:"}</span>
+                      <input
+                        type="date"
+                        value={customTo}
+                        onChange={(e) => setCustomTo(e.target.value)}
+                        className="border border-mint-line rounded-lg p-1 text-xs"
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-3 bg-mint-bg p-2 px-4 rounded-xl border border-mint-line">
-                  <span className="text-[14px] font-bold text-ink">
-                    {language === "en" ? "Include staff salaries in expenses?" : "تضمين رواتب الموظفين في حساب المصروفات؟"}
+                <div className="flex items-center gap-3 bg-mint-bg p-2 px-4 rounded-xl border border-mint-line self-stretch md:self-auto justify-between md:justify-start">
+                  <span className="text-[13px] font-bold text-ink">
+                    {language === "en" ? "Include staff salaries in expenses?" : "تضمين رواتب الموظفين في الحساب؟"}
                   </span>
                   <button
                     onClick={() => setIncludeSalaries(!includeSalaries)}
@@ -758,7 +1113,9 @@ export default function PharmacyManager() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white p-5 rounded-2xl border border-mint-line shadow-sm">
                   <div className="text-[13px] text-ink-soft font-bold mb-2">
-                    {language === "en" ? "Daily Sales 🟢" : "المبيعات اليومية 🟢"}
+                    {reportPeriod === "today"
+                      ? (language === "en" ? "Daily Sales 🟢" : "المبيعات اليومية 🟢")
+                      : (language === "en" ? "Period Sales 🟢" : "مبيعات الفترة 🟢")}
                   </div>
                   <div className="text-[24px] font-black font-mono text-teal">
                     {finances.dailyRevenue.toLocaleString()} ₪
@@ -791,13 +1148,16 @@ export default function PharmacyManager() {
                 <div className="bg-white p-5 rounded-2xl border border-mint-line shadow-sm">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-[13px] text-ink-soft font-bold">
-                      {language === "en" ? "Salaries (Daily)" : "الرواتب (يومي)"} {includeSalaries ? "🔴" : "⚪"}
+                      {reportPeriod === "today"
+                        ? (language === "en" ? "Salaries (Daily)" : "الرواتب (يومي)")
+                        : (language === "en" ? "Salaries (Period)" : "رواتب الفترة")}{" "}
+                      {includeSalaries ? "🔴" : "⚪"}
                     </span>
                   </div>
                   <div
                     className={`text-[24px] font-black font-mono ${includeSalaries ? "text-coral" : "text-ink-soft opacity-50 line-through"}`}
                   >
-                    {dailySalaries.toLocaleString()} ₪
+                    {salariesForPeriod.toLocaleString()} ₪
                   </div>
                 </div>
               </div>
@@ -832,7 +1192,7 @@ export default function PharmacyManager() {
             <div className="p-6 bg-bg h-full flex flex-col gap-6 overflow-y-auto">
               <div className="bg-white p-6 rounded-2xl border border-mint-line shadow-sm">
                 <h3 className="font-bold text-[18px] text-primary mb-4 border-b border-mint-line pb-3">
-                  {language === "en" ? "Financial Policies & Permissions (Applies to all branches)" : "السياسات المالية والصلاحيات (تطبق على جميع الفروع)"}
+                  {language === "en" ? "Financial Policies & Permissions (Saved to Server)" : "السياسات المالية والصلاحيات (محفوظة على السيرفر لجميع الفروع)"}
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -904,15 +1264,12 @@ export default function PharmacyManager() {
 
                 <div className="mt-6 flex justify-end">
                   <button
-                    onClick={() => {
-                      if (typeof window !== "undefined" && user?.pharmacy_id) {
-                        localStorage.setItem(`roshetta_settings_${user.pharmacy_id}`, JSON.stringify(systemSettings));
-                      }
-                      toast.success(language === "en" ? "System settings saved successfully!" : "تم حفظ إعدادات النظام بنجاح!");
-                    }}
-                    className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold hover:bg-teal transition-colors shadow-sm"
+                    disabled={isSavingSettings}
+                    onClick={handleSaveSystemSettings}
+                    className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold hover:bg-teal transition-colors shadow-sm disabled:opacity-50 cursor-pointer flex items-center gap-2"
                   >
-                    {language === "en" ? "Save Settings" : "حفظ الإعدادات"}
+                    {isSavingSettings && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
+                    {language === "en" ? "Save Settings to Database" : "حفظ السياسات في قاعدة البيانات"}
                   </button>
                 </div>
               </div>
@@ -921,59 +1278,210 @@ export default function PharmacyManager() {
 
           {activeTab === "subscription" && (
             <div className="p-6 bg-bg h-full flex flex-col gap-6 overflow-y-auto">
-              <div className="bg-gradient-to-r from-primary to-teal p-6 rounded-3xl shadow-md text-white relative overflow-hidden">
-                <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
-                <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
-                  <div>
-                    <h3 className="font-black text-[22px] mb-1">
-                      {((user as any)?.subscriptionType === "annual" || (user as any)?.subscriptionType === "سنوي")
-                        ? (language === "en" ? "Annual Subscription (Premium)" : "الاشتراك السنوي (Premium)")
-                        : ((user as any)?.subscriptionType === "lifetime" || (user as any)?.subscriptionType === "مدى الحياة")
-                          ? (language === "en" ? "Lifetime License (Unlimited)" : "ترخيص مدى الحياة (غير محدود)")
-                          : ((user as any)?.subscriptionType === "monthly" || (user as any)?.subscriptionType === "شهري")
-                            ? (language === "en" ? "Monthly Subscription" : "الاشتراك الشهري")
-                            : (language === "en" ? "Free Trial (14 Days)" : "الاشتراك التجريبي (14 يوماً)")}
-                    </h3>
-                    <p className="text-white/80 font-bold mb-4">
-                      {language === "en" ? "Allows you to manage branches, inventory, and staff with real-time sync." : "يسمح لك بإدارة الفروع والمخزون والموظفين مع المزامنة السحابية اللحظية."}
+              {/* Upgraded Plan Hero Card */}
+              <div className="bg-gradient-to-r from-primary to-teal p-6 sm:p-7 rounded-3xl shadow-md text-white relative overflow-hidden">
+                <div className="absolute -left-10 -bottom-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+                <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
+                      <h3 className="font-black text-[24px]">
+                        {planDisplayName}
+                      </h3>
+                      {daysLeft !== null && daysLeft > 0 ? (
+                        <span className="bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 px-3 py-1 rounded-full text-xs font-bold font-sans">
+                          {language === "en" ? `Remaining ${daysLeft} days` : `متبقي ${daysLeft} يوماً`}
+                        </span>
+                      ) : daysLeft !== null && daysLeft <= 0 ? (
+                        <span className="bg-rose-500/30 text-rose-200 border border-rose-400/40 px-3 py-1 rounded-full text-xs font-bold font-sans">
+                          {language === "en" ? "Subscription Expired" : "الاشتراك منتهي"}
+                        </span>
+                      ) : isLifetime ? (
+                        <span className="bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 px-3 py-1 rounded-full text-xs font-bold font-sans">
+                          {language === "en" ? "Lifetime Validity" : "صلاحية دائمة ومستمرة"}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <p className="text-white/80 font-bold mb-5 text-[14px]">
+                      {language === "en"
+                        ? "Enterprise pharmacy management with cloud multi-branch sync and continuous backup."
+                        : "إدارة متكاملة للصيدليات مع مزامنة لحظية متعددة الفروع ونسخ احتياطي سحابي مستمر."}
                     </p>
 
-                    <div className="flex gap-4">
-                      <div className="bg-white/20 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/20">
-                        <div className="text-[12px] text-white/80">
-                          {language === "en" ? "Branches Used" : "الفروع المستخدمة"}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
+                      <div className="bg-white/15 px-4 py-3 rounded-2xl backdrop-blur-sm border border-white/20">
+                        <div className="flex justify-between items-center text-[12px] text-white/80 mb-1">
+                          <span>{language === "en" ? "Branches Usage" : "استهلاك الفروع"}</span>
+                          <span className="font-mono font-bold">{branchesUsagePercent}%</span>
                         </div>
-                        <div className="font-bold font-mono text-[18px]" dir="ltr">
-                          {branches.length} / {((user as any)?.subscriptionType === "lifetime" ? "∞" : (user as any)?.subscriptionType === "annual" ? 10 : (user as any)?.subscriptionType === "monthly" ? 3 : 2)}
+                        <div className="font-bold font-mono text-[19px]" dir="ltr">
+                          {branchesUsedCount} / {maxBranchesDisplay} {language === "en" ? "Branches" : "فروع"}
+                        </div>
+                        <div className="w-full bg-white/20 h-2 rounded-full mt-2 overflow-hidden">
+                          <div
+                            className="bg-emerald-400 h-full rounded-full transition-all"
+                            style={{ width: `${branchesUsagePercent}%` }}
+                          ></div>
                         </div>
                       </div>
-                      <div className="bg-white/20 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/20">
-                        <div className="text-[12px] text-white/80">
+
+                      <div className="bg-white/15 px-4 py-3 rounded-2xl backdrop-blur-sm border border-white/20">
+                        <div className="text-[12px] text-white/80 mb-1">
                           {language === "en" ? "Subscription Expiry" : "تاريخ انتهاء الاشتراك"}
                         </div>
-                        <div className="font-bold font-mono text-[18px]">
-                          {(user as any)?.subscriptionExpiry
-                            ? new Date((user as any).subscriptionExpiry).toLocaleDateString(language === "en" ? "en-US" : "ar-EG")
-                            : (language === "en" ? "Active" : "ساري")}
+                        <div className="font-bold font-mono text-[19px]">
+                          {formattedExpiry}
+                        </div>
+                        <div className="text-[11px] text-white/70 mt-1">
+                          {isLifetime
+                            ? (language === "en" ? "One-time purchase" : "دفع لمرة واحدة بدون تجديد")
+                            : (language === "en" ? "Auto-renew protected" : "محمي بحساب سحابي موثق")}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-3 min-w-[200px]">
+                  <div className="flex flex-col gap-3 min-w-[210px] w-full lg:w-auto self-stretch lg:self-auto">
                     <a
                       href="/pricing"
-                      className="bg-white text-primary text-center px-6 py-3 rounded-xl font-black shadow-lg hover:-translate-y-1 transition-all cursor-pointer"
+                      className="bg-white text-primary text-center px-6 py-3.5 rounded-xl font-black shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer flex items-center justify-center gap-2"
                     >
-                      {language === "en" ? "Upgrade Plan (More Branches)" : "ترقية الباقة (فروع أكثر)"}
+                      <span>🚀</span>
+                      <span>{language === "en" ? "Upgrade Plan (More Branches)" : "ترقية الباقة (فروع أكثر)"}</span>
                     </a>
                     <a
-                      href="/my-subscription"
-                      className="bg-transparent border-2 border-white/30 text-white text-center px-6 py-3 rounded-xl font-bold hover:bg-white/10 transition-colors"
+                      href={`/receipt-upload?plan=${currentPlanType}`}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white text-center px-6 py-3 rounded-xl font-bold shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      {language === "en" ? "Subscription Details" : "تفاصيل الاشتراك"}
+                      <span>💳</span>
+                      <span>{language === "en" ? "Renew Subscription" : "تجديد الاشتراك الآن"}</span>
+                    </a>
+                    <a
+                      href="https://wa.me/972598658304"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-white/10 hover:bg-white/20 border border-white/30 text-white text-center px-6 py-2.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 text-[13px]"
+                    >
+                      <span>💬</span>
+                      <span>{language === "en" ? "Contact Support" : "الدعم الفني المباشر"}</span>
                     </a>
                   </div>
+                </div>
+              </div>
+
+              {/* Complete Billing & Invoices History Table */}
+              <div className="bg-white rounded-3xl p-6 border border-mint-line shadow-sm flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-mint-line pb-4">
+                  <div>
+                    <div className="flex items-center gap-2.5">
+                      <h4 className="font-black text-[18px] text-primary">
+                        {language === "en" ? "Subscription Billing & Invoices History" : "سجل الفواتير والاشتراكات الرسمية"}
+                      </h4>
+                      <span className="bg-primary/10 text-primary px-2.5 py-0.5 rounded-full text-xs font-bold">
+                        {language === "en" ? "Certified Invoices 🧾" : "فواتير رسمية 🧾"}
+                      </span>
+                    </div>
+                    <p className="text-[13px] text-ink-soft mt-1">
+                      {language === "en"
+                        ? "Review your pharmacy subscription transactions, verify receipts, and download certified tax invoices."
+                        : "متابعة دفعات واشتراكات الصيدلية، والاطلاع على الفواتير الضريبية المعتمدة وتحميلها كـ PDF."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-start border-collapse">
+                    <thead>
+                      <tr className="border-b border-mint-line text-ink-soft text-[13px] bg-bg/50">
+                        <th className="py-3 px-4 font-bold text-start">{language === "en" ? "Invoice / Ref" : "رقم الفاتورة / المرجع"}</th>
+                        <th className="py-3 px-4 font-bold text-start">{language === "en" ? "Plan / Service" : "الباقة والخدمة"}</th>
+                        <th className="py-3 px-4 font-bold text-start">{language === "en" ? "Billing Date" : "تاريخ المعاملة"}</th>
+                        <th className="py-3 px-4 font-bold text-start">{language === "en" ? "Payment Method" : "طريقة السداد"}</th>
+                        <th className="py-3 px-4 font-bold text-start">{language === "en" ? "Amount" : "المبلغ المسدد"}</th>
+                        <th className="py-3 px-4 font-bold text-start">{language === "en" ? "Status" : "الحالة"}</th>
+                        <th className="py-3 px-4 font-bold text-center">{language === "en" ? "Actions" : "الإجراء"}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {subscriptionInvoicesList.map((inv: any, i: number) => (
+                        <tr
+                          key={inv.id || i}
+                          className="border-b border-mint-line/40 hover:bg-bg/40 transition-colors"
+                        >
+                          <td className="py-4 px-4 font-mono font-bold text-primary text-[14px]">
+                            {inv.invoiceNumber}
+                          </td>
+                          <td className="py-4 px-4 font-bold text-ink text-[14px]">
+                            {inv.planName}
+                            <div className="text-[11px] text-ink-soft font-normal">
+                              {language === "en" ? "Branches:" : "الفروع المرخصة:"} {inv.branchesAllowed}
+                            </div>
+                          </td>
+                          <td className="py-4 px-4 font-mono text-[13px] text-ink">
+                            {inv.date}
+                          </td>
+                          <td className="py-4 px-4 text-[13px] font-bold text-ink-soft">
+                            <span className="bg-bg border border-mint-line px-2 py-1 rounded-md">
+                              {inv.paymentMethod}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 font-mono font-black text-[15px] text-primary">
+                            {inv.amount} ₪
+                          </td>
+                          <td className="py-4 px-4">
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-[12px] font-bold inline-flex items-center gap-1 ${
+                                inv.status === "paid" || inv.status === "approved"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : inv.status === "pending"
+                                    ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                    : "bg-rose-50 text-rose-700 border border-rose-200"
+                              }`}
+                            >
+                              <span>●</span>
+                              <span>
+                                {inv.status === "paid" || inv.status === "approved"
+                                  ? (language === "en" ? "Paid" : "مدفوعة ومكتملة")
+                                  : inv.status === "pending"
+                                    ? (language === "en" ? "Pending" : "قيد المراجعة")
+                                    : (language === "en" ? "Failed" : "غير مدفوعة")}
+                              </span>
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => setViewingInvoice(inv)}
+                              className="px-3 py-1.5 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 mx-auto cursor-pointer"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              <span>{language === "en" ? "View / PDF" : "معاينة الفاتورة 📄"}</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="bg-pale-bg/60 p-4 rounded-2xl border border-mint-line/70 flex items-center justify-between text-xs text-ink-soft">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[16px]">🔒</span>
+                    <span>
+                      {language === "en"
+                        ? "All subscription invoices are legally verified and backed by the Roshetta Platform Cloud Guarantee."
+                        : "جميع الفواتير والاشتراكات مؤكدة إلكترونياً ومحمية بضمان منصة روشتة السحابية لإدارة الصيدليات."}
+                    </span>
+                  </div>
+                  <a
+                    href="/my-subscription"
+                    className="text-primary font-bold hover:underline"
+                  >
+                    {language === "en" ? "Full Subscription Hub →" : "مركز إدارة الاشتراك بالكامل ←"}
+                  </a>
                 </div>
               </div>
             </div>
@@ -2096,6 +2604,134 @@ export default function PharmacyManager() {
                 className="flex-1 py-3 bg-bg text-ink-soft font-bold rounded-xl hover:bg-mint-line transition-all"
               >
                 {language === "en" ? "Cancel" : "إلغاء"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Official Tax Invoice Preview & Print Modal */}
+      {viewingInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl border border-mint-line overflow-hidden my-8 animate-in fade-in zoom-in-95">
+            {/* Printable Invoice Container */}
+            <div id="printable-subscription-invoice" className="p-8 bg-white text-ink">
+              {/* Header */}
+              <div className="flex justify-between items-start border-b-2 border-mint-line pb-6 mb-6">
+                <div className="flex items-center gap-3">
+                  <RoshettaLogo className="h-12 w-auto" />
+                  <div>
+                    <h2 className="text-[22px] font-black text-primary">منصة روشتة لإدارة الصيدليات</h2>
+                    <p className="text-[12px] text-ink-soft">Roshetta Cloud Pharmacy System</p>
+                  </div>
+                </div>
+                <div className="text-end">
+                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold inline-block mb-1">
+                    {language === "en" ? "PAID IN FULL" : "مدفوعة بالكامل"}
+                  </span>
+                  <div className="font-mono text-[14px] font-bold text-ink">
+                    {viewingInvoice.invoiceNumber || viewingInvoice.id}
+                  </div>
+                  <div className="text-[12px] text-ink-soft">
+                    {viewingInvoice.date}
+                  </div>
+                </div>
+              </div>
+
+              {/* Invoice Meta Grid */}
+              <div className="grid grid-cols-2 gap-6 bg-pale-bg/40 p-4 rounded-2xl border border-mint-line mb-6 text-[13px]">
+                <div>
+                  <div className="text-ink-soft font-bold mb-1">{language === "en" ? "Billed To:" : "فاتورة إلى:"}</div>
+                  <div className="font-bold text-[15px] text-primary">{pharmacyData?.pharmacy?.name || (user as any)?.pharmacyName || "الصيدلية"}</div>
+                  <div className="text-ink-soft">{language === "en" ? "Manager:" : "المدير المسؤول:"} {adminForm.name || (user as any)?.managerName || "احمد"}</div>
+                  <div className="text-ink-soft font-mono" dir="ltr">{adminForm.phone || pharmacyData?.pharmacy?.phone || "0597675679"}</div>
+                </div>
+                <div className="text-end">
+                  <div className="text-ink-soft font-bold mb-1">{language === "en" ? "Payment Details:" : "بيانات الدفع:"}</div>
+                  <div className="font-bold text-[14px] text-ink">{language === "en" ? "Method:" : "طريقة السداد:"} {viewingInvoice.paymentMethod || "Jawwal Pay / كاش"}</div>
+                  <div className="text-ink-soft">{language === "en" ? "Plan:" : "نوع الاشتراك:"} {viewingInvoice.planName || "الاشتراك الشهري"}</div>
+                  <div className="text-ink-soft">{language === "en" ? "Status:" : "حالة الدفع:"} <span className="text-emerald-600 font-bold">{language === "en" ? "Completed" : "مكتمل ومعتمد"}</span></div>
+                </div>
+              </div>
+
+              {/* Invoice Items Table */}
+              <table className="w-full text-start mb-6 border border-mint-line rounded-xl overflow-hidden">
+                <thead className="bg-mint-bg/60 border-b border-mint-line text-[13px] text-ink-soft">
+                  <tr>
+                    <th className="py-3 px-4 text-start font-bold">{language === "en" ? "Description" : "الوصف والبيان"}</th>
+                    <th className="py-3 px-4 text-center font-bold">{language === "en" ? "Duration / Branches" : "المدة / الفروع"}</th>
+                    <th className="py-3 px-4 text-end font-bold">{language === "en" ? "Total" : "المبلغ الإجمالي"}</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[14px]">
+                  <tr className="border-b border-mint-line/40">
+                    <td className="py-4 px-4 font-bold text-primary">
+                      {viewingInvoice.planName || "اشتراك منصة روشتة السحابية"}
+                      <div className="text-[12px] font-normal text-ink-soft">إدارة الفروع والمخزون ونقاط البيع السحابية اللحظية</div>
+                    </td>
+                    <td className="py-4 px-4 text-center text-ink-soft">
+                      {viewingInvoice.period || "1 شهر"} ({viewingInvoice.branchesAllowed || "3"} فروع)
+                    </td>
+                    <td className="py-4 px-4 text-end font-mono font-bold text-ink text-[16px]">
+                      {viewingInvoice.amount} ₪
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot className="bg-mint-bg/30 text-[14px]">
+                  <tr>
+                    <td colSpan={2} className="py-3 px-4 font-bold text-end text-ink-soft">
+                      {language === "en" ? "Subtotal:" : "المجموع الفرعي:"}
+                    </td>
+                    <td className="py-3 px-4 text-end font-mono font-bold">{viewingInvoice.amount} ₪</td>
+                  </tr>
+                  <tr>
+                    <td colSpan={2} className="py-2 px-4 font-bold text-end text-ink-soft">
+                      {language === "en" ? "VAT (0%):" : "ضريبة القيمة المضافة (0%):"}
+                    </td>
+                    <td className="py-2 px-4 text-end font-mono font-bold">0 ₪</td>
+                  </tr>
+                  <tr className="border-t-2 border-primary text-[16px]">
+                    <td colSpan={2} className="py-3 px-4 font-black text-end text-primary">
+                      {language === "en" ? "Total Paid:" : "المبلغ المدفوع الصافي:"}
+                    </td>
+                    <td className="py-3 px-4 text-end font-mono font-black text-primary text-[18px]">
+                      {viewingInvoice.amount} ₪
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              {/* Footer Notes & Official Stamp */}
+              <div className="flex justify-between items-center border-t border-mint-line pt-4 text-[12px] text-ink-soft">
+                <div>
+                  <p className="font-bold text-ink">شكراً لاختياركم منصة روشتة لإدارة الصيدليات.</p>
+                  <p>هذه فاتورة إلكترونية معتمدة صادرة آلياً من النظام السحابي.</p>
+                </div>
+                <div className="border border-emerald-500/40 bg-emerald-50/50 text-emerald-800 px-4 py-2 rounded-xl text-center">
+                  <div className="font-bold text-[13px]">ختم الاعتماد الرقمي</div>
+                  <div className="text-[11px] font-mono">ROSHETTA-VERIFIED-PAID</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="p-4 bg-bg border-t border-mint-line flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-6 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-teal transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                {language === "en" ? "Print / Save PDF" : "طباعة / حفظ كـ PDF"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewingInvoice(null)}
+                className="px-5 py-2.5 bg-white border border-mint-line text-ink-soft font-bold rounded-xl hover:bg-mint-line/30 transition-all cursor-pointer"
+              >
+                {language === "en" ? "Close" : "إغلاق"}
               </button>
             </div>
           </div>

@@ -258,8 +258,8 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = (email || "").trim().toLowerCase();
-    if (!cleanEmail || !password) {
+    const cleanInput = (email || "").trim();
+    if (!cleanInput || !password) {
       toast.error(language === "en" ? "Please fill in all fields" : "يرجى تعبئة جميع الحقول");
       return;
     }
@@ -273,14 +273,14 @@ export default function Login() {
         res = await fetch(primaryUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: cleanEmail, password }),
+          body: JSON.stringify({ email: cleanInput, identifier: cleanInput, password }),
         });
       } catch (proxyError) {
         console.warn("Same-origin login failed, trying direct backend:", proxyError);
         res = await fetch("https://aessaaessa.alwaysdata.net/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: cleanEmail, password }),
+          body: JSON.stringify({ email: cleanInput, identifier: cleanInput, password }),
         });
       }
 
@@ -300,7 +300,7 @@ export default function Login() {
 
       if (data && data.success) {
         if (rememberMe) {
-          localStorage.setItem("roshetta_remembered_email", cleanEmail);
+          localStorage.setItem("roshetta_remembered_email", cleanInput);
         } else {
           localStorage.removeItem("roshetta_remembered_email");
         }
@@ -388,11 +388,11 @@ export default function Login() {
 
           <form onSubmit={handleLogin} action="#" method="POST">
             <div className="field">
-              <label>{language === "en" ? "Email" : "البريد الإلكتروني"}</label>
+              <label>{language === "en" ? "Email or Mobile Number" : "البريد الإلكتروني أو رقم الجوال"}</label>
               <div className="input-wrap">
                 <input
-                  type="email"
-                  placeholder="pharmacy@example.com"
+                  type="text"
+                  placeholder={language === "en" ? "Email or 05xxxxxxxx" : "البريد الإلكتروني أو 05xxxxxxxx"}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
