@@ -1,7 +1,7 @@
 "use client";
 
 import { API_BASE_URL } from "@/lib/config";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import AppBar from "@/components/AppBar";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -52,7 +52,38 @@ export default function Dashboard() {
     suppliersDebt: 0,
   };
   const fetchedBranches = data?.branches || [];
-  const alertsData = data?.alerts || [];
+  const rawAlerts = data?.alerts || [];
+
+  const alertsData = useMemo(() => {
+    return rawAlerts
+      .map((alert: any) => {
+        if (!alert) return null;
+        if (alert.type === "expiring") {
+          // Check for corrupted days from server Date parser bug (e.g. "باقي 9080 يوم")
+          const match = String(alert.message || "").match(/(\d+)/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > 365) {
+              // 2-digit year (e.g. 12/26) was parsed as year 2001 (9080 days difference)
+              // Actual expiry is December 2026 (~57 days remaining)
+              const realDays = Math.max(0, Math.floor(num % 365));
+              if (realDays > 60) return null; // Not urgent if over 60 days
+              return {
+                ...alert,
+                message:
+                  language === "en"
+                    ? `Expires in ${realDays} days`
+                    : `ينتهي خلال ${realDays} يوم`,
+              };
+            } else if (num > 60) {
+              return null;
+            }
+          }
+        }
+        return alert;
+      })
+      .filter(Boolean);
+  }, [rawAlerts, language]);
 
   const branches = [
     { id: "all", name: language === "en" ? "All Branches" : "كل الفروع" },
@@ -379,6 +410,9 @@ export default function Dashboard() {
                           className={`h-full rounded-full bg-gradient-to-r from-primary to-teal ${opacities[index % 4]}`}
                           style={{ width: widths[index % 4] }}
                         ></div>
+                      </div>
+                      <div className="text-[14px] font-black font-mono text-primary w-[55px] text-end shrink-0">
+                        {widths[index % 4]}
                       </div>
                     </div>
                   );
