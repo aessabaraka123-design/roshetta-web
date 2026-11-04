@@ -251,10 +251,11 @@ function POSContent() {
       return;
     }
     if (inCartQty >= medStock) {
+      const stockStr = formatQty(medStock, med.units, language);
       toast.error(
         language === 'en'
-          ? `Cannot add more. All available stock (${medStock}) is already in the cart!`
-          : `لا يمكن إضافة المزيد. كامل الكمية المتوفرة بالمخزون (${medStock}) موجودة بالسلة!`
+          ? `Cannot add more. All available stock (${stockStr}) is already in the cart!`
+          : `لا يمكن إضافة المزيد. كامل الكمية المتوفرة بالمخزون (${stockStr}) موجودة بالسلة بالفعل!`
       );
       return;
     }
@@ -307,10 +308,12 @@ function POSContent() {
     const inCartQty = getCartQtyForMed(med.id);
     const neededCount = Number(unit.count || 1);
     if (inCartQty + neededCount > medStock) {
+      const remainingStock = Math.max(0, medStock - inCartQty);
+      const remainingStr = formatQty(remainingStock, med.units, language);
       toast.error(
         language === 'en'
-          ? `Insufficient stock for unit "${unit.name}". Available: ${Math.max(0, medStock - inCartQty)} units!`
-          : `الكمية المتبقية لا تكفي لاختيار وحدة "${unit.name}". المتبقي: ${Math.max(0, medStock - inCartQty)} وحدة فقط!`
+          ? `Insufficient stock for unit "${unit.name}". Remaining: ${remainingStr}!`
+          : `الكمية المتبقية لا تكفي لاختيار وحدة "${unit.name}". المتبقي غير مضاف بالسلة: ${remainingStr}!`
       );
       return;
     }
@@ -376,10 +379,11 @@ function POSContent() {
       return;
     }
     if (inCartQty >= medStock) {
+      const stockStr = formatQty(medStock, medAny.units, language);
       toast.error(
         language === 'en'
-          ? `Cannot add more. Available stock is only ${medStock}!`
-          : `لا يمكن إضافة المزيد. المتوفر بالمخزون هو ${medStock} فقط!`
+          ? `Cannot add more. All available stock (${stockStr}) is already in the cart!`
+          : `لا يمكن إضافة المزيد. كامل الكمية المتوفرة بالمخزون (${stockStr}) موجودة بالسلة بالفعل!`
       );
       return;
     }
@@ -396,10 +400,11 @@ function POSContent() {
         const inCartForThisMed = getCartQtyForMed(cartItem.id);
 
         if (inCartForThisMed + unitCount > medStock) {
+          const stockStr = formatQty(medStock, cartItem.units, language);
           toast.error(
             language === 'en'
-              ? `Cannot exceed available stock (${medStock})!`
-              : `لا يمكن تجاوز الكمية المتوفرة بالمخزون (${medStock})!`
+              ? `Cannot exceed available stock (${stockStr})!`
+              : `لا يمكن تجاوز الكمية المتوفرة بالمخزون (${stockStr})!`
           );
           return;
         }
@@ -459,10 +464,11 @@ function POSContent() {
         return;
       }
       if (totalNeeded > medStock) {
+        const stockStr = formatQty(medStock, item.units, language);
         toast.error(
           language === 'en'
-            ? `Quantity for "${item.name}" (${totalNeeded}) exceeds available stock (${medStock})!`
-            : `الكمية المطلوبة من "${item.name}" (${totalNeeded}) تتجاوز المتوفر بالمخزون (${medStock})!`
+            ? `Quantity for "${item.name}" exceeds available stock (${stockStr})!`
+            : `الكمية المطلوبة من "${item.name}" تتجاوز المتوفر بالمخزون (${stockStr})!`
         );
         return;
       }
@@ -768,7 +774,13 @@ function POSContent() {
                 <div className="absolute top-full left-0 right-0 bg-[#FDFAED] border border-mint-line shadow-xl rounded-xl mt-1 max-h-60 overflow-y-auto z-30">
                   {filteredMeds.length > 0 ? (
                     filteredMeds.map((med: any) => {
-                      const isOutOfStock = Number(med.qty || 0) <= 0;
+                      const inCartQty = getCartQtyForMed(med.id);
+                      const medTotalStock = Number(med.qty || 0);
+                      const remainingStock = Math.max(0, medTotalStock - inCartQty);
+                      const isOutOfStock = medTotalStock <= 0;
+                      const isFullyInCart = inCartQty >= medTotalStock && medTotalStock > 0;
+                      const isDisabled = isOutOfStock || isFullyInCart;
+
                       return (
                         <div
                           key={med.id}
@@ -781,22 +793,36 @@ function POSContent() {
                               );
                               return;
                             }
+                            if (isFullyInCart) {
+                              const stockStr = formatQty(medTotalStock, med.units, language);
+                              toast.error(
+                                language === 'en'
+                                  ? `Cannot add more. All available stock (${stockStr}) is already in the cart!`
+                                  : `لا يمكن إضافة المزيد. كامل الكمية المتوفرة بالمخزون (${stockStr}) موجودة بالسلة بالفعل!`
+                              );
+                              return;
+                            }
                             addToCart(med);
                           }}
                           className={`p-3 border-b border-mint-line flex justify-between items-center last:border-0 transition-colors ${
-                            isOutOfStock
+                            isDisabled
                               ? "bg-slate-50 opacity-60 cursor-not-allowed"
                               : "hover:bg-bg cursor-pointer"
                           }`}
                         >
                           <div>
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className={`font-bold block text-[14px] ${isOutOfStock ? "text-slate-400 line-through" : "text-ink"}`}>
+                              <span className={`font-bold block text-[14px] ${isDisabled ? "text-slate-400 line-through" : "text-ink"}`}>
                                 {med.name}
                               </span>
                               {isOutOfStock && (
                                 <span className="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold border border-rose-300">
                                   🚫 {language === 'en' ? 'Out of Stock' : 'نفذ من المخزون'}
+                                </span>
+                              )}
+                              {isFullyInCart && (
+                                <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold border border-amber-300">
+                                  🛒 {language === 'en' ? 'In Cart' : 'بالسلة بالكامل'}
                                 </span>
                               )}
                               {med.name?.includes("(القديم)") && (
@@ -811,13 +837,15 @@ function POSContent() {
                               )}
                             </div>
                             <span className="text-[12px] text-ink-soft mt-0.5 flex gap-1">
-                              {language === 'en' ? "Available:" : "متوفر:"}{" "}
-                              <span className={`font-mono font-bold ${isOutOfStock ? "text-rose-600" : "text-teal"}`}>
-                                {formatQty(med.qty, med.units, language)}
+                              {language === 'en' ? "Available:" : "المتبقي:"}{" "}
+                              <span className={`font-mono font-bold ${isDisabled ? "text-rose-600" : "text-teal"}`}>
+                                {isFullyInCart
+                                  ? (language === 'en' ? "0 (All in cart)" : "0 (موجود بالسلة)")
+                                  : formatQty(remainingStock, med.units, language)}
                               </span>
                             </span>
                           </div>
-                          <span className={`font-mono font-bold text-[15px] ${isOutOfStock ? "text-slate-400" : "text-primary"}`}>
+                          <span className={`font-mono font-bold text-[15px] ${isDisabled ? "text-slate-400" : "text-primary"}`}>
                             {med.price || 0} ₪
                           </span>
                         </div>
@@ -1429,20 +1457,51 @@ function POSContent() {
               {language === 'en' ? "has fractions, how would you like to sell it?" : "يحتوي على أجزاء، كيف تود بيعه؟"}
             </p>
             <div className="flex flex-col gap-3">
-              {unitModal.units.map((u, index) => (
-                <button
-                  key={index}
-                  onClick={() => addToCartWithUnit(unitModal.med, u)}
-                  className="flex justify-between items-center bg-bg border border-mint-line hover:border-primary hover:bg-teal-pale/20 transition-all p-4 rounded-xl"
-                >
-                  <span className="font-bold text-[16px] text-ink">
-                    {u.name}
-                  </span>
-                  <span className="font-mono font-bold text-[16px] text-primary">
-                    {Number(u.price).toFixed(2)} ₪
-                  </span>
-                </button>
-              ))}
+              {unitModal.units.map((u, index) => {
+                const medStock = Number(unitModal.med.qty || 0);
+                const inCartQty = getCartQtyForMed(unitModal.med.id);
+                const remainingStock = Math.max(0, medStock - inCartQty);
+                const neededCount = Number(u.count || 1);
+                const canAfford = remainingStock >= neededCount;
+
+                return (
+                  <button
+                    key={index}
+                    disabled={!canAfford}
+                    onClick={() => {
+                      if (!canAfford) {
+                        const remStr = formatQty(remainingStock, unitModal.med.units, language);
+                        toast.error(
+                          language === 'en'
+                            ? `Cannot add "${u.name}". Remaining stock (${remStr}) is insufficient!`
+                            : `لا يمكن اختيار "${u.name}". الكمية المتبقية (${remStr}) غير كافية!`
+                        );
+                        return;
+                      }
+                      addToCartWithUnit(unitModal.med, u);
+                    }}
+                    className={`flex justify-between items-center transition-all p-4 rounded-xl ${
+                      canAfford
+                        ? "bg-bg border border-mint-line hover:border-primary hover:bg-teal-pale/20 cursor-pointer"
+                        : "bg-slate-50 border border-slate-200 opacity-50 cursor-not-allowed"
+                    }`}
+                  >
+                    <div className="flex flex-col items-start">
+                      <span className="font-bold text-[16px] text-ink">
+                        {u.name}
+                      </span>
+                      {!canAfford && (
+                        <span className="text-[11px] text-rose-600 font-medium">
+                          {language === 'en' ? "Insufficient stock" : "الكمية المتبقية لا تكفي"}
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-mono font-bold text-[16px] text-primary">
+                      {Number(u.price).toFixed(2)} ₪
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
