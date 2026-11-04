@@ -10,7 +10,8 @@ import { useStore } from "@/store";
 import useSWR from "swr";
 import toast from "react-hot-toast";
 import { formatQty } from "@/utils/formatQty";
-import MasterCatalogModal from "@/components/MasterCatalogModal";
+import MasterCatalogModal, { MASTER_DRUGS_COUNT } from "@/components/MasterCatalogModal";
+import { normalizeSearchText } from "@/utils/textUtils";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -259,10 +260,23 @@ export default function Inventory() {
 
   const filteredMeds = meds.filter((med: Med) => {
     const matchCat = getMedCategory(med).includes(activeCat);
+    if (!search || !search.trim()) return matchCat;
+
+    const normQuery = normalizeSearchText(search);
+    const rawQuery = search.trim().toLowerCase();
+
+    const normName = normalizeSearchText(med.name);
+    const normMfg = normalizeSearchText(med.manufacturer);
+    const normCat = normalizeSearchText(med.category);
+    const barcode = (med.barcode || "").toLowerCase();
+
     const matchSearch =
-      med.name?.includes(search) ||
-      med.manufacturer?.includes(search) ||
-      med.category?.includes(search);
+      normName.includes(normQuery) ||
+      normMfg.includes(normQuery) ||
+      normCat.includes(normQuery) ||
+      barcode.startsWith(rawQuery) ||
+      (med.name && med.name.toLowerCase().includes(rawQuery));
+
     return matchCat && matchSearch;
   });
 
@@ -413,7 +427,7 @@ export default function Inventory() {
                 {language === 'en' ? 'Master Drug Directory (Formulary)' : 'دليل الأدوية الافتراضي الموحد'}
               </h4>
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-300">
-                70+ {language === 'en' ? 'Certified' : 'معتمد ⚡'}
+                {(MASTER_DRUGS_COUNT || 4766).toLocaleString()}+ {language === 'en' ? 'Certified ⚡' : 'صنف معتمد ⚡'}
               </span>
             </div>
             <p className="text-xs text-ink-soft mt-0.5">

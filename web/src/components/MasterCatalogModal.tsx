@@ -5,6 +5,9 @@ import masterDrugsData from "@/data/masterDrugs.json";
 import { API_BASE_URL } from "@/lib/config";
 import toast from "react-hot-toast";
 import { useStore } from "@/store";
+import { normalizeSearchText } from "@/utils/textUtils";
+
+export const MASTER_DRUGS_COUNT = (masterDrugsData as MasterDrug[]).length;
 
 export interface MasterDrug {
   barcode: string;
@@ -134,7 +137,9 @@ export default function MasterCatalogModal({
 
   // Filter drugs
   const filteredDrugs = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const rawQuery = search.trim().toLowerCase();
+    const normQuery = normalizeSearchText(search);
+
     return (masterDrugsData as MasterDrug[]).filter((drug) => {
       // Category match
       if (selectedCategory !== "الكل" && drug.category !== selectedCategory) {
@@ -148,12 +153,21 @@ export default function MasterCatalogModal({
       if (statusFilter === "controlled" && !drug.isControlled) return false;
 
       // Search match
-      if (!query) return true;
-      const matchName = drug.name.toLowerCase().includes(query);
-      const matchSci = drug.scientificName?.toLowerCase().includes(query);
-      const matchBarcode = drug.barcode?.toLowerCase().includes(query);
-      const matchDesc = drug.description?.toLowerCase().includes(query);
-      return matchName || matchSci || matchBarcode || matchDesc;
+      if (!normQuery) return true;
+
+      const normName = normalizeSearchText(drug.name);
+      const normSci = normalizeSearchText(drug.scientificName);
+      const normDesc = normalizeSearchText(drug.description);
+      const barcode = (drug.barcode || "").toLowerCase();
+
+      return (
+        normName.includes(normQuery) ||
+        normSci.includes(normQuery) ||
+        normDesc.includes(normQuery) ||
+        barcode.startsWith(rawQuery) ||
+        (drug.name && drug.name.toLowerCase().includes(rawQuery)) ||
+        (drug.scientificName && drug.scientificName.toLowerCase().includes(rawQuery))
+      );
     });
   }, [search, selectedCategory, statusFilter, stockLookup]);
 

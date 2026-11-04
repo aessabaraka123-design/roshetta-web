@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import AppBar from "@/components/AppBar";
 import toast from "react-hot-toast";
 import { useStore } from "@/store";
-import MasterCatalogModal, { MasterDrug } from "@/components/MasterCatalogModal";
+import MasterCatalogModal, { MasterDrug, MASTER_DRUGS_COUNT } from "@/components/MasterCatalogModal";
 
 export default function AddItem() {
   const user = useStore((state: any) => state.user);
@@ -319,9 +319,14 @@ export default function AddItem() {
         <div className="flex items-center gap-2.5">
           <span className="text-xl">⚡</span>
           <div>
-            <h4 className="font-bold text-xs text-ink">
-              {language === 'en' ? 'Quick Auto-fill from Drug Directory' : 'تعبئة تلقائية سريعة من دليل الأدوية الافتراضي'}
-            </h4>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="font-bold text-xs text-ink">
+                {language === 'en' ? 'Quick Auto-fill from Drug Directory' : 'تعبئة تلقائية سريعة من دليل الأدوية الافتراضي'}
+              </h4>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-300">
+                {(MASTER_DRUGS_COUNT || 4766).toLocaleString()}+ {language === 'en' ? 'Certified' : 'معتمد ⚡'}
+              </span>
+            </div>
             <p className="text-[11px] text-ink-soft">
               {language === 'en'
                 ? 'Select any certified medicine to auto-complete name, category, and units'
