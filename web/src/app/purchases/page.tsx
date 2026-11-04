@@ -2755,12 +2755,14 @@ export default function PurchasesPage() {
                 <select
                   value={invoicePaymentMethod}
                   onChange={(e) => setInvoicePaymentMethod(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-teal outline-none font-bold text-[14px]"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-teal outline-none font-bold text-[14px] bg-white text-ink"
                 >
-                  <option value="كاش">{language === 'en' ? 'Cash' : 'كاش / نقدي'}</option>
-                  <option value="شيك">{language === 'en' ? 'Cheque' : 'شيك'}</option>
-                  <option value="تحويل بنكي">{language === 'en' ? 'Bank Transfer' : 'تحويل بنكي'}</option>
-                  <option value="فيزا">{language === 'en' ? 'Card / Visa' : 'فيزا / بطاقة'}</option>
+                  <option value="كاش">{language === 'en' ? 'Cash (from drawer)' : 'كاش (نقدي من الصندوق)'}</option>
+                  <option value="جوال باي">{language === 'en' ? 'Jawwal Pay' : 'جوال باي (Jawwal Pay)'}</option>
+                  <option value="بال باي">{language === 'en' ? 'PalPay' : 'بال باي (PalPay)'}</option>
+                  <option value="تحويل بنكي">{language === 'en' ? 'Bank Transfer' : 'تحويل بنكي (حوالة مصرفية)'}</option>
+                  <option value="شيك">{language === 'en' ? 'Cheque' : 'شيك بنكي'}</option>
+                  <option value="فيزا">{language === 'en' ? 'Card / Visa' : 'فيزا / بطاقة دفع'}</option>
                 </select>
               </div>
 
