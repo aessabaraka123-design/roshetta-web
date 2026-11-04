@@ -132,8 +132,11 @@ export default function BatchesPage() {
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [filterExpiring, setFilterExpiring] = useState<
-    "all" | "expiring" | "expired"
+    "all" | "expiring" | "expired" | "no_expiry"
   >("all");
+  const [branchFilter, setBranchFilter] = useState("all");
+  const [branches, setBranches] = useState<any[]>([]);
+  const [newBatchBranchId, setNewBatchBranchId] = useState("");
   const [newBatch, setNewBatch] = useState({
     drug_id: "",
     drug_name: "",
@@ -146,15 +149,70 @@ export default function BatchesPage() {
   const [showInvDropdown, setShowInvDropdown] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Fetch branches for this pharmacy
+  useEffect(() => {
+    async function fetchBranches() {
+      if (!user?.pharmacy_id) return;
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/api/admin/pharmacies/${user.pharmacy_id}/branches`,
+        );
+        const data = await res.json();
+        if (data.success && Array.isArray(data.branches) && data.branches.length > 0) {
+          setBranches(data.branches);
+        } else {
+          // Fallback to dashboard
+          const res2 = await fetch(
+            `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`,
+          );
+          const data2 = await res2.json();
+          if (data2.success && Array.isArray(data2.branches)) {
+            setBranches(data2.branches);
+          }
+        }
+      } catch (err) {}
+    }
+    fetchBranches();
+  }, [user?.pharmacy_id]);
+
+  // If user is locked to a specific branch (pharmacist / branch manager), default to that branch
+  useEffect(() => {
+    if (
+      branches.length > 0 &&
+      user?.branch &&
+      user.branch !== "all" &&
+      user.branch !== "كل الفروع"
+    ) {
+      const match = branches.find(
+        (b: any) =>
+          b.name?.trim() === user.branch?.trim() || b.id === user.branch,
+      );
+      if (match && branchFilter === "all") {
+        setBranchFilter(match.id);
+      }
+    }
+  }, [branches, user?.branch]);
+
+  const branchMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    branches.forEach((b: any) => {
+      if (b.id) map[b.id] = b.name;
+    });
+    return map;
+  }, [branches]);
+
+  const activeBranchParam =
+    branchFilter !== "all" ? `?branch_id=${branchFilter}` : "";
+
   const { data: batchData, mutate: mutateBatches } = useSWR(
     user
-      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/batches`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/batches${activeBranchParam}`
       : null,
     fetcher,
   );
   const { data: inventoryData, mutate: mutateInventory } = useSWR(
     user
-      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/inventory`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/inventory${activeBranchParam}`
       : null,
     fetcher,
   );
@@ -168,25 +226,58 @@ export default function BatchesPage() {
 
   // Aggregate explicit batches with pharmacy inventory items having expiry/stock
   const batches = useMemo(() => {
-    const list: any[] = [...rawBatches];
+    const list: any[] = [];
     const explicitDrugIds = new Set(
       rawBatches.map((b: any) => String(b.drug_id || "")),
     );
 
+    // 1. Explicit batches from batches table
+    rawBatches.forEach((b: any) => {
+      const matchedInv = inventoryList.find(
+        (inv: any) => String(inv.id) === String(b.drug_id),
+      );
+      const itemBranchId = b.branch_id || matchedInv?.branch_id || "";
+      if (
+        branchFilter !== "all" &&
+        itemBranchId &&
+        String(itemBranchId) !== String(branchFilter)
+      ) {
+        return;
+      }
+      list.push({
+        ...b,
+        isInventory: false,
+        branch_id: itemBranchId,
+        branch_name: branchMap[itemBranchId] || b.branch_name || "",
+        hasNoExpiry: false,
+      });
+    });
+
+    // 2. Inventory items
     inventoryList.forEach((inv: any) => {
       if (!inv || !inv.id) return;
-      // If this drug already has separate batch records in batches table, don't duplicate
       if (explicitDrugIds.has(String(inv.id))) return;
 
-      // Include if it has an expiry date or active physical stock
-      const hasExpiry = Boolean(inv.expiry && String(inv.expiry).trim());
-      const hasStock = Number(inv.qty) > 0;
-      const hasBatchNo = Boolean(inv.batch_number && String(inv.batch_number).trim());
+      // Filter by branch if specific branch selected
+      if (
+        branchFilter !== "all" &&
+        inv.branch_id &&
+        String(inv.branch_id) !== String(branchFilter)
+      ) {
+        return;
+      }
 
-      if (hasExpiry || hasStock || hasBatchNo) {
+      const hasExpiry = Boolean(inv.expiry && String(inv.expiry).trim());
+      const hasBatchNo = Boolean(
+        inv.batch_number && String(inv.batch_number).trim(),
+      );
+
+      if (hasExpiry || hasBatchNo) {
         list.push({
           id: `inv-${inv.id}`,
           pharmacy_id: inv.pharmacy_id,
+          branch_id: inv.branch_id || "",
+          branch_name: branchMap[inv.branch_id] || "",
           drug_id: inv.id,
           drug_name: inv.name || "—",
           batch_number: inv.batch_number || inv.barcode || "—",
@@ -195,6 +286,24 @@ export default function BatchesPage() {
           purchase_price: Number(inv.cost || inv.price_buy || 0),
           isInventory: true,
           barcode: inv.barcode || "",
+          hasNoExpiry: false,
+        });
+      } else if (Number(inv.qty) > 0) {
+        // Items with physical stock but no expiry date recorded yet
+        list.push({
+          id: `inv-${inv.id}`,
+          pharmacy_id: inv.pharmacy_id,
+          branch_id: inv.branch_id || "",
+          branch_name: branchMap[inv.branch_id] || "",
+          drug_id: inv.id,
+          drug_name: inv.name || "—",
+          batch_number: inv.batch_number || inv.barcode || "—",
+          expiry_date: "",
+          qty: inv.qty ?? 0,
+          purchase_price: Number(inv.cost || inv.price_buy || 0),
+          isInventory: true,
+          barcode: inv.barcode || "",
+          hasNoExpiry: true,
         });
       }
     });
@@ -210,7 +319,7 @@ export default function BatchesPage() {
     });
 
     return list;
-  }, [rawBatches, inventoryList]);
+  }, [rawBatches, inventoryList, branchFilter, branchMap]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -222,19 +331,29 @@ export default function BatchesPage() {
         b.batch_number?.toLowerCase().includes(q) ||
         b.barcode?.toLowerCase().includes(q);
 
-      const matchFilter =
-        filterExpiring === "all"
-          ? true
-          : filterExpiring === "expired"
-            ? days !== null && days < 0
-            : days !== null && days >= 0 && days <= 60;
+      let matchFilter = true;
+      if (filterExpiring === "all") {
+        matchFilter = !b.hasNoExpiry;
+      } else if (filterExpiring === "expiring") {
+        matchFilter =
+          !b.hasNoExpiry && days !== null && days >= 0 && days <= 60;
+      } else if (filterExpiring === "expired") {
+        matchFilter = !b.hasNoExpiry && days !== null && days < 0;
+      } else if (filterExpiring === "no_expiry") {
+        matchFilter = b.hasNoExpiry === true;
+      }
 
       return matchSearch && matchFilter;
     });
   }, [batches, search, filterExpiring]);
 
+  const totalBatchesCount = useMemo(() => {
+    return batches.filter((b: any) => !b.hasNoExpiry).length;
+  }, [batches]);
+
   const expiredCount = useMemo(() => {
     return batches.filter((b: any) => {
+      if (b.hasNoExpiry) return false;
       const days = getDaysUntilExpiry(b.expiry_date);
       return days !== null && days < 0;
     }).length;
@@ -242,9 +361,14 @@ export default function BatchesPage() {
 
   const expiringCount = useMemo(() => {
     return batches.filter((b: any) => {
+      if (b.hasNoExpiry) return false;
       const d = getDaysUntilExpiry(b.expiry_date);
       return d !== null && d >= 0 && d <= 60;
     }).length;
+  }, [batches]);
+
+  const noExpiryCount = useMemo(() => {
+    return batches.filter((b: any) => b.hasNoExpiry).length;
   }, [batches]);
 
   const handleAddBatch = async () => {
@@ -350,27 +474,41 @@ export default function BatchesPage() {
     }
   };
 
+  const targetBranch =
+    newBatchBranchId ||
+    (branchFilter !== "all" ? branchFilter : branches[0]?.id || "");
+
   const filteredInventory = useMemo(() => {
     const q = inventorySearch.trim().toLowerCase();
-    if (!q) return inventoryList.slice(0, 10);
-    return inventoryList
+    let list = inventoryList;
+    if (targetBranch && targetBranch !== "all") {
+      list = list.filter(
+        (d: any) =>
+          !d.branch_id || String(d.branch_id) === String(targetBranch),
+      );
+    }
+    if (!q) return list.slice(0, 10);
+    return list
       .filter((d: any) =>
         d.name?.toLowerCase().includes(q) || d.barcode?.includes(q),
       )
       .slice(0, 10);
-  }, [inventoryList, inventorySearch]);
+  }, [inventoryList, inventorySearch, targetBranch]);
 
   return (
     <>
       <AppBar title={language === "en" ? "Expiry Batches" : "دفعات الصلاحيات"} />
       <div className="p-2 sm:p-6 space-y-4 sm:space-y-6">
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <div className="bg-white rounded-xl sm:rounded-2xl border border-mint-line p-2.5 sm:p-5 text-center shadow-sm">
+          <div
+            className="bg-white rounded-xl sm:rounded-2xl border border-mint-line p-2.5 sm:p-5 text-center shadow-sm cursor-pointer hover:scale-[1.02] transition-transform"
+            onClick={() => setFilterExpiring("all")}
+          >
             <div className="text-[10px] sm:text-[12px] font-bold text-ink-soft mb-1 truncate">
               {language === "en" ? "Total Batches" : "إجمالي الدفعات"}
             </div>
             <div className="text-[20px] sm:text-[32px] font-mono font-black text-primary">
-              {batches.length}
+              {totalBatchesCount}
             </div>
           </div>
           <div
@@ -397,36 +535,94 @@ export default function BatchesPage() {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center">
+        <div className="flex flex-col lg:flex-row gap-2.5 sm:gap-3 items-stretch lg:items-center">
           <input
             type="text"
-            placeholder={language === "en" ? "Search by drug name or batch..." : "ابحث باسم الدواء أو رقم الدفعة..."}
+            placeholder={
+              language === "en"
+                ? "Search by drug name or batch..."
+                : "ابحث باسم الدواء أو رقم الدفعة..."
+            }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1 bg-white border border-mint-line rounded-xl px-4 py-2.5 sm:py-3 text-[14px] outline-none focus:border-teal shadow-sm"
           />
-          <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap sm:flex-nowrap">
-            <div className="flex items-center gap-1 bg-bg p-1 rounded-xl border border-mint-line shrink-0">
-              {(["all", "expiring", "expired"] as const).map((f) => (
+
+          <div className="flex items-center justify-between lg:justify-end gap-2 flex-wrap sm:flex-nowrap">
+            {/* Branch Filter Dropdown */}
+            {branches.length > 0 && (
+              <div className="flex items-center gap-1.5 bg-white border border-mint-line px-3 py-2 sm:py-2.5 rounded-xl text-[13px] font-bold text-ink shadow-sm shrink-0">
+                <span className="text-primary text-[14px]">🏢</span>
+                <select
+                  value={branchFilter}
+                  onChange={(e) => setBranchFilter(e.target.value)}
+                  className="bg-transparent font-bold text-[13px] text-ink outline-none cursor-pointer"
+                >
+                  <option value="all">
+                    {language === "en" ? "All Branches" : "كل الفروع"}
+                  </option>
+                  {branches.map((b: any) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1 bg-bg p-1 rounded-xl border border-mint-line shrink-0 overflow-x-auto">
+              {[
+                { id: "all", ar: "الكل", en: "All", count: totalBatchesCount },
+                {
+                  id: "expiring",
+                  ar: "تنتهي قريباً",
+                  en: "Expiring",
+                  count: expiringCount,
+                },
+                {
+                  id: "expired",
+                  ar: "منتهية",
+                  en: "Expired",
+                  count: expiredCount,
+                },
+                {
+                  id: "no_expiry",
+                  ar: "بدون تاريخ",
+                  en: "No Expiry",
+                  count: noExpiryCount,
+                },
+              ].map((f: any) => (
                 <button
-                  key={f}
-                  onClick={() => setFilterExpiring(f)}
-                  className={`px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
-                    filterExpiring === f
+                  key={f.id}
+                  onClick={() => setFilterExpiring(f.id)}
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                    filterExpiring === f.id
                       ? "bg-primary text-white shadow-sm"
                       : "text-ink-soft hover:text-primary"
                   }`}
                 >
-                  {f === "all"
-                    ? language === "en" ? "All" : "الكل"
-                    : f === "expiring"
-                      ? language === "en" ? "Expiring" : "تنتهي قريباً"
-                      : language === "en" ? "Expired" : "منتهية"}
+                  <span>{language === "en" ? f.en : f.ar}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                      filterExpiring === f.id
+                        ? "bg-white/20 text-white"
+                        : "bg-mint-line/60 text-ink-soft"
+                    }`}
+                  >
+                    {f.count}
+                  </span>
                 </button>
               ))}
             </div>
+
             <button
-              onClick={() => setShowAddModal(true)}
+              onClick={() => {
+                setNewBatchBranchId(
+                  branchFilter !== "all" ? branchFilter : branches[0]?.id || "",
+                );
+                setShowAddModal(true);
+              }}
               className="bg-primary text-white px-3.5 sm:px-5 py-2 sm:py-3 rounded-xl font-bold text-[13px] sm:text-[14px] shadow-md shadow-primary/20 hover:opacity-90 whitespace-nowrap shrink-0 flex items-center gap-1.5"
             >
               <span>+</span>
@@ -455,6 +651,11 @@ export default function BatchesPage() {
                     <div className="flex justify-between items-start gap-2 mb-2">
                       <div className="font-bold text-[14px] text-ink flex items-center gap-1.5 flex-wrap">
                         <span>{batch.drug_name}</span>
+                        {batch.branch_name && (
+                          <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-bold border border-slate-200">
+                            🏢 {batch.branch_name}
+                          </span>
+                        )}
                         {batch.isInventory ? (
                           <span className="text-[10px] bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded font-bold border border-sky-200">
                             {language === "en" ? "Inventory" : "مخزون أساسي"}
@@ -462,6 +663,11 @@ export default function BatchesPage() {
                         ) : (
                           <span className="text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-bold border border-purple-200">
                             {language === "en" ? "Batch" : "دفعة واردة"}
+                          </span>
+                        )}
+                        {batch.hasNoExpiry && (
+                          <span className="text-[10px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded font-bold border border-amber-200">
+                            {language === "en" ? "No Expiry" : "بدون صلاحية"}
                           </span>
                         )}
                         {batch.drug_name?.includes("(القديم)") && (
@@ -550,6 +756,11 @@ export default function BatchesPage() {
                         <td className="px-4 py-3 font-bold text-[14px] text-ink">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span>{batch.drug_name}</span>
+                            {batch.branch_name && (
+                              <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-bold border border-slate-200">
+                                🏢 {batch.branch_name}
+                              </span>
+                            )}
                             {batch.isInventory ? (
                               <span className="text-[10px] bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded font-bold border border-sky-200">
                                 {language === "en" ? "Inventory" : "مخزون أساسي"}
@@ -557,6 +768,11 @@ export default function BatchesPage() {
                             ) : (
                               <span className="text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-bold border border-purple-200">
                                 {language === "en" ? "Batch" : "دفعة واردة"}
+                              </span>
+                            )}
+                            {batch.hasNoExpiry && (
+                              <span className="text-[10px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded font-bold border border-amber-200">
+                                {language === "en" ? "No Expiry" : "بدون صلاحية"}
                               </span>
                             )}
                             {batch.drug_name?.includes("(القديم)") && (
@@ -647,6 +863,28 @@ export default function BatchesPage() {
               </button>
             </div>
             <div className="space-y-4">
+              {branches.length > 0 && (
+                <div>
+                  <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
+                    {language === "en" ? "Branch *" : "الفرع المستهدف *"}
+                  </label>
+                  <select
+                    value={targetBranch}
+                    onChange={(e) => {
+                      setNewBatchBranchId(e.target.value);
+                      setNewBatch((p) => ({ ...p, drug_id: "", drug_name: "" }));
+                      setInventorySearch("");
+                    }}
+                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 text-[14px] outline-none focus:border-primary font-bold text-ink"
+                  >
+                    {branches.map((b: any) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="relative">
                 <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
                   {language === "en" ? "Drug *" : "الدواء *"}
