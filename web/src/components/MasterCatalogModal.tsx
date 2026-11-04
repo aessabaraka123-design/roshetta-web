@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import masterDrugsData from "@/data/masterDrugs.json";
 import { API_BASE_URL } from "@/lib/config";
 import toast from "react-hot-toast";
@@ -67,6 +67,14 @@ export default function MasterCatalogModal({
   const [statusFilter, setStatusFilter] = useState<"all" | "in_stock" | "not_in_stock" | "controlled">("all");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 30;
+  const gridContainerRef = useRef<HTMLDivElement>(null);
+
+  const handlePageChange = (newPage: number | ((prev: number) => number)) => {
+    setPage(newPage);
+    if (gridContainerRef.current) {
+      gridContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   // Quick Add Modal State
   const [quickDrug, setQuickDrug] = useState<MasterDrug | null>(null);
@@ -134,6 +142,13 @@ export default function MasterCatalogModal({
   useEffect(() => {
     setPage(1);
   }, [search, selectedCategory, statusFilter]);
+
+  // Auto scroll to top of drug list when page, search, or filters change
+  useEffect(() => {
+    if (gridContainerRef.current) {
+      gridContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [page, search, selectedCategory, statusFilter]);
 
   // Filter drugs
   const filteredDrugs = useMemo(() => {
@@ -439,7 +454,7 @@ export default function MasterCatalogModal({
         </div>
 
         {/* Drug Grid List */}
-        <div className="p-4 flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <div ref={gridContainerRef} className="p-4 flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {filteredDrugs.length === 0 ? (
             <div className="col-span-full py-16 text-center text-ink-soft">
               <span className="text-5xl block mb-2">🔍</span>
@@ -583,7 +598,7 @@ export default function MasterCatalogModal({
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => setPage(1)}
+                onClick={() => handlePageChange(1)}
                 disabled={page === 1}
                 className="px-2.5 py-1.5 rounded-xl border border-mint-line bg-bg hover:bg-card disabled:opacity-30 transition-colors"
                 title="الصفحة الأولى"
@@ -592,7 +607,7 @@ export default function MasterCatalogModal({
               </button>
               <button
                 type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => handlePageChange((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
                 className="px-3 py-1.5 rounded-xl border border-mint-line bg-bg hover:bg-card disabled:opacity-30 transition-colors"
               >
@@ -603,7 +618,7 @@ export default function MasterCatalogModal({
               </span>
               <button
                 type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => handlePageChange((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
                 className="px-3 py-1.5 rounded-xl border border-mint-line bg-bg hover:bg-card disabled:opacity-30 transition-colors"
               >
@@ -611,7 +626,7 @@ export default function MasterCatalogModal({
               </button>
               <button
                 type="button"
-                onClick={() => setPage(totalPages)}
+                onClick={() => handlePageChange(totalPages)}
                 disabled={page === totalPages}
                 className="px-2.5 py-1.5 rounded-xl border border-mint-line bg-bg hover:bg-card disabled:opacity-30 transition-colors"
                 title="الصفحة الأخيرة"
