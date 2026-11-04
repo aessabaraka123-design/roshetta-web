@@ -122,6 +122,12 @@ export const ERROR_TRANSLATIONS_AR: Record<string, string> = {
   "LEGACY_PURCHASE_REVERSAL_REQUIRES_RECONCILIATION": "إلغاء الفاتورة السابقة يتطلب تسوية الأصناف",
 
   // Sales & Shifts
+  "INVALID_SALE": "بيانات الفاتورة غير صالحة أو السلة فارغة",
+  "SALES_ID_CONFLICT": "رقم الفاتورة مستخدم بالفعل، يرجى المحاولة ثانية",
+  "FINANCIAL_OPERATION_FAILED": "تعذر حفظ العملية المالية، يرجى المحاولة ثانية",
+  "EVENT_ID_REQUIRED": "معرف العملية مطلوب",
+  "EVENT_CONTENT_CONFLICT": "تعارض في محتوى العملية السابقة",
+  "DOCUMENT_BRANCH_MISMATCH": "الأصناف تنتمي لفرع مختلف عن الفرع المحدد",
   "SALE_NOT_REFUNDABLE": "لا يمكن استرجاع هذه الفاتورة",
   "Sale is already refunded": "تم استرجاع هذه الفاتورة مسبقاً",
   "Sale not found": "لم يتم العثور على الفاتورة",

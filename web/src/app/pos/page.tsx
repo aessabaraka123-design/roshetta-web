@@ -11,6 +11,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useStore } from "@/store";
 import toast from "react-hot-toast";
 import { formatQty } from "@/utils/formatQty";
+import { translateErrorMessage } from "@/lib/errorTranslations";
 
 import { BoxIcon } from "@/components/icons";
 import useSWR from "swr";
@@ -473,6 +474,14 @@ function POSContent() {
       const selectedCustomer =
         customers.find((c: any) => c.id === selectedCustomerId) || null;
 
+      const saleId = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? `SALE-${Date.now()}-${crypto.randomUUID().replace(/-/g, '').slice(0, 6).toUpperCase()}`
+        : `SALE-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
+      const activeBranchObj = branches.find((b: any) => b.name === selectedBranch || b.id === selectedBranch);
+      const activeBranchId = activeBranchObj ? activeBranchObj.id : (user?.branch_id || branches[0]?.id || "Main");
+      const activeBranchName = activeBranchObj ? activeBranchObj.name : (selectedBranch || user?.branch || "الفرع الرئيسي");
+
       const payloadItems = cart.map((item: any) => {
         const pCost = item.proportionalCost !== undefined && item.proportionalCost !== null
           ? Number(item.proportionalCost)
@@ -482,12 +491,21 @@ function POSContent() {
               ? Number(item.cost)
               : (Number(item.price || 0) * 0.7)));
 
+        const itemQty = Number(item.cartQty || item.qty || 1);
+        const uCount = Number(item.unitCount || 1);
+
         return {
           ...item,
+          id: item.id || item.medId || item.medicine_id,
+          name: item.name || item.displayName,
+          cartQty: itemQty,
+          qty: itemQty,
+          unitCount: uCount,
+          deductQty: itemQty * uCount,
+          price: Number(item.price) || 0,
           cost: pCost,
           unitCost: pCost,
           proportionalCost: pCost,
-          deductQty: item.cartQty * (item.unitCount || 1),
         };
       });
 
@@ -495,28 +513,37 @@ function POSContent() {
         `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/sales`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": saleId,
+          },
           body: JSON.stringify({
+            id: saleId,
             items: payloadItems,
-            total,
-            discount: calculatedDiscount,
-            vatAmount,
-            subtotal,
+            total: Number(total),
+            discount: Number(calculatedDiscount || 0),
+            vatAmount: Number(vatAmount || 0),
+            subtotal: Number(subtotal || total),
             paymentMethod: payMethod,
             customer: selectedCustomer,
-            cashierName: user?.managerName || (language === 'en' ? "Pharmacist 1" : "صيدلي 1"),
-            branchName: selectedBranch || (language === 'en' ? "Main" : "الرئيسي"),
+            cashierName: user?.managerName || user?.name || (language === 'en' ? "Pharmacist 1" : "صيدلي 1"),
+            branch_id: activeBranchId,
+            branchId: activeBranchId,
+            branchName: activeBranchName,
+            date: new Date().toISOString(),
             prescriptionId: selectedPrescriptionId || undefined,
           }),
         },
       );
 
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || (language === 'en' ? "Failed to save sale" : "حدث خطأ أثناء حفظ الفاتورة"));
+      }
 
       setLastInvoice({
-        id: data.saleId,
-        date: new Date().toLocaleString(language === 'en' ? "en-US" : language === "en" ? "en-US" : "ar-EG"),
+        id: data.saleId || saleId,
+        date: new Date().toLocaleString(language === 'en' ? "en-US" : "ar-EG"),
         total,
         discount: calculatedDiscount,
         vatAmount,
@@ -534,7 +561,8 @@ function POSContent() {
       mutate(); // refresh inventory qty from backend
       toast.success(language === 'en' ? "Sale completed successfully!" : "تم إتمام البيع بنجاح!");
     } catch (error: any) {
-      toast.error(language === 'en' ? `Error saving invoice: ${error.message}` : `حدث خطأ أثناء حفظ الفاتورة: ${error.message}`);
+      const msg = translateErrorMessage(error?.message || error, language === 'en' ? 'en' : 'ar');
+      toast.error(language === 'en' ? `Error saving invoice: ${msg}` : `حدث خطأ أثناء حفظ الفاتورة: ${msg}`);
     } finally {
       setLoading(false);
     }
