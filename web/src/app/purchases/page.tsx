@@ -2672,22 +2672,38 @@ export default function PurchasesPage() {
                 }
                 setIsPayingInvoice(true);
                 try {
-                  const res = await fetch(`${API}/api/pharmacies/${user.pharmacy_id}/purchases/${payingInvoice.id}/pay`, {
+                  const targetId = payingInvoice.id || payingInvoice._id;
+                  const payload = JSON.stringify({
+                    payment: pAmt,
+                    paymentMethod: invoicePaymentMethod,
+                  });
+
+                  let res = await fetch(`${API}/api/pharmacies/${user.pharmacy_id}/purchase-invoices/${targetId}/pay`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      payment: pAmt,
-                      paymentMethod: invoicePaymentMethod,
-                    }),
+                    body: payload,
                   });
-                  if (!res.ok) throw new Error("Payment failed");
+
+                  if (!res.ok) {
+                    res = await fetch(`${API}/api/pharmacies/${user.pharmacy_id}/purchases/${targetId}/pay`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: payload,
+                    });
+                  }
+
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok || (!data.success && data.error)) {
+                    throw new Error(data.error || (language === 'en' ? "Payment failed" : "فشل تسجيل الدفعة"));
+                  }
+
                   toast.success(language === 'en' ? "Payment registered successfully" : "تم تسجيل الدفعة بنجاح");
                   mutate();
                   if (mutateSuppliers) mutateSuppliers();
                   setPayingInvoice(null);
                   setInvoicePaymentAmount("");
-                } catch (err) {
-                  toast.error(language === 'en' ? "Failed to register payment" : "فشل تسجيل الدفعة");
+                } catch (err: any) {
+                  toast.error(err?.message || (language === 'en' ? "Failed to register payment" : "فشل تسجيل الدفعة"));
                 } finally {
                   setIsPayingInvoice(false);
                 }
