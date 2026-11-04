@@ -358,16 +358,17 @@ export default function Inventory() {
           method: "DELETE",
         },
       );
-      const result = await res.json();
-      if (result.success) {
+      const result = await res.json().catch(() => ({}));
+      if (res.ok && result.success) {
         toast.success(language === 'en' ? 'Deleted successfully' : "تم الحذف بنجاح");
         setItemToDelete(null);
         mutate();
       } else {
-        toast.error(language === 'en' ? 'Error during deletion' : "حدث خطأ أثناء الحذف");
+        const errorMsg = result.error || result.code || (language === 'en' ? 'Error during deletion' : "حدث خطأ أثناء الحذف");
+        toast.error(errorMsg);
       }
-    } catch (err) {
-      toast.error(language === 'en' ? 'Server connection error' : "خطأ في الاتصال بالخادم");
+    } catch (err: any) {
+      toast.error(err?.message || (language === 'en' ? 'Server connection error' : "خطأ في الاتصال بالخادم"));
     }
   };
 
