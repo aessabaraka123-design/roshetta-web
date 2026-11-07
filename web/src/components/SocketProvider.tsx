@@ -38,17 +38,27 @@ export default function SocketProvider({
       })
       .catch(() => {});
 
-    const newSocket = io(
-      SOCKET_BASE_URL,
-      {
-        transports: ["websocket"],
-        autoConnect: true,
-      },
-    );
+    const token =
+      useStore.getState().token ||
+      (typeof window !== "undefined" ? localStorage.getItem("roshetta_token") : "");
+
+    const newSocket = io(SOCKET_BASE_URL, {
+      auth: { token },
+      transports: ["websocket", "polling"],
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+    });
 
     newSocket.on("connect", () => {
-      if (user?.pharmacy_id) {
-        newSocket.emit("join_pharmacy", user.pharmacy_id);
+      const pid =
+        user?.pharmacy_id ||
+        (typeof window !== "undefined"
+          ? JSON.parse(localStorage.getItem("roshetta_user") || "{}").pharmacy_id
+          : "");
+      if (pid) {
+        newSocket.emit("join_pharmacy", pid);
       }
     });
 
@@ -76,9 +86,11 @@ export default function SocketProvider({
         mutate((key) => typeof key === "string" && key.includes("/sales"), undefined, { revalidate: true });
       } else {
         mutate(
-          (key) => typeof key === "string" && key.includes("/api/pharmacies"),
+          (key) =>
+            typeof key === "string" &&
+            (key.includes("/api/pharmacies") || key.includes("/inventory")),
           undefined,
-          { revalidate: true },
+          { revalidate: true }
         );
       }
     });

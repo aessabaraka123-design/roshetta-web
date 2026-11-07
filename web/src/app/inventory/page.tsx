@@ -108,6 +108,10 @@ export default function Inventory() {
       ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/inventory?branch_id=${activeBranchId}`
       : null,
     fetcher,
+    {
+      revalidateOnFocus: true,
+      refreshInterval: 8000,
+    }
   );
   const meds = data?.inventory || [];
   const categories = [
@@ -342,14 +346,17 @@ export default function Inventory() {
 
       if (editingItem.has_parts) {
         const s1Count = Number(editingItem.part1_qty) || 1;
+        const currentBaseline = Number(editingItem.originalQty ?? editingItem.qty ?? 0);
         if (editingItem.has_subparts) {
           const s2Count = Number(editingItem.part2_qty) || 1;
           const boxBaseCount = s1Count * s2Count;
           const stripBaseCount = s2Count;
           let rem = 0;
-          const oldBox = Math.floor(Number(editingItem.originalQty ?? editingItem.qty ?? 0) / boxBaseCount);
-          if (Number(editingItem.stock_boxes) === oldBox) {
-            rem = Number(editingItem.originalQty ?? editingItem.qty ?? 0) % boxBaseCount;
+          if (currentBaseline > 0) {
+            const oldBox = Math.floor(currentBaseline / boxBaseCount);
+            if (Number(editingItem.stock_boxes) === oldBox) {
+              rem = currentBaseline % boxBaseCount;
+            }
           }
           finalQty = (Number(editingItem.stock_boxes) * boxBaseCount) + rem;
           unitsArr = [
@@ -359,9 +366,11 @@ export default function Inventory() {
           ];
         } else {
           let rem = 0;
-          const oldBox = Math.floor(Number(editingItem.originalQty ?? editingItem.qty ?? 0) / s1Count);
-          if (Number(editingItem.stock_boxes) === oldBox) {
-            rem = Number(editingItem.originalQty ?? editingItem.qty ?? 0) % s1Count;
+          if (currentBaseline > 0) {
+            const oldBox = Math.floor(currentBaseline / s1Count);
+            if (Number(editingItem.stock_boxes) === oldBox) {
+              rem = currentBaseline % s1Count;
+            }
           }
           finalQty = (Number(editingItem.stock_boxes) * s1Count) + rem;
           unitsArr = [
@@ -641,9 +650,16 @@ export default function Inventory() {
                 </span>
               </div>
               <div className="flex items-center justify-between mb-4">
-                <span className="font-bold text-[14px] text-primary">
-                  {language === 'en' ? 'Qty:' : 'الكمية:'} {formatQty(med.qty, med.units, language)}
-                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className={`font-bold text-[14px] ${Number(med.qty || 0) < 0 ? "text-coral" : "text-primary"}`}>
+                    {language === 'en' ? 'Qty:' : 'الكمية:'} {formatQty(med.qty, med.units, language)}
+                  </span>
+                  {Number(med.qty || 0) < 0 && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">
+                      ⚠️ {language === 'en' ? 'Negative' : 'سالب'}
+                    </span>
+                  )}
+                </div>
                 <span className="font-mono text-[16px] font-bold text-primary">
                   {med.price || 0} ₪
                 </span>
@@ -663,7 +679,8 @@ export default function Inventory() {
                     let hs = false;
                     let p2n = "حبة",
                       p2q = 1;
-                    let s_boxes = med.qty || 0,
+                    const currentTotal = Number(med.qty || 0);
+                    let s_boxes = Math.max(0, currentTotal),
                       s_p1 = 0,
                       s_p2 = 0;
 
@@ -674,8 +691,9 @@ export default function Inventory() {
                           hp = true;
                           p1n = arr[1].name;
                           const totalPerBox = arr[0].count;
-                          s_boxes = Math.floor((med.qty || 0) / totalPerBox);
-                          const rem = (med.qty || 0) % totalPerBox;
+                          const nonNeg = Math.max(0, currentTotal);
+                          s_boxes = Math.floor(nonNeg / totalPerBox);
+                          const rem = nonNeg % totalPerBox;
 
                           if (arr.length === 2) {
                             p1q = arr[0].count / arr[1].count;
