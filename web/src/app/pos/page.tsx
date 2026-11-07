@@ -157,7 +157,7 @@ function POSContent() {
 
   const branchMeds = meds.filter(
     (m: Med) =>
-      !activeBranchId || !m.branch_id || m.branch_id === activeBranchId,
+      !(m as any).archived_at && (!activeBranchId || !m.branch_id || m.branch_id === activeBranchId),
   );
   const getCartQtyForMed = (medId: string) => {
     return cart.reduce((sum: number, ci: any) => {

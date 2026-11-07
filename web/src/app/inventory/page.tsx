@@ -271,6 +271,7 @@ export default function Inventory() {
   ]);
 
   const filteredMeds = meds.filter((med: Med) => {
+    if (med.archived_at) return false;
     const matchCat = getMedCategory(med).includes(activeCat);
     if (!search || !search.trim()) return matchCat;
 
