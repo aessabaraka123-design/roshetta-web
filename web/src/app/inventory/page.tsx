@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 import { formatQty } from "@/utils/formatQty";
 import MasterCatalogModal, { MASTER_DRUGS_COUNT } from "@/components/MasterCatalogModal";
 import { normalizeSearchText } from "@/utils/textUtils";
+import { translateErrorMessage } from "@/lib/errorTranslations";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -20,9 +21,11 @@ type MedCategory = "all" | "expiring" | "out" | "controlled";
 interface Med {
   id: string;
   name: string;
+  scientificName?: string;
   manufacturer: string;
   category: string;
   qty: number;
+  originalQty?: number;
   minQty?: number;
   price: number;
   cost: number;
@@ -30,7 +33,8 @@ interface Med {
   expiry_date?: string;
   expiry?: string;
   isControlled?: number | boolean;
-  branch: { name: string };
+  branch: { name: string; id?: string } | any;
+  branch_id?: string;
   units?: string;
   // Temporary state for UI
   has_parts?: boolean;
@@ -155,7 +159,11 @@ export default function Inventory() {
   };
 
   const [editingItem, setEditingItem] = useState<Med | null>(null);
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  const [isUpdating, setIsUpdating] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<Med | null>(null);
+  const [deleteError, setDeleteError] = useState<string>("");
+  const [isDeleting, setIsDeleting] = useState(false);
   const [batchModalItem, setBatchModalItem] = useState<any>(null);
   const [newBatchData, setNewBatchData] = useState({
     qty: "",
@@ -283,74 +291,163 @@ export default function Inventory() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem) return;
+
+    // Field-level validations (matching mobile AddItemScreen)
+    const newErrors: Record<string, string> = {};
+
+    if (!editingItem.name || !editingItem.name.trim()) {
+      newErrors.name = language === 'en' ? 'Medicine trade name is required' : 'اسم الصنف (التجاري) مطلوب';
+    }
+
+    const priceSell = parseFloat(String(editingItem.price));
+    if (editingItem.price === '' || editingItem.price === null || editingItem.price === undefined || isNaN(priceSell) || priceSell <= 0) {
+      newErrors.price = language === 'en' ? 'Valid selling price (> 0) is required' : 'يرجى إدخال سعر بيع صحيح أكبر من صفر';
+    }
+
+    const priceBuy = parseFloat(String(editingItem.cost));
+    if (editingItem.cost === '' || editingItem.cost === null || editingItem.cost === undefined || isNaN(priceBuy) || priceBuy < 0) {
+      newErrors.cost = language === 'en' ? 'Purchase price cannot be negative' : 'سعر الشراء لا يمكن أن يكون بالسالب';
+    }
+
+    const rawBoxes = String(editingItem.stock_boxes ?? '');
+    const boxesNum = parseFloat(rawBoxes);
+    if (rawBoxes === '' || isNaN(boxesNum) || boxesNum < 0) {
+      newErrors.stock_boxes = language === 'en' ? 'Quantity cannot be negative' : 'الكمية لا يمكن أن تكون بالسالب';
+    }
+
+    if (editingItem.has_parts) {
+      const p1q = parseInt(String(editingItem.part1_qty)) || 0;
+      if (p1q <= 0) {
+        newErrors.part1_qty = language === 'en' ? 'Parts per box must be at least 1' : 'يجب تحديد عدد الأجزاء بالعلبة (1 على الأقل)';
+      }
+      if (editingItem.has_subparts) {
+        const p2q = parseInt(String(editingItem.part2_qty)) || 0;
+        if (p2q <= 0) {
+          newErrors.part2_qty = language === 'en' ? 'Sub-parts count must be at least 1' : 'يجب تحديد عدد الوحدات الفرعية (1 على الأقل)';
+        }
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setEditErrors(newErrors);
+      return;
+    }
+
+    setEditErrors({});
+    setIsUpdating(true);
+
     try {
+      let finalQty = Number(editingItem.stock_boxes) || 0;
+      let unitsArr: any = null;
+
+      if (editingItem.has_parts) {
+        const s1Count = Number(editingItem.part1_qty) || 1;
+        if (editingItem.has_subparts) {
+          const s2Count = Number(editingItem.part2_qty) || 1;
+          const boxBaseCount = s1Count * s2Count;
+          const stripBaseCount = s2Count;
+          let rem = 0;
+          const oldBox = Math.floor(Number(editingItem.originalQty ?? editingItem.qty ?? 0) / boxBaseCount);
+          if (Number(editingItem.stock_boxes) === oldBox) {
+            rem = Number(editingItem.originalQty ?? editingItem.qty ?? 0) % boxBaseCount;
+          }
+          finalQty = (Number(editingItem.stock_boxes) * boxBaseCount) + rem;
+          unitsArr = [
+            { name: "علبة", count: boxBaseCount, price: Number(editingItem.price) },
+            { name: editingItem.part1_name || "شريط", count: stripBaseCount, price: Number(editingItem.part1_price || (Number(editingItem.price) / s1Count)) },
+            { name: editingItem.part2_name || "حبة", count: 1, price: Number(editingItem.part2_price || (Number(editingItem.price) / boxBaseCount)) }
+          ];
+        } else {
+          let rem = 0;
+          const oldBox = Math.floor(Number(editingItem.originalQty ?? editingItem.qty ?? 0) / s1Count);
+          if (Number(editingItem.stock_boxes) === oldBox) {
+            rem = Number(editingItem.originalQty ?? editingItem.qty ?? 0) % s1Count;
+          }
+          finalQty = (Number(editingItem.stock_boxes) * s1Count) + rem;
+          unitsArr = [
+            { name: "علبة", count: s1Count, price: Number(editingItem.price) },
+            { name: editingItem.part1_name || "شريط", count: 1, price: Number(editingItem.part1_price || (Number(editingItem.price) / s1Count)) }
+          ];
+        }
+      }
+
+      const baselineQty = editingItem.originalQty !== undefined
+        ? Number(editingItem.originalQty)
+        : Number(editingItem.qty || 0);
+
+      const branchId = editingItem.branch_id || (typeof editingItem.branch === 'object' ? editingItem.branch?.id : null);
+
+      const payload: any = {
+        id: editingItem.id,
+        name: editingItem.name?.trim(),
+        scientificName: editingItem.scientificName?.trim() || "",
+        manufacturer: editingItem.manufacturer?.trim() || "",
+        category: editingItem.category || "أدوية عامة",
+        price: parseFloat(String(editingItem.price)) || 0,
+        cost: parseFloat(String(editingItem.cost)) || 0,
+        price_sell: parseFloat(String(editingItem.price)) || 0,
+        price_buy: parseFloat(String(editingItem.cost)) || 0,
+        isControlled: editingItem.isControlled === 1 || editingItem.isControlled === true ? 1 : 0,
+        qty: finalQty,
+        expectedQty: baselineQty,
+        minQty: Number(editingItem.minQty || 5),
+        batch_number: editingItem.batch_number || "",
+        expiry_date: editingItem.expiry_date || "",
+        expiry: editingItem.expiry_date || "",
+        units: unitsArr ? JSON.stringify(unitsArr) : null,
+      };
+
+      if (branchId) {
+        payload.branch_id = branchId;
+      }
+
       const res = await fetch(
         `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/inventory/${editingItem.id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: editingItem.name,
-            manufacturer: editingItem.manufacturer,
-            category: editingItem.category,
-            price_sell: parseFloat(editingItem.price) || 0,
-            price_buy: parseFloat(editingItem.cost) || 0,
-            isControlled: editingItem.isControlled ? 1 : 0,
-            qty: (() => {
-              const sb = parseFloat(editingItem.stock_boxes) || 0;
-              const sp1 = editingItem.stock_part1 || 0;
-              const sp2 = editingItem.stock_part2 || 0;
-              if (!editingItem.has_parts) return sb;
-              if (editingItem.has_parts && !editingItem.has_subparts) {
-                const p1q = editingItem.part1_qty || 1;
-                return sb * p1q + sp1;
-              }
-              if (editingItem.has_parts && editingItem.has_subparts) {
-                const p1q = editingItem.part1_qty || 1;
-                const p2q = editingItem.part2_qty || 1;
-                return sb * p1q * p2q + sp1 * p2q + sp2;
-              }
-              return sb;
-            })(),
-            batch_number: editingItem.batch_number,
-            expiry_date: editingItem.expiry_date,
-            units: (() => {
-              if (!editingItem.has_parts) return null;
-              if (editingItem.has_parts && !editingItem.has_subparts) {
-                return JSON.stringify([
-                  { name: "علبة", count: editingItem.part1_qty || 1 },
-                  { name: editingItem.part1_name || "شريط", count: 1 },
-                ]);
-              }
-              if (editingItem.has_parts && editingItem.has_subparts) {
-                const p1q = editingItem.part1_qty || 1;
-                const p2q = editingItem.part2_qty || 1;
-                return JSON.stringify([
-                  { name: "علبة", count: p1q * p2q },
-                  { name: editingItem.part1_name || "شريط", count: p2q },
-                  { name: editingItem.part2_name || "حبة", count: 1 },
-                ]);
-              }
-              return null;
-            })(),
-          }),
+          body: JSON.stringify(payload),
         },
       );
-      const result = await res.json();
-      if (result.success) {
-        toast.success(language === 'en' ? 'Updated successfully' : "تم التعديل بنجاح");
+
+      const result = await res.json().catch(() => ({}));
+
+      if (res.ok && result.success) {
+        toast.success(language === 'en' ? 'Medication updated successfully' : "تم تعديل بيانات الدواء بنجاح");
         setEditingItem(null);
+        setEditErrors({});
         mutate();
       } else {
-        toast.error(result.error || (language === 'en' ? 'Error during update' : "حدث خطأ أثناء التعديل"));
+        const code = result.code || result.error || "";
+        const errMap: Record<string, string> = {};
+
+        if (code === "INVENTORY_NAME_CONFLICT" || String(code).includes("NAME_CONFLICT")) {
+          errMap.name = language === 'en' ? "An item with this name already exists in this branch" : "يوجد صنف مسجل بنفس هذا الاسم مسبقاً في هذا الفرع";
+        } else if (code === "INVENTORY_BASELINE_REQUIRED" || code === "STOCK_CHANGED_SINCE_EDIT") {
+          errMap.stock_boxes = language === 'en' ? "Stock was modified elsewhere; please reopen edit" : "تم تعديل كمية المخزون مسبقاً، يرجى إعادة فتح التعديل لتحديث الرصيد";
+        } else if (code === "REQUIRED_FIELD") {
+          errMap.name = language === 'en' ? "This field is required" : "يرجى تعبئة الحقل المطلوب";
+        } else if (code === "INVALID_TEXT") {
+          errMap.name = language === 'en' ? "Invalid text input" : "النص المدخل غير صالح";
+        } else {
+          errMap.general = translateErrorMessage(code || (language === 'en' ? 'Error during update' : "حدث خطأ أثناء التعديل"), language === 'en' ? 'en' : 'ar');
+        }
+
+        setEditErrors(errMap);
       }
-    } catch (err) {
-      toast.error(language === 'en' ? 'Server connection error' : "خطأ في الاتصال بالخادم");
+    } catch (err: any) {
+      setEditErrors({
+        general: language === 'en' ? 'Server connection error' : "خطأ في الاتصال بالخادم، يرجى المحاولة ثانية"
+      });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
   const executeDelete = async () => {
     if (!itemToDelete) return;
+    setIsDeleting(true);
+    setDeleteError("");
     try {
       const res = await fetch(
         `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/inventory/${itemToDelete.id}`,
@@ -362,13 +459,20 @@ export default function Inventory() {
       if (res.ok && result.success) {
         toast.success(language === 'en' ? 'Deleted successfully' : "تم الحذف بنجاح");
         setItemToDelete(null);
+        setDeleteError("");
         mutate();
       } else {
-        const errorMsg = result.error || result.code || (language === 'en' ? 'Error during deletion' : "حدث خطأ أثناء الحذف");
-        toast.error(errorMsg);
+        const rawCode = result.code || result.error || "";
+        const errorMsg = translateErrorMessage(
+          rawCode || (language === 'en' ? 'Error during deletion' : "حدث خطأ أثناء الحذف"),
+          language === 'en' ? 'en' : 'ar'
+        );
+        setDeleteError(errorMsg);
       }
     } catch (err: any) {
-      toast.error(err?.message || (language === 'en' ? 'Server connection error' : "خطأ في الاتصال بالخادم"));
+      setDeleteError(language === 'en' ? 'Server connection error' : "خطأ في الاتصال بالخادم، يرجى المحاولة ثانية");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -590,6 +694,7 @@ export default function Inventory() {
 
                     setEditingItem({
                       ...med,
+                      originalQty: Number(med.qty || 0),
                       expiry_date: med.expiry_date || med.expiry || "",
                       batch_number: med.batch_number || "",
                       has_parts: hp,
@@ -602,13 +707,17 @@ export default function Inventory() {
                       stock_part1: s_p1,
                       stock_part2: s_p2,
                     });
+                    setEditErrors({});
                   }}
                   className="flex-1 text-[12px] font-bold text-teal bg-teal-pale/50 hover:bg-teal hover:text-white py-1.5 rounded-lg transition-colors"
                 >
                   {language === 'en' ? 'Edit' : 'تعديل'}
                 </button>
                 <button
-                  onClick={() => setItemToDelete(med)}
+                  onClick={() => {
+                    setItemToDelete(med);
+                    setDeleteError("");
+                  }}
                   className="text-[12px] font-bold text-coral bg-coral-pale/50 hover:bg-coral hover:text-white px-3 py-1.5 rounded-lg transition-colors"
                 >
                   {language === 'en' ? 'Delete' : 'حذف'}
@@ -641,23 +750,41 @@ export default function Inventory() {
             </div>
             <form
               onSubmit={handleUpdate}
+              noValidate
               className="flex flex-col flex-1 overflow-hidden min-h-0"
             >
               <div className="p-5 space-y-4 overflow-y-auto flex-1">
+                {editErrors.general && (
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-[13px] font-semibold flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>{editErrors.general}</span>
+                  </div>
+                )}
                 <div className="flex gap-4">
                   <div className="flex-1">
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      {language === 'en' ? 'Trade Name' : 'اسم الصنف (التجاري)'}
+                      {language === 'en' ? 'Trade Name *' : 'اسم الصنف (التجاري) *'}
                     </label>
                     <input
                       required
                       value={editingItem.name}
-                      onChange={(e) =>
-                        setEditingItem({ ...editingItem, name: e.target.value })
-                      }
-                      className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary text-[14px]"
+                      onChange={(e) => {
+                        setEditingItem({ ...editingItem, name: e.target.value });
+                        if (editErrors.name) setEditErrors((prev) => ({ ...prev, name: "" }));
+                        if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
+                      }}
+                      className={`w-full border rounded-xl p-2.5 outline-none text-[14px] transition-all ${
+                        editErrors.name
+                          ? "border-2 border-red-500 bg-red-500/5 ring-2 ring-red-500/20 text-red-900"
+                          : "border-mint-line focus:border-teal"
+                      }`}
                       dir="auto"
                     />
+                    {editErrors.name && (
+                      <p className="text-red-500 text-[12px] font-semibold mt-1.5 flex items-center gap-1">
+                        <span>⚠️</span> {editErrors.name}
+                      </p>
+                    )}
                   </div>
                   <div className="flex-1">
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
@@ -665,13 +792,24 @@ export default function Inventory() {
                     </label>
                     <input
                       value={editingItem.scientificName || ""}
-                      onChange={(e) =>
-                        setEditingItem({ ...editingItem, scientificName: e.target.value })
-                      }
-                      className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary text-[14px]"
+                      onChange={(e) => {
+                        setEditingItem({ ...editingItem, scientificName: e.target.value });
+                        if (editErrors.scientificName) setEditErrors((prev) => ({ ...prev, scientificName: "" }));
+                        if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
+                      }}
+                      className={`w-full border rounded-xl p-2.5 outline-none text-[14px] transition-all ${
+                        editErrors.scientificName
+                          ? "border-2 border-red-500 bg-red-500/5 ring-2 ring-red-500/20 text-red-900"
+                          : "border-mint-line focus:border-teal"
+                      }`}
                       dir="auto"
                       placeholder={language === 'en' ? 'e.g. Amoxicillin' : 'مثال: أموكسيسيلين / باراسيتامول'}
                     />
+                    {editErrors.scientificName && (
+                      <p className="text-red-500 text-[12px] font-semibold mt-1.5 flex items-center gap-1">
+                        <span>⚠️</span> {editErrors.scientificName}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-4">
@@ -681,13 +819,14 @@ export default function Inventory() {
                     </label>
                     <input
                       value={editingItem.manufacturer || ""}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setEditingItem({
                           ...editingItem,
                           manufacturer: e.target.value,
-                        })
-                      }
-                      className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary text-[14px]"
+                        });
+                        if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
+                      }}
+                      className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-teal text-[14px]"
                       dir="auto"
                       placeholder={language === 'en' ? 'e.g. Pfizer / Hikma' : 'مثال: فايزر / الحكمة / دار الدواء'}
                     />
@@ -698,13 +837,14 @@ export default function Inventory() {
                     </label>
                     <input
                       value={editingItem.category || ""}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setEditingItem({
                           ...editingItem,
                           category: e.target.value,
-                        })
-                      }
-                      className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary text-[14px]"
+                        });
+                        if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
+                      }}
+                      className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-teal text-[14px]"
                       dir="auto"
                       placeholder={language === 'en' ? 'e.g. Antibiotic' : 'مثال: مضاد حيوي / مسكن'}
                     />
@@ -713,68 +853,101 @@ export default function Inventory() {
                 <div className="flex gap-4">
                   <div className="flex-1">
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      {language === 'en' ? 'Quantity (Box)' : 'الكمية (علبة)'}
+                      {language === 'en' ? 'Quantity (Box) *' : 'الكمية (علبة) *'}
                     </label>
                     <input
                       type="number"
                       required
                       value={editingItem.stock_boxes ?? ""}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setEditingItem({
                           ...editingItem,
                           stock_boxes: e.target.value,
-                        })
-                      }
+                        });
+                        if (editErrors.stock_boxes) setEditErrors((prev) => ({ ...prev, stock_boxes: "" }));
+                        if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
+                      }}
                       onFocus={(e) => e.target.select()}
                       onClick={(e) => (e.target as HTMLInputElement).select()}
                       placeholder="0"
-                      className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary font-mono text-center text-[14px]"
+                      className={`w-full border rounded-xl p-2.5 outline-none font-mono text-center text-[14px] transition-all ${
+                        editErrors.stock_boxes
+                          ? "border-2 border-red-500 bg-red-500/5 ring-2 ring-red-500/20 text-red-900"
+                          : "border-mint-line focus:border-teal"
+                      }`}
                       style={{ direction: "ltr" }}
                     />
+                    {editErrors.stock_boxes && (
+                      <p className="text-red-500 text-[12px] font-semibold mt-1.5 flex items-center gap-1">
+                        <span>⚠️</span> {editErrors.stock_boxes}
+                      </p>
+                    )}
                   </div>
                   <div className="flex-1">
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      {language === 'en' ? 'Buy Price (₪)' : 'سعر الشراء (₪)'}
+                      {language === 'en' ? 'Buy Price (₪) *' : 'سعر الشراء (₪) *'}
                     </label>
                     <input
                       type="number"
                       step="0.01"
                       required
                       value={editingItem.cost ?? ""}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setEditingItem({
                           ...editingItem,
                           cost: e.target.value,
-                        })
-                      }
+                        });
+                        if (editErrors.cost) setEditErrors((prev) => ({ ...prev, cost: "" }));
+                        if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
+                      }}
                       onFocus={(e) => e.target.select()}
                       onClick={(e) => (e.target as HTMLInputElement).select()}
                       placeholder="0.00"
-                      className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary font-mono text-center text-[14px]"
+                      className={`w-full border rounded-xl p-2.5 outline-none font-mono text-center text-[14px] transition-all ${
+                        editErrors.cost
+                          ? "border-2 border-red-500 bg-red-500/5 ring-2 ring-red-500/20 text-red-900"
+                          : "border-mint-line focus:border-teal"
+                      }`}
                       style={{ direction: "ltr" }}
                     />
+                    {editErrors.cost && (
+                      <p className="text-red-500 text-[12px] font-semibold mt-1.5 flex items-center gap-1">
+                        <span>⚠️</span> {editErrors.cost}
+                      </p>
+                    )}
                   </div>
                   <div className="flex-1">
                     <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      {language === 'en' ? 'Sell Price (₪)' : 'سعر البيع (₪)'}
+                      {language === 'en' ? 'Sell Price (₪) *' : 'سعر البيع (₪) *'}
                     </label>
                     <input
                       type="number"
                       step="0.01"
                       required
                       value={editingItem.price ?? ""}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setEditingItem({
                           ...editingItem,
                           price: e.target.value,
-                        })
-                      }
+                        });
+                        if (editErrors.price) setEditErrors((prev) => ({ ...prev, price: "" }));
+                        if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
+                      }}
                       onFocus={(e) => e.target.select()}
                       onClick={(e) => (e.target as HTMLInputElement).select()}
                       placeholder="0.00"
-                      className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary font-mono text-center text-[14px]"
+                      className={`w-full border rounded-xl p-2.5 outline-none font-mono text-center text-[14px] transition-all ${
+                        editErrors.price
+                          ? "border-2 border-red-500 bg-red-500/5 ring-2 ring-red-500/20 text-red-900"
+                          : "border-mint-line focus:border-teal"
+                      }`}
                       style={{ direction: "ltr" }}
                     />
+                    {editErrors.price && (
+                      <p className="text-red-500 text-[12px] font-semibold mt-1.5 flex items-center gap-1">
+                        <span>⚠️</span> {editErrors.price}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-4">
@@ -896,20 +1069,31 @@ export default function Inventory() {
                         </div>
                         <div>
                           <label className="block text-[11px] font-bold text-ink-soft mb-1">
-                            {language === 'en' ? 'How many per box?' : 'كم في العلبة؟'}
+                            {language === 'en' ? 'How many per box? *' : 'كم في العلبة؟ *'}
                           </label>
                           <input
                             type="number"
                             min="1"
                             value={editingItem.part1_qty ?? 1}
-                            onChange={(e) =>
+                            onChange={(e) => {
                               setEditingItem({
                                 ...editingItem,
                                 part1_qty: parseInt(e.target.value) || 1,
-                              })
-                            }
-                            className="w-full border border-mint-line rounded-lg p-2 text-[12px] outline-none focus:border-primary text-center"
+                              });
+                              if (editErrors.part1_qty) setEditErrors((prev) => ({ ...prev, part1_qty: "" }));
+                              if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
+                            }}
+                            className={`w-full border rounded-lg p-2 text-[12px] outline-none text-center transition-all ${
+                              editErrors.part1_qty
+                                ? "border-2 border-red-500 bg-red-500/5 ring-2 ring-red-500/20 text-red-900"
+                                : "border-mint-line focus:border-primary"
+                            }`}
                           />
+                          {editErrors.part1_qty && (
+                            <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                              <span>⚠️</span> {editErrors.part1_qty}
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -971,20 +1155,31 @@ export default function Inventory() {
                           </div>
                           <div>
                             <label className="block text-[11px] font-bold text-ink-soft mb-1">
-                              {language === 'en' ? 'How many in the' : 'كم في الـ'} {editingItem.part1_name || (language === 'en' ? 'Strip' : "شريط")}؟
+                              {language === 'en' ? 'How many in the' : 'كم في الـ'} {editingItem.part1_name || (language === 'en' ? 'Strip' : "شريط")}؟ *
                             </label>
                             <input
                               type="number"
                               min="1"
                               value={editingItem.part2_qty ?? 1}
-                              onChange={(e) =>
+                              onChange={(e) => {
                                 setEditingItem({
                                   ...editingItem,
                                   part2_qty: parseInt(e.target.value) || 1,
-                                })
-                              }
-                              className="w-full border border-mint-line rounded-lg p-2 text-[12px] outline-none focus:border-primary text-center"
+                                });
+                                if (editErrors.part2_qty) setEditErrors((prev) => ({ ...prev, part2_qty: "" }));
+                                if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
+                              }}
+                              className={`w-full border rounded-lg p-2 text-[12px] outline-none text-center transition-all ${
+                                editErrors.part2_qty
+                                  ? "border-2 border-red-500 bg-red-500/5 ring-2 ring-red-500/20 text-red-900"
+                                  : "border-mint-line focus:border-primary"
+                              }`}
                             />
+                            {editErrors.part2_qty && (
+                              <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                                <span>⚠️</span> {editErrors.part2_qty}
+                              </p>
+                            )}
                           </div>
                         </div>
                       )}
@@ -995,9 +1190,17 @@ export default function Inventory() {
               <div className="p-5 border-t border-mint-line bg-white shrink-0">
                 <button
                   type="submit"
-                  className="w-full bg-primary text-white font-bold rounded-xl py-3 hover:bg-teal transition-colors shadow-md shadow-primary/20"
+                  disabled={isUpdating}
+                  className="w-full bg-primary text-white font-bold rounded-xl py-3 hover:bg-teal transition-colors shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {language === 'en' ? 'Save Changes' : 'حفظ التعديلات'}
+                  {isUpdating ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>{language === 'en' ? 'Saving...' : 'جاري الحفظ...'}</span>
+                    </>
+                  ) : (
+                    <span>{language === 'en' ? 'Save Changes' : 'حفظ التعديلات'}</span>
+                  )}
                 </button>
               </div>
             </form>
@@ -1028,28 +1231,48 @@ export default function Inventory() {
               <h3 className="text-[20px] font-black text-ink mb-2">
                 {language === 'en' ? 'Confirm Deletion' : 'تأكيد الحذف'}
               </h3>
-              <p className="text-[14px] text-ink-soft leading-relaxed">
+              <p className="text-[14px] text-ink-soft leading-relaxed mb-3">
                 {language === 'en' ? 'Are you sure you want to permanently delete the item ' : 'هل أنت متأكد من حذف الصنف '}
                 <span className="font-bold text-primary">
                   {itemToDelete.name}
                 </span>{" "}
                 {language === 'en' ? '? This action cannot be undone.' : 'نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.'}
               </p>
+              {deleteError && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-[13px] font-bold text-center flex items-center justify-center gap-1.5 animate-fadeIn">
+                  <span>⚠️</span>
+                  <span>{deleteError}</span>
+                </div>
+              )}
             </div>
 
             <div className="flex border-t border-mint-line bg-bg/50">
               <button
-                onClick={() => setItemToDelete(null)}
-                className="flex-1 py-4 text-[15px] font-bold text-ink-soft hover:bg-black/5 hover:text-ink transition-colors"
+                type="button"
+                disabled={isDeleting}
+                onClick={() => {
+                  setItemToDelete(null);
+                  setDeleteError("");
+                }}
+                className="flex-1 py-4 text-[15px] font-bold text-ink-soft hover:bg-black/5 hover:text-ink transition-colors disabled:opacity-50"
               >
                 {language === 'en' ? 'Cancel' : 'تراجع'}
               </button>
               <div className="w-[1px] bg-mint-line"></div>
               <button
+                type="button"
+                disabled={isDeleting}
                 onClick={executeDelete}
-                className="flex-1 py-4 text-[15px] font-bold text-coral hover:bg-coral hover:text-white transition-colors"
+                className="flex-1 py-4 text-[15px] font-bold text-coral hover:bg-coral hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {language === 'en' ? 'Yes, delete item' : 'نعم، احذف الصنف'}
+                {isDeleting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-coral border-t-transparent rounded-full animate-spin" />
+                    <span>{language === 'en' ? 'Deleting...' : 'جاري الحذف...'}</span>
+                  </>
+                ) : (
+                  <span>{language === 'en' ? 'Yes, delete item' : 'نعم، احذف الصنف'}</span>
+                )}
               </button>
             </div>
           </div>

@@ -7,6 +7,7 @@ import AppBar from "@/components/AppBar";
 import toast from "react-hot-toast";
 import { useStore } from "@/store";
 import MasterCatalogModal, { MasterDrug, MASTER_DRUGS_COUNT } from "@/components/MasterCatalogModal";
+import { translateErrorMessage } from "@/lib/errorTranslations";
 
 export default function AddItem() {
   const user = useStore((state: any) => state.user);
@@ -253,7 +254,6 @@ export default function AddItem() {
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      toast.error(language === 'en' ? 'Please fix the fields highlighted in red' : 'يرجى تصحيح الحقول المحددة باللون الأحمر');
       return;
     }
 
@@ -295,14 +295,17 @@ export default function AddItem() {
     } catch (error: any) {
       setLoading(false);
       const rawMsg = error instanceof Error ? error.message : String(error);
+      const translated = translateErrorMessage(rawMsg, language === 'en' ? 'en' : 'ar');
       if (rawMsg.includes("INVENTORY_NAME_CONFLICT") || rawMsg.includes("يوجد منتج بنفس هذا الاسم")) {
         setErrors((prev) => ({
           ...prev,
           name: language === 'en' ? 'A medicine with this name already exists in this branch' : 'عذراً، يوجد صنف مسجل بنفس هذا الاسم بالفعل في هذا الفرع',
         }));
-        toast.error(language === 'en' ? 'Medicine with this name already exists' : 'عذراً، يوجد صنف مسجل بنفس هذا الاسم بالفعل');
       } else {
-        toast.error(rawMsg || (language === 'en' ? "Error adding item" : "حدث خطأ أثناء الإضافة"));
+        setErrors((prev) => ({
+          ...prev,
+          general: translated || (language === 'en' ? "Error adding item" : "حدث خطأ أثناء الإضافة"),
+        }));
       }
     }
   };
@@ -347,6 +350,12 @@ export default function AddItem() {
       </div>
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4 mt-4">
+        {errors.general && (
+          <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-[14px] font-bold flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{errors.general}</span>
+          </div>
+        )}
         <div className="flex gap-4">
           <div className="flex-1">
             <label className="block text-[14px] font-semibold text-ink-soft mb-2">
