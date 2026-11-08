@@ -37,7 +37,7 @@ export default function Customers() {
     branch_id: "",
   });
   const [paymentAmount, setPaymentAmount] = useState("");
-  const [debtPaymentMethod, setDebtPaymentMethod] = useState("كاش");
+  const [debtPaymentMethod, setDebtPaymentMethod] = useState("كاش / نقدي");
   const [isLoading, setIsLoading] = useState(false);
   const [customerSales, setCustomerSales] = useState<any[]>([]);
   const [customerPayments, setCustomerPayments] = useState<any[]>([]);
@@ -572,11 +572,10 @@ export default function Customers() {
                   onChange={(e) => setDebtPaymentMethod(e.target.value)}
                   className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 outline-none focus:border-teal transition-colors text-[16px] font-bold"
                 >
-                  <option value="كاش">{language === 'en' ? 'Cash' : 'كاش (صندوق الكاش)'}</option>
-                  <option value="بنكي">{language === 'en' ? 'Bank Transfer' : 'حوالة بنكية'}</option>
-                  <option value="جوال باي">{language === 'en' ? 'Jawwal Pay' : 'جوال باي (تطبيق)'}</option>
-                  <option value="بال باي">{language === 'en' ? 'PalPay' : 'بال باي (تطبيق)'}</option>
-                  <option value="أخرى">{language === 'en' ? 'Other' : 'أخرى'}</option>
+                  <option value="كاش / نقدي">{language === 'en' ? 'Cash' : 'كاش / نقدي'}</option>
+                  <option value="شيك">{language === 'en' ? 'Cheque' : 'شيك'}</option>
+                  <option value="تحويل بنكي">{language === 'en' ? 'Bank Transfer' : 'تحويل بنكي'}</option>
+                  <option value="فيزا / بطاقة">{language === 'en' ? 'Card / Visa' : 'فيزا / بطاقة'}</option>
                 </select>
               </div>
             </div>

@@ -34,7 +34,8 @@ export default function PurchasesPage() {
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
   const [payingInvoice, setPayingInvoice] = useState<any>(null);
   const [invoicePaymentAmount, setInvoicePaymentAmount] = useState("");
-  const [invoicePaymentMethod, setInvoicePaymentMethod] = useState("كاش");
+  const [invoicePaymentMethod, setInvoicePaymentMethod] = useState("كاش / نقدي");
+  const [invoicePaymentReference, setInvoicePaymentReference] = useState("");
   const [isPayingInvoice, setIsPayingInvoice] = useState(false);
 
   const downloadPDF = async (inv: any) => {
@@ -829,6 +830,8 @@ export default function PurchasesPage() {
                           onClick={() => {
                             setPayingInvoice(inv);
                             setInvoicePaymentAmount(String(getEffectiveRemaining(inv)));
+                            setInvoicePaymentMethod("كاش / نقدي");
+                            setInvoicePaymentReference("");
                           }}
                           className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl text-[13px] font-bold transition-all flex items-center gap-1.5 shadow-xs border border-emerald-200/60"
                         >
@@ -2676,6 +2679,8 @@ export default function PurchasesPage() {
                   const payload = JSON.stringify({
                     payment: pAmt,
                     paymentMethod: invoicePaymentMethod,
+                    notes: invoicePaymentReference ? `${invoicePaymentMethod} (${invoicePaymentReference})` : invoicePaymentMethod,
+                    reference: invoicePaymentReference || undefined,
                   });
 
                   let res = await fetch(`${API}/api/pharmacies/${user.pharmacy_id}/purchase-invoices/${targetId}/pay`, {
@@ -2757,14 +2762,37 @@ export default function PurchasesPage() {
                   onChange={(e) => setInvoicePaymentMethod(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-teal outline-none font-bold text-[14px] bg-white text-ink"
                 >
-                  <option value="كاش">{language === 'en' ? 'Cash (from drawer)' : 'كاش (نقدي من الصندوق)'}</option>
-                  <option value="جوال باي">{language === 'en' ? 'Jawwal Pay' : 'جوال باي (Jawwal Pay)'}</option>
-                  <option value="بال باي">{language === 'en' ? 'PalPay' : 'بال باي (PalPay)'}</option>
-                  <option value="تحويل بنكي">{language === 'en' ? 'Bank Transfer' : 'تحويل بنكي (حوالة مصرفية)'}</option>
-                  <option value="شيك">{language === 'en' ? 'Cheque' : 'شيك بنكي'}</option>
-                  <option value="فيزا">{language === 'en' ? 'Card / Visa' : 'فيزا / بطاقة دفع'}</option>
+                  <option value="كاش / نقدي">{language === 'en' ? 'Cash' : 'كاش / نقدي'}</option>
+                  <option value="شيك">{language === 'en' ? 'Cheque' : 'شيك'}</option>
+                  <option value="تحويل بنكي">{language === 'en' ? 'Bank Transfer' : 'تحويل بنكي'}</option>
+                  <option value="فيزا / بطاقة">{language === 'en' ? 'Card / Visa' : 'فيزا / بطاقة'}</option>
                 </select>
               </div>
+
+              {invoicePaymentMethod !== "كاش / نقدي" && (
+                <div>
+                  <label className="text-[13px] font-bold text-ink mb-1.5 block">
+                    {invoicePaymentMethod === "شيك"
+                      ? (language === 'en' ? 'Cheque Details / Number (Optional)' : 'رقم الشيك / تاريخ الاستحقاق (اختياري)')
+                      : invoicePaymentMethod === "تحويل بنكي"
+                      ? (language === 'en' ? 'Transfer Details / Bank (Optional)' : 'رقم الحوالة / اسم البنك (اختياري)')
+                      : (language === 'en' ? 'Card Reference (Optional)' : 'رقم العملية أو الإيصال (اختياري)')}
+                  </label>
+                  <input
+                    type="text"
+                    value={invoicePaymentReference}
+                    onChange={(e) => setInvoicePaymentReference(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-teal outline-none text-[14px] font-medium"
+                    placeholder={
+                      invoicePaymentMethod === "شيك"
+                        ? (language === 'en' ? 'e.g. Cheque #1042' : 'مثال: شيك رقم 1042')
+                        : invoicePaymentMethod === "تحويل بنكي"
+                        ? (language === 'en' ? 'e.g. Bank of Palestine - Ref 8821' : 'مثال: بنك فلسطين - حوالة 8821')
+                        : (language === 'en' ? 'Receipt or reference number' : 'رقم الإيصال أو المرجع')
+                    }
+                  />
+                </div>
+              )}
 
               <div className="pt-2 flex gap-3">
                 <button

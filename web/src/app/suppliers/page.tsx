@@ -68,7 +68,7 @@ export default function SuppliersPage() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [payingSupplier, setPayingSupplier] = useState<any>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("كاش");
+  const [paymentMethod, setPaymentMethod] = useState("كاش / نقدي");
   const [isPaying, setIsPaying] = useState(false);
   const [viewingSupplierInvoices, setViewingSupplierInvoices] =
     useState<any>(null);
@@ -559,10 +559,10 @@ export default function SuppliersPage() {
                   onChange={(e) => setPaymentMethod(e.target.value)}
                   className="w-full p-3 border border-mint-line rounded-xl focus:ring-2 focus:ring-teal/20 focus:border-teal outline-none transition-all font-semibold bg-white"
                 >
-                  <option value="كاش">{language === 'en' ? 'Cash (from drawer)' : "كاش (نقداً من الدرج)"}</option>
-                  <option value="حوالة بنكية">{language === 'en' ? 'Bank Transfer' : "حوالة بنكية"}</option>
-                  <option value="جوال باي">{language === 'en' ? 'Jawwal Pay' : "جوال باي"}</option>
-                  <option value="بال باي">{language === 'en' ? 'PalPay' : "بال باي"}</option>
+                  <option value="كاش / نقدي">{language === 'en' ? 'Cash' : "كاش / نقدي"}</option>
+                  <option value="شيك">{language === 'en' ? 'Cheque' : "شيك"}</option>
+                  <option value="تحويل بنكي">{language === 'en' ? 'Bank Transfer' : "تحويل بنكي"}</option>
+                  <option value="فيزا / بطاقة">{language === 'en' ? 'Card / Visa' : "فيزا / بطاقة"}</option>
                 </select>
               </div>
 
