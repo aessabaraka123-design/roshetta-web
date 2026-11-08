@@ -70,7 +70,9 @@ export default function StockTake() {
   useEffect(() => {
     if (data?.inventory) {
       setItems(
-        data.inventory.map((item: any) => {
+        data.inventory
+          .filter((item: any) => !item.archived_at)
+          .map((item: any) => {
           const expectedBoxes = getExpectedBoxQty(item);
           return {
             ...item,

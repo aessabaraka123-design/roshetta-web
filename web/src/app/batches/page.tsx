@@ -219,8 +219,8 @@ export default function BatchesPage() {
 
   const rawBatches = Array.isArray(batchData?.batches) ? batchData.batches : [];
   const inventoryList: any[] = useMemo(() => {
-    if (Array.isArray(inventoryData?.inventory)) return inventoryData.inventory;
-    if (Array.isArray(inventoryData?.drugs)) return inventoryData.drugs;
+    if (Array.isArray(inventoryData?.inventory)) return inventoryData.inventory.filter((i: any) => !i.archived_at);
+    if (Array.isArray(inventoryData?.drugs)) return inventoryData.drugs.filter((i: any) => !i.archived_at);
     return [];
   }, [inventoryData]);
 

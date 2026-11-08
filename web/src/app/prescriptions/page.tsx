@@ -46,7 +46,7 @@ export default function Prescriptions() {
       : null,
     fetcher,
   );
-  const meds = inventoryData?.inventory || [];
+  const meds = (inventoryData?.inventory || []).filter((m: any) => !m.archived_at);
 
   const handleDispense = async (id: string) => {
     if (isLoading) return;

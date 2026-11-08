@@ -118,7 +118,7 @@ export default function PurchasesPage() {
 
   const branches = branchesData?.branches || [];
   const invoices = invoicesData?.purchases || invoicesData?.invoices || [];
-  const inventory = inventoryData?.inventory || [];
+  const inventory = (inventoryData?.inventory || []).filter((i: any) => !i.archived_at);
   const suppliers = suppliersData?.suppliers || [];
 
   const supplierMap = useMemo(() => {
