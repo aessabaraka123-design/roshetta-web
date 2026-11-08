@@ -34,7 +34,7 @@ export default function PurchasesPage() {
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
   const [payingInvoice, setPayingInvoice] = useState<any>(null);
   const [invoicePaymentAmount, setInvoicePaymentAmount] = useState("");
-  const [invoicePaymentMethod, setInvoicePaymentMethod] = useState("كاش / نقدي");
+  const [invoicePaymentMethod, setInvoicePaymentMethod] = useState("كاش");
   const [invoicePaymentReference, setInvoicePaymentReference] = useState("");
   const [isPayingInvoice, setIsPayingInvoice] = useState(false);
 
@@ -830,7 +830,7 @@ export default function PurchasesPage() {
                           onClick={() => {
                             setPayingInvoice(inv);
                             setInvoicePaymentAmount(String(getEffectiveRemaining(inv)));
-                            setInvoicePaymentMethod("كاش / نقدي");
+                            setInvoicePaymentMethod("كاش");
                             setInvoicePaymentReference("");
                           }}
                           className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl text-[13px] font-bold transition-all flex items-center gap-1.5 shadow-xs border border-emerald-200/60"
@@ -2754,41 +2754,56 @@ export default function PurchasesPage() {
               </div>
 
               <div>
-                <label className="text-[13px] font-bold text-ink mb-1.5 block">
+                <label className="text-[13px] font-bold text-ink mb-2 block">
                   {language === 'en' ? 'Payment Method' : 'طريقة الدفع'}
                 </label>
-                <select
-                  value={invoicePaymentMethod}
-                  onChange={(e) => setInvoicePaymentMethod(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-teal outline-none font-bold text-[14px] bg-white text-ink"
-                >
-                  <option value="كاش / نقدي">{language === 'en' ? 'Cash' : 'كاش / نقدي'}</option>
-                  <option value="شيك">{language === 'en' ? 'Cheque' : 'شيك'}</option>
-                  <option value="تحويل بنكي">{language === 'en' ? 'Bank Transfer' : 'تحويل بنكي'}</option>
-                  <option value="فيزا / بطاقة">{language === 'en' ? 'Card / Visa' : 'فيزا / بطاقة'}</option>
-                </select>
+                <div className="flex flex-wrap gap-2.5 justify-center py-1">
+                  {[
+                    { id: 'كاش', label: language === 'en' ? 'Cash 💵' : 'كاش 💵' },
+                    { id: 'جوال باي', label: language === 'en' ? 'Jawwal Pay 📱' : 'جوال باي 📱' },
+                    { id: 'بال باي', label: language === 'en' ? 'PalPay 💳' : 'بال باي 💳' },
+                    { id: 'بنكي', label: language === 'en' ? 'Bank Transfer 🏦' : 'تحويل بنكي 🏦' },
+                    { id: 'فيزا', label: language === 'en' ? 'Visa Card 💳' : 'بطاقة فيزا 💳' },
+                  ].map((m) => {
+                    const isSelected = invoicePaymentMethod === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setInvoicePaymentMethod(m.id)}
+                        className={`px-4 py-2.5 rounded-xl text-[14px] font-bold transition-all border flex items-center justify-center gap-1.5 shadow-2xs ${
+                          isSelected
+                            ? "bg-[#1E3A5F] text-white border-[#1E3A5F] ring-2 ring-amber-400/80 shadow-md transform scale-[1.02]"
+                            : "bg-white text-ink border-slate-300 hover:border-slate-400 hover:bg-slate-50"
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {invoicePaymentMethod !== "كاش / نقدي" && (
+              {invoicePaymentMethod !== "كاش" && (
                 <div>
                   <label className="text-[13px] font-bold text-ink mb-1.5 block">
-                    {invoicePaymentMethod === "شيك"
-                      ? (language === 'en' ? 'Cheque Details / Number (Optional)' : 'رقم الشيك / تاريخ الاستحقاق (اختياري)')
-                      : invoicePaymentMethod === "تحويل بنكي"
-                      ? (language === 'en' ? 'Transfer Details / Bank (Optional)' : 'رقم الحوالة / اسم البنك (اختياري)')
-                      : (language === 'en' ? 'Card Reference (Optional)' : 'رقم العملية أو الإيصال (اختياري)')}
+                    {invoicePaymentMethod === "بنكي"
+                      ? (language === 'en' ? 'Bank Transfer Reference (Optional)' : 'رقم الحوالة / اسم البنك (اختياري)')
+                      : invoicePaymentMethod === "فيزا"
+                      ? (language === 'en' ? 'Visa / Receipt Reference (Optional)' : 'رقم عملية الفيزا / الإيصال (اختياري)')
+                      : (language === 'en' ? 'Transaction ID / Reference (Optional)' : 'رقم العملية / الحساب (اختياري)')}
                   </label>
                   <input
                     type="text"
                     value={invoicePaymentReference}
                     onChange={(e) => setInvoicePaymentReference(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-teal outline-none text-[14px] font-medium"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-teal outline-none text-[14px] font-medium"
                     placeholder={
-                      invoicePaymentMethod === "شيك"
-                        ? (language === 'en' ? 'e.g. Cheque #1042' : 'مثال: شيك رقم 1042')
-                        : invoicePaymentMethod === "تحويل بنكي"
+                      invoicePaymentMethod === "بنكي"
                         ? (language === 'en' ? 'e.g. Bank of Palestine - Ref 8821' : 'مثال: بنك فلسطين - حوالة 8821')
-                        : (language === 'en' ? 'Receipt or reference number' : 'رقم الإيصال أو المرجع')
+                        : invoicePaymentMethod === "فيزا"
+                        ? (language === 'en' ? 'e.g. Card Ref 4920' : 'مثال: مرجع بطاقة 4920')
+                        : (language === 'en' ? 'e.g. Tx #1042' : 'مثال: رقم العملية 1042')
                     }
                   />
                 </div>

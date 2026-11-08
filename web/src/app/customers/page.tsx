@@ -37,7 +37,7 @@ export default function Customers() {
     branch_id: "",
   });
   const [paymentAmount, setPaymentAmount] = useState("");
-  const [debtPaymentMethod, setDebtPaymentMethod] = useState("كاش / نقدي");
+  const [debtPaymentMethod, setDebtPaymentMethod] = useState("كاش");
   const [isLoading, setIsLoading] = useState(false);
   const [customerSales, setCustomerSales] = useState<any[]>([]);
   const [customerPayments, setCustomerPayments] = useState<any[]>([]);
@@ -567,16 +567,31 @@ export default function Customers() {
                 <label className="block text-[14px] font-bold text-ink-soft mb-2">
                   {language === 'en' ? 'Payment Method' : 'طريقة التحويل / الدفع'}
                 </label>
-                <select
-                  value={debtPaymentMethod}
-                  onChange={(e) => setDebtPaymentMethod(e.target.value)}
-                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 outline-none focus:border-teal transition-colors text-[16px] font-bold"
-                >
-                  <option value="كاش / نقدي">{language === 'en' ? 'Cash' : 'كاش / نقدي'}</option>
-                  <option value="شيك">{language === 'en' ? 'Cheque' : 'شيك'}</option>
-                  <option value="تحويل بنكي">{language === 'en' ? 'Bank Transfer' : 'تحويل بنكي'}</option>
-                  <option value="فيزا / بطاقة">{language === 'en' ? 'Card / Visa' : 'فيزا / بطاقة'}</option>
-                </select>
+                <div className="flex flex-wrap gap-2.5 justify-center py-1">
+                  {[
+                    { id: 'كاش', label: language === 'en' ? 'Cash 💵' : 'كاش 💵' },
+                    { id: 'جوال باي', label: language === 'en' ? 'Jawwal Pay 📱' : 'جوال باي 📱' },
+                    { id: 'بال باي', label: language === 'en' ? 'PalPay 💳' : 'بال باي 💳' },
+                    { id: 'بنكي', label: language === 'en' ? 'Bank Transfer 🏦' : 'تحويل بنكي 🏦' },
+                    { id: 'فيزا', label: language === 'en' ? 'Visa Card 💳' : 'بطاقة فيزا 💳' },
+                  ].map((m) => {
+                    const isSelected = debtPaymentMethod === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setDebtPaymentMethod(m.id)}
+                        className={`px-3.5 py-2.5 rounded-xl text-[14px] font-bold transition-all border flex items-center justify-center gap-1.5 shadow-2xs ${
+                          isSelected
+                            ? "bg-[#1E3A5F] text-white border-[#1E3A5F] ring-2 ring-amber-400/80 shadow-md transform scale-[1.02]"
+                            : "bg-white text-ink border-slate-300 hover:border-slate-400 hover:bg-slate-50"
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
