@@ -844,10 +844,44 @@ export default function SalesLog() {
                               </bdi>
                             </td>
                             <td className="py-2 px-3 text-center">
-                              {item.cartQty || item.qty}
+                              {(() => {
+                                const curQty = Number(item.cartQty !== undefined && item.cartQty !== null ? item.cartQty : (item.qty !== undefined && item.qty !== null ? item.qty : 0));
+                                const isRefunded = selectedInvoice.status === "refunded" || selectedInvoice.status === "partially_refunded" || (item.returnedQty && item.returnedQty > 0);
+                                const retQty = item.returnedQty || (curQty === 0 && selectedInvoice.status === "refunded" ? (item.originalQty || 1) : 0);
+
+                                if (curQty === 0 && isRefunded) {
+                                  return (
+                                    <span className="inline-flex items-center gap-1 text-rose-600 font-bold text-[12px] bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                                      <span>0</span>
+                                      <span className="text-[11px] font-medium">({language === 'en' ? 'Fully Refunded' : retQty ? `تم إرجاع ${retQty} بالكامل` : 'مسترجع بالكامل'} ↩️)</span>
+                                    </span>
+                                  );
+                                }
+                                if (retQty > 0) {
+                                  return (
+                                    <div className="flex flex-col items-center">
+                                      <span className="font-bold">{curQty}</span>
+                                      <span className="text-[10px] text-rose-600 font-medium">({language === 'en' ? `Ref: ${retQty}` : `تم إرجاع ${retQty}`} ↩️)</span>
+                                    </div>
+                                  );
+                                }
+                                return <span className="font-bold">{curQty}</span>;
+                              })()}
                             </td>
                             <td className="py-2 px-3 font-mono font-bold text-start">
-                              {item.price || 0} ₪
+                              {(() => {
+                                const curQty = Number(item.cartQty !== undefined && item.cartQty !== null ? item.cartQty : (item.qty !== undefined && item.qty !== null ? item.qty : 0));
+                                const isRefunded = selectedInvoice.status === "refunded";
+                                if (curQty === 0 && isRefunded) {
+                                  return (
+                                    <span className="text-ink-soft">
+                                      <span className="line-through text-[12px] text-slate-400 ml-1.5">{item.price || 0} ₪</span>
+                                      <span className="text-rose-600 font-bold">0 ₪</span>
+                                    </span>
+                                  );
+                                }
+                                return <span>{item.price || 0} ₪</span>;
+                              })()}
                             </td>
                           </tr>
                         ))}
@@ -1070,8 +1104,14 @@ export default function SalesLog() {
                         <div className="flex-1 text-start font-bold leading-snug break-words pr-1 pl-1 min-w-0">
                           <bdi dir="auto">{cleanName}</bdi>
                         </div>
-                        <div className="w-[45px] text-center font-mono shrink-0 pt-0.5">
-                          {qty}
+                        <div className="w-[55px] text-center font-mono shrink-0 pt-0.5">
+                          {Number(qty) === 0 && (thermalInvoice?.status === "refunded" || item.returnedQty) ? (
+                            <span className="text-[10px] text-rose-600 font-bold whitespace-nowrap">
+                              0 ({language === 'en' ? 'Ref' : 'مرتجع'})
+                            </span>
+                          ) : (
+                            qty
+                          )}
                         </div>
                         <div className="w-[65px] text-end font-mono font-bold shrink-0 pt-0.5">
                           {rowTotal}
