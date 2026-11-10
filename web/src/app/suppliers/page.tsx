@@ -28,8 +28,97 @@ export default function SuppliersPage() {
   );
   const invoices = invoicesData?.invoices || [];
 
+  const { data: branchesData } = useSWR(
+    pharmacyId &&
+      user &&
+      (user.role === "owner" ||
+        user.role === "manager" ||
+        user.role === "superadmin" ||
+        user.role === "branchManager")
+      ? `${API_BASE}/api/admin/pharmacies/${pharmacyId}/branches`
+      : null,
+    fetcher,
+  );
+  const branches = branchesData?.branches || [];
+
+  const resolveBranchName = (branchRaw: any) => {
+    const raw = String(branchRaw || "").trim();
+    if (!raw || raw.toLowerCase() === "main") {
+      return language === "en" ? "Main" : "الفرع الرئيسي";
+    }
+    const found = branches.find(
+      (b: any) =>
+        String(b.id) === raw ||
+        String(b.name || "").trim().toLowerCase() === raw.toLowerCase(),
+    );
+    if (found) return found.name;
+    if (user?.branch_id && String(user.branch_id) === raw && user?.branchName) {
+      return user.branchName;
+    }
+    return raw;
+  };
+
+  const extractTxPaymentMethod = (tx: any, linkedInv?: any) => {
+    const rawField = String(
+      tx?.payment_method ||
+        tx?.paymentMethod ||
+        tx?.method ||
+        linkedInv?.payment_method ||
+        linkedInv?.paymentMethod ||
+        "",
+    ).trim();
+    const notesStr = String(tx?.notes || "");
+    const parenMatch =
+      notesStr.match(/دفعة\s+للمورد\s*\(([^)]+)\)/i) ||
+      notesStr.match(
+        /\((cash|كاش|نقدي|bank|بنكي|تحويل بنكي|jawwal_pay|jawwalpay|جوال باي|palpay|pal_pay|بال باي|card|visa|فيزا|بطاقة فيزا)\)/i,
+      );
+    const notesMethod = parenMatch ? parenMatch[1].trim() : "";
+
+    const normField = rawField.toLowerCase();
+    const isFieldCashOrEmpty =
+      !normField || normField === "cash" || normField === "كاش" || normField === "نقدي";
+    if (notesMethod && isFieldCashOrEmpty) {
+      return notesMethod;
+    }
+    return rawField || notesMethod || "";
+  };
+
+  const formatMethodBadge = (
+    methodRaw: string,
+    txType?: string,
+    hasPaidAmount?: boolean,
+  ) => {
+    if (txType === "credit_settlement") {
+      return language === "en" ? "💰 Credit Offset" : "💰 خصم من الرصيد";
+    }
+    if (txType === "reversal") {
+      return language === "en" ? "↩️ Reversal" : "↩️ استرجاع / عكس";
+    }
+    if (txType === "invoice" && !methodRaw && !hasPaidAmount) {
+      return language === "en" ? "🧾 On Account (Credit)" : "🧾 فاتورة آجل (ذمة)";
+    }
+    const m = String(methodRaw || "").trim().toLowerCase();
+    if (!m || m === "cash" || m === "كاش" || m === "نقدي") {
+      return language === "en" ? "💵 Cash" : "💵 كاش";
+    }
+    if (m === "bank" || m === "بنكي" || m.includes("تحويل") || m.includes("بنك")) {
+      return language === "en" ? "🏦 Bank Transfer" : "🏦 تحويل بنكي";
+    }
+    if (m === "jawwal_pay" || m === "jawwalpay" || m.includes("جوال")) {
+      return language === "en" ? "📱 Jawwal Pay" : "📱 جوال باي";
+    }
+    if (m === "palpay" || m === "pal_pay" || m.includes("بال")) {
+      return language === "en" ? "💳 PalPay" : "💳 بال باي";
+    }
+    if (m === "card" || m === "visa" || m.includes("فيزا") || m.includes("بطاقة")) {
+      return language === "en" ? "💳 Visa Card" : "💳 بطاقة فيزا";
+    }
+    return methodRaw;
+  };
+
   const getInvoiceEffectiveRemaining = (inv: any, supplier?: any) => {
-    if (!inv || inv.status === "draft") return 0;
+    if (!inv || inv.status === "draft" || inv.status === "pending" || inv.status === "canceled") return 0;
     const supp =
       supplier ||
       (inv.supplier_id
@@ -40,17 +129,22 @@ export default function SuppliersPage() {
     if (supp && Number(supp.balance) <= 0) {
       return 0;
     }
+    const total = Number(inv.total_cost || 0);
+    const paid = Number(inv.paid_amount || 0);
+    const credit = Number(inv.credit_settled || 0);
     const rawRem = Number(
       inv.remaining !== undefined && inv.remaining !== null
         ? inv.remaining
-        : Number(inv.total_cost || 0) - Number(inv.paid_amount || 0)
+        : Math.max(0, total - paid - credit),
     );
     return Math.max(0, rawRem);
   };
 
   const getInvoiceEffectivePaid = (inv: any, supplier?: any) => {
     if (!inv) return 0;
-    if (inv.status === "draft") return Number(inv.paid_amount || 0);
+    const paid = Number(inv.paid_amount || 0);
+    if (inv.status === "draft" || inv.status === "pending" || inv.status === "canceled") return paid;
+    const credit = Number(inv.credit_settled || 0);
     const supp =
       supplier ||
       (inv.supplier_id
@@ -59,9 +153,12 @@ export default function SuppliersPage() {
         ? suppliers?.find((s: any) => s.name === inv.supplier_name)
         : null);
     if (supp && Number(supp.balance) <= 0) {
-      return Number(inv.total_cost || 0);
+      if (credit > 0) {
+        return Math.max(paid, Math.max(0, Number(inv.total_cost || 0) - credit));
+      }
+      return Math.max(paid, Number(inv.total_cost || 0));
     }
-    return Number(inv.paid_amount || 0);
+    return paid;
   };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -83,83 +180,353 @@ export default function SuppliersPage() {
   });
 
   const [statementSupplier, setStatementSupplier] = useState<any>(null);
-  const { data: statementData } = useSWR(
-    pharmacyId && statementSupplier
-      ? `${API_BASE}/api/pharmacies/${pharmacyId}/suppliers/${statementSupplier.id}/transactions`
+  const activeStatementSupplier = useMemo(() => {
+    if (!statementSupplier) return null;
+    return suppliers?.find((s: any) => s.id === statementSupplier.id) || statementSupplier;
+  }, [statementSupplier, suppliers]);
+
+  const { data: statementData, mutate: mutateStatement } = useSWR(
+    pharmacyId && activeStatementSupplier
+      ? `${API_BASE}/api/pharmacies/${pharmacyId}/suppliers/${activeStatementSupplier.id}/transactions`
       : null,
     fetcher,
   );
 
   const serverTransactions = statementData?.transactions || [];
   const transactions = useMemo(() => {
-    if (!statementSupplier) return [];
-    if (serverTransactions && serverTransactions.length > 0) return serverTransactions;
+    if (!activeStatementSupplier) return [];
 
-    // Fallback directly from invoices loaded on the page to mirror mobile app logic
-    const suppId = statementSupplier.id;
-    const suppName = (statementSupplier.name || "").trim().toLowerCase();
-    const fallbackList: any[] = [];
-
-    (invoices || []).forEach((inv: any) => {
+    const suppId = activeStatementSupplier.id;
+    const suppName = (activeStatementSupplier.name || "").trim().toLowerCase();
+    const supplierInvoices = (invoices || []).filter((inv: any) => {
       const matchId = inv.supplier_id && String(inv.supplier_id) === String(suppId);
-      const matchName = suppName && (inv.supplier_name || "").toLowerCase().includes(suppName);
-      if (matchId || matchName) {
-        const total = Number(inv.total_cost || inv.total || 0);
-        const paid = Number(inv.paid_amount != null ? inv.paid_amount : (inv.paid || 0));
-        const rem = Number(inv.remaining != null ? inv.remaining : Math.max(0, total - paid));
-        const invNum = inv.invoice_number || inv.id;
-        const branch = inv.branch_id || inv.branch || "";
+      const matchName = suppName && (inv.supplier_name || "").trim().toLowerCase() === suppName;
+      return matchId || matchName;
+    });
 
-        fallbackList.push({
-          id: `PURCH-${inv.id}`,
-          type: paid >= total && total > 0 ? "payment" : (paid > 0 ? "partial_payment" : "invoice"),
-          invoice_number: invNum,
-          amount: total,
-          paid_amount: paid,
-          remaining: rem,
-          notes: `فاتورة مشتريات #${invNum} (الإجمالي: ₪${total.toFixed(2)}${paid > 0 ? ` - المسدد: ₪${paid.toFixed(2)}` : ""}${rem > 0 ? ` - المتبقي: ₪${rem.toFixed(2)}` : ""})${branch ? ` [${branch}]` : ""}`,
-          date: inv.date || new Date().toISOString(),
-          method: inv.paymentMethod || inv.payment_method || "كاش",
-          branch: branch,
+    const invoiceById = new Map<string, any>();
+    const invoiceByNum = new Map<string, any>();
+    supplierInvoices.forEach((inv: any) => {
+      if (inv.id) invoiceById.set(String(inv.id), inv);
+      if (inv.invoice_number) invoiceByNum.set(String(inv.invoice_number).trim(), inv);
+    });
+
+    const reversedInvRefs = new Set<string>();
+    (serverTransactions || []).forEach((tx: any) => {
+      if (tx.type === "reversal") {
+        if (tx.reference_id) reversedInvRefs.add(String(tx.reference_id));
+        if (tx.invoice_number) reversedInvRefs.add(String(tx.invoice_number).trim());
+      }
+    });
+
+    const seenInvKeys = new Set<string>();
+    const merged: any[] = [];
+
+    (serverTransactions || []).forEach((tx: any) => {
+      const txType = tx.type || "invoice";
+      const isVoucherOrPayment = txType === "payment" || txType === "voucher";
+      const isReversal = txType === "reversal";
+      const isAdjustment =
+        String(tx.id || "").includes("-EDT") ||
+        String(tx.notes || "").startsWith("تعديل فاتورة شراء");
+
+      if (isVoucherOrPayment) {
+        const amt = Math.abs(Number(tx.amount || 0));
+        const methodRaw = extractTxPaymentMethod(tx);
+        const branchName = resolveBranchName(tx.branch_id || tx.branch || tx.branchName);
+        merged.push({
+          ...tx,
+          amount: amt,
+          paid_amount: amt,
+          remaining: 0,
+          method: methodRaw,
+          methodBadge: formatMethodBadge(methodRaw, txType, true),
+          branch: branchName,
+          _directPaid: 0,
+          _isAdjustment: false,
+          _isReversed: false,
+        });
+        return;
+      }
+
+      const refId = String(tx.reference_id || "").trim();
+      const invNumStr = String(tx.invoice_number || "").trim();
+      const linkedInv =
+        (refId && invoiceById.get(refId)) ||
+        (invNumStr && invoiceByNum.get(invNumStr)) ||
+        null;
+
+      if (linkedInv) {
+        if (linkedInv.id) seenInvKeys.add(String(linkedInv.id));
+        if (linkedInv.invoice_number) seenInvKeys.add(String(linkedInv.invoice_number).trim());
+      }
+      if (refId) seenInvKeys.add(refId);
+      if (invNumStr) seenInvKeys.add(invNumStr);
+
+      if (isReversal) {
+        const amt = Math.abs(Number(tx.amount || 0));
+        const branchName = resolveBranchName(
+          tx.branch_id || tx.branch || tx.branchName || linkedInv?.branch_id || linkedInv?.branch,
+        );
+        merged.push({
+          ...tx,
+          amount: amt,
+          paid_amount: 0,
+          remaining: 0,
+          method: "",
+          methodBadge: formatMethodBadge("", "reversal", false),
+          branch: branchName,
+          _directPaid: 0,
+          _isAdjustment: false,
+          _isReversed: true,
+        });
+        return;
+      }
+
+      const isReversed =
+        !linkedInv &&
+        ((refId && reversedInvRefs.has(refId)) ||
+          (invNumStr && reversedInvRefs.has(invNumStr)));
+
+      const branchName = resolveBranchName(
+        tx.branch_id || tx.branch || tx.branchName || linkedInv?.branch_id || linkedInv?.branch,
+      );
+
+      if (isAdjustment) {
+        const diffAmt = Number(tx.amount || 0);
+        const remVal = linkedInv
+          ? getInvoiceEffectiveRemaining(linkedInv, activeStatementSupplier)
+          : 0;
+        merged.push({
+          ...tx,
+          amount: diffAmt,
+          paid_amount: 0,
+          remaining: remVal,
+          method: "",
+          methodBadge: language === "en" ? "✏️ Adjustment" : "✏️ تعديل فاتورة",
+          branch: branchName,
+          _invId: linkedInv?.id || refId,
+          _status: linkedInv?.status || "completed",
+          _directPaid: 0,
+          _isAdjustment: true,
+          _isReversed: isReversed,
+        });
+        return;
+      }
+
+      if (linkedInv) {
+        const totalAmt = Number(linkedInv.total_cost || linkedInv.total || tx.amount || 0);
+        const rawPaid = Number(linkedInv.paid_amount || 0);
+        const fifoPaid = Number(linkedInv.fifo_paid || 0);
+        const effPaid = getInvoiceEffectivePaid(linkedInv, activeStatementSupplier);
+        const creditVal = Number(linkedInv.credit_settled || 0);
+        const settledDisplay = Math.min(totalAmt, effPaid + creditVal);
+        const remVal = isReversed
+          ? 0
+          : getInvoiceEffectiveRemaining(linkedInv, activeStatementSupplier);
+        const methodRaw = extractTxPaymentMethod(tx, linkedInv);
+
+        merged.push({
+          ...tx,
+          type:
+            txType === "credit_settlement" || creditVal > 0
+              ? "credit_settlement"
+              : remVal === 0 && totalAmt > 0
+              ? "payment"
+              : effPaid > 0
+              ? "partial_payment"
+              : "invoice",
+          amount: totalAmt,
+          paid_amount: settledDisplay,
+          remaining: remVal,
+          credit_settled: creditVal,
+          method: methodRaw,
+          methodBadge: formatMethodBadge(
+            methodRaw,
+            txType === "credit_settlement" || creditVal > 0 ? "credit_settlement" : "invoice",
+            effPaid > 0,
+          ),
+          branch: branchName,
+          _invId: linkedInv.id,
+          _status: linkedInv.status || "completed",
+          _directPaid: Math.max(0, rawPaid - fifoPaid),
+          _isAdjustment: false,
+          _isReversed: isReversed,
+        });
+      } else {
+        // Invoice missing from active purchase_invoices (reversed or legacy archived)
+        const totalAmt = Number(tx.amount || 0);
+        let settledDisplay = 0;
+        let remVal = 0;
+
+        if (isReversed) {
+          settledDisplay = 0;
+          remVal = 0;
+        } else if (txType === "credit_settlement") {
+          const balBefore = Number(tx.balance_before || 0);
+          const balAfter = Number(tx.balance_after || 0);
+          if (balAfter <= 0 || Number(activeStatementSupplier.balance || 0) <= 0) {
+            settledDisplay = totalAmt;
+            remVal = 0;
+          } else {
+            const absorbed = balBefore < 0 ? Math.min(totalAmt, Math.abs(balBefore)) : 0;
+            settledDisplay = absorbed;
+            remVal = Math.max(0, totalAmt - absorbed);
+          }
+        } else {
+          settledDisplay =
+            tx.paid_amount != null
+              ? Number(tx.paid_amount)
+              : Number(activeStatementSupplier.balance || 0) <= 0
+              ? totalAmt
+              : 0;
+          remVal =
+            Number(activeStatementSupplier.balance || 0) <= 0
+              ? 0
+              : Math.max(0, totalAmt - settledDisplay);
+        }
+
+        const methodRaw = extractTxPaymentMethod(tx);
+        merged.push({
+          ...tx,
+          type: isReversed ? "reversal" : txType,
+          amount: totalAmt,
+          paid_amount: settledDisplay,
+          remaining: remVal,
+          method: methodRaw,
+          methodBadge: formatMethodBadge(
+            methodRaw,
+            isReversed ? "reversal" : txType,
+            settledDisplay > 0,
+          ),
+          branch: branchName,
+          _invId: refId || tx.id,
+          _status: isReversed ? "canceled" : "completed",
+          _directPaid: 0,
+          _isAdjustment: false,
+          _isReversed: isReversed,
         });
       }
     });
 
-    return fallbackList.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
-  }, [statementSupplier, serverTransactions, invoices]);
+    // Add any completed/received invoices for this supplier missing from serverTransactions
+    supplierInvoices.forEach((inv: any) => {
+      if (inv.status === "draft" || inv.status === "pending" || inv.status === "canceled") {
+        return;
+      }
+      const idStr = String(inv.id || "");
+      const numStr = String(inv.invoice_number || "").trim();
+      if ((idStr && seenInvKeys.has(idStr)) || (numStr && seenInvKeys.has(numStr))) {
+        return;
+      }
+      const total = Number(inv.total_cost || inv.total || 0);
+      const rawPaid = Number(inv.paid_amount || 0);
+      const fifoPaid = Number(inv.fifo_paid || 0);
+      const effPaid = getInvoiceEffectivePaid(inv, activeStatementSupplier);
+      const creditVal = Number(inv.credit_settled || 0);
+      const settledDisplay = Math.min(total, effPaid + creditVal);
+      const rem = getInvoiceEffectiveRemaining(inv, activeStatementSupplier);
+      const invNum = inv.invoice_number || inv.id;
+      const branchName = resolveBranchName(inv.branch_id || inv.branch || inv.branchName);
+      const methodRaw = inv.paymentMethod || inv.payment_method || "";
+
+      merged.push({
+        id: `PURCH-${inv.id}`,
+        type:
+          creditVal > 0 && rem === 0
+            ? "credit_settlement"
+            : rem === 0 && total > 0
+            ? "payment"
+            : effPaid > 0
+            ? "partial_payment"
+            : "invoice",
+        invoice_number: invNum,
+        amount: total,
+        paid_amount: settledDisplay,
+        remaining: rem,
+        credit_settled: creditVal,
+        notes: `فاتورة مشتريات #${invNum} (الإجمالي: ₪${total.toFixed(2)}${settledDisplay > 0 ? ` - المسدد: ₪${settledDisplay.toFixed(2)}` : ""}${rem > 0 ? ` - المتبقي: ₪${rem.toFixed(2)}` : ""})${branchName ? ` [${branchName}]` : ""}`,
+        date: inv.date || new Date().toISOString(),
+        method: methodRaw,
+        methodBadge: formatMethodBadge(
+          methodRaw,
+          creditVal > 0 ? "credit_settlement" : "invoice",
+          effPaid > 0,
+        ),
+        branch: branchName,
+        _invId: inv.id,
+        _status: inv.status || "completed",
+        _directPaid: Math.max(0, rawPaid - fifoPaid),
+        _isAdjustment: false,
+        _isReversed: false,
+      });
+    });
+
+    return merged.sort(
+      (a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime(),
+    );
+  }, [activeStatementSupplier, serverTransactions, invoices, branches, language]);
 
   const totalPaidInStatement = useMemo(() => {
-    return (transactions || []).reduce((sum: number, tx: any) => {
-      const p = tx.paid_amount != null ? Number(tx.paid_amount) : (tx.type === 'payment' || tx.type === 'voucher' ? Number(tx.amount || 0) : 0);
-      return sum + (p > 0 ? p : 0);
-    }, 0);
+    const voucherTotal = (transactions || [])
+      .filter((tx: any) => tx.type === "payment" || tx.type === "voucher")
+      .reduce((sum: number, tx: any) => sum + Math.max(0, Number(tx.amount || 0)), 0);
+    const seenDirectInv = new Set<string>();
+    const invoiceDirectPaid = (transactions || [])
+      .filter(
+        (tx: any) =>
+          tx.type !== "payment" &&
+          tx.type !== "voucher" &&
+          tx.type !== "reversal" &&
+          tx._status !== "draft" &&
+          tx._status !== "pending" &&
+          !tx._isAdjustment &&
+          !tx._isReversed,
+      )
+      .reduce((sum: number, tx: any) => {
+        const key = String(tx._invId || tx.reference_id || tx.invoice_number || tx.id);
+        if (seenDirectInv.has(key)) return sum;
+        seenDirectInv.add(key);
+        return sum + Math.max(0, Number(tx._directPaid || 0));
+      }, 0);
+    return voucherTotal + invoiceDirectPaid;
   }, [transactions]);
 
   // Clean sequential payment voucher numbering (#001, #002...)
   const formattedTransactions = useMemo(() => {
     const paymentList = [...(transactions || [])]
-      .filter((tx: any) => {
-        const hasInvoiceNumber = tx.invoice_number && String(tx.invoice_number).trim() && !String(tx.invoice_number).startsWith('STX-') && !String(tx.invoice_number).startsWith('EXP-');
-        return !hasInvoiceNumber && tx.type !== 'invoice';
-      })
+      .filter((tx: any) => tx.type === "payment" || tx.type === "voucher")
       .sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime());
 
     const voucherNumMap = new Map<string, string>();
     paymentList.forEach((tx, index) => {
-      const serial = String(index + 1).padStart(3, '0');
-      voucherNumMap.set(String(tx.id), language === 'en' ? `PV-${serial}` : `سند #${serial}`);
+      const serial = String(index + 1).padStart(3, "0");
+      voucherNumMap.set(
+        String(tx.id),
+        language === "en" ? `PV-${serial}` : `سند #${serial}`,
+      );
     });
 
     return (transactions || []).map((tx: any) => {
-      const hasInvoiceNumber = tx.invoice_number && String(tx.invoice_number).trim() && !String(tx.invoice_number).startsWith('STX-') && !String(tx.invoice_number).startsWith('EXP-');
-      
+      const isVoucherTx = tx.type === "payment" || tx.type === "voucher";
+      const hasInvoiceNumber =
+        !isVoucherTx &&
+        tx.invoice_number &&
+        String(tx.invoice_number).trim() &&
+        !String(tx.invoice_number).startsWith("STX-") &&
+        !String(tx.invoice_number).startsWith("EXP-");
+
       let displayRef = "";
       let isVoucherSerial = false;
-      if (hasInvoiceNumber) {
+      if (isVoucherTx) {
+        displayRef =
+          voucherNumMap.get(String(tx.id)) ||
+          (language === "en" ? "PV-001" : "سند #001");
+        isVoucherSerial = true;
+      } else if (hasInvoiceNumber) {
         displayRef = tx.invoice_number;
       } else {
-        displayRef = voucherNumMap.get(String(tx.id)) || (language === 'en' ? 'PV-001' : 'سند #001');
-        isVoucherSerial = true;
+        displayRef = tx.reference_id || tx.id || "—";
       }
 
       const rawRef = tx.invoice_number || tx.reference_id || tx.id || "—";
@@ -168,7 +535,7 @@ export default function SuppliersPage() {
         ...tx,
         displayRef,
         isVoucherSerial,
-        rawRef
+        rawRef,
       };
     });
   }, [transactions, language]);
@@ -264,6 +631,8 @@ export default function SuppliersPage() {
           body: JSON.stringify({
             amount: parseFloat(paymentAmount),
             paymentMethod,
+            branch_id: user?.branch_id || branches[0]?.id || "Main",
+            paidBy: user?.name || user?.managerName || "الإدارة",
           }),
         }
       );
@@ -273,6 +642,7 @@ export default function SuppliersPage() {
       toast.success(language === 'en' ? 'Payment processed successfully' : "تم تسجيل الدفعة بنجاح");
       mutate();
       mutateInvoices();
+      mutateStatement();
       setIsPaymentModalOpen(false);
       setPayingSupplier(null);
     } catch (err) {
@@ -1170,7 +1540,7 @@ export default function SuppliersPage() {
       })()}
 
       {/* Supplier Statement / Transactions Modal (Matched with Mobile and Backend) */}
-      {statementSupplier && (
+      {activeStatementSupplier && (
         <div className="fixed inset-0 bg-ink/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh] border border-[#CBD5E1]">
             {/* Header */}
@@ -1182,10 +1552,10 @@ export default function SuppliersPage() {
                 <div>
                   <h3 className="font-extrabold text-[18px] text-[#0F172A] flex items-center gap-2">
                     <span>{language === 'en' ? 'Supplier Statement & Ledger: ' : "كشف حساب وسجل حركات المورد: "}</span>
-                    <span className="text-primary font-black">{statementSupplier.name}</span>
+                    <span className="text-primary font-black">{activeStatementSupplier.name}</span>
                   </h3>
                   <div className="text-xs font-mono text-[#64748B] mt-0.5">
-                    {statementSupplier.company || (language === 'en' ? 'No company specified' : 'بدون شركة محددة')}
+                    {activeStatementSupplier.company || (language === 'en' ? 'No company specified' : 'بدون شركة محددة')}
                   </div>
                 </div>
               </div>
@@ -1216,32 +1586,32 @@ export default function SuppliersPage() {
 
               {/* KPI 2: Current Balance */}
               <div className={`rounded-xl p-3.5 border flex items-center justify-between ${
-                Number(statementSupplier.balance || 0) > 0
+                Number(activeStatementSupplier.balance || 0) > 0
                   ? 'bg-rose-50 border-rose-200 text-rose-800'
-                  : Number(statementSupplier.balance || 0) < 0
+                  : Number(activeStatementSupplier.balance || 0) < 0
                   ? 'bg-teal-50 border-teal-200 text-teal-800'
                   : 'bg-slate-50 border-slate-200 text-slate-700'
               }`}>
                 <div>
                   <div className="text-xs font-bold">
-                    {Number(statementSupplier.balance || 0) > 0
+                    {Number(activeStatementSupplier.balance || 0) > 0
                       ? (language === 'en' ? 'Owed to Supplier (Debt)' : 'مطلوب للمورد (دين علينا)')
-                      : Number(statementSupplier.balance || 0) < 0
+                      : Number(activeStatementSupplier.balance || 0) < 0
                       ? (language === 'en' ? 'Credit Balance (Our Excess)' : 'رصيد دائن لنا (فائض)')
                       : (language === 'en' ? 'Current Balance' : 'الرصيد الحالي')}
                   </div>
                   <div className={`font-mono text-xl font-black mt-1 ${
-                    Number(statementSupplier.balance || 0) > 0
+                    Number(activeStatementSupplier.balance || 0) > 0
                       ? 'text-rose-700'
-                      : Number(statementSupplier.balance || 0) < 0
+                      : Number(activeStatementSupplier.balance || 0) < 0
                       ? 'text-teal-700'
                       : 'text-slate-700'
                   }`} dir="ltr">
-                    ₪{Math.abs(Number(statementSupplier.balance || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₪{Math.abs(Number(activeStatementSupplier.balance || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
                 <div className="text-xl">
-                  {Number(statementSupplier.balance || 0) > 0 ? '⚠️' : Number(statementSupplier.balance || 0) < 0 ? '💰' : '✨'}
+                  {Number(activeStatementSupplier.balance || 0) > 0 ? '⚠️' : Number(activeStatementSupplier.balance || 0) < 0 ? '💰' : '✨'}
                 </div>
               </div>
 
@@ -1299,8 +1669,12 @@ export default function SuppliersPage() {
                         const isReversal = tx.type === 'reversal';
 
                         const totalAmt = Number(tx.amount || 0);
-                        const paidAmt = Number(tx.paid_amount != null ? tx.paid_amount : (isPayment || isVoucher ? totalAmt : 0));
-                        const remAmt = Number(tx.remaining != null ? tx.remaining : Math.max(0, totalAmt - paidAmt));
+                        const paidAmt = isReversal
+                          ? 0
+                          : Number(tx.paid_amount != null ? tx.paid_amount : (isPayment || isVoucher ? totalAmt : 0));
+                        const remAmt = isReversal
+                          ? 0
+                          : Number(tx.remaining != null ? tx.remaining : Math.max(0, totalAmt - paidAmt));
 
                         return (
                           <tr key={tx.id} className="hover:bg-[#F8FAFC] transition-colors">
@@ -1370,8 +1744,12 @@ export default function SuppliersPage() {
                               </span>
                             </td>
                             <td className="p-3 text-xs text-[#475569] whitespace-nowrap">
-                              <div className="font-semibold text-[#0F172A]">{tx.branch || (language === 'en' ? 'Main' : 'الفرع الرئيسي')}</div>
-                              <div className="text-[11px] text-[#64748B]">{tx.method || 'كاش'}</div>
+                              <div className="font-semibold text-[#0F172A]">
+                                {tx.branch || resolveBranchName(tx.branch_id || tx.branchName)}
+                              </div>
+                              <div className="text-[11px] font-medium text-[#475569]">
+                                {tx.methodBadge || formatMethodBadge(extractTxPaymentMethod(tx), tx.type, paidAmt > 0)}
+                              </div>
                             </td>
                             <td className="p-3 text-[#64748B] text-xs max-w-[280px] truncate" title={tx.notes || ''}>
                               {tx.notes || '—'}
@@ -1390,10 +1768,11 @@ export default function SuppliersPage() {
               <button
                 type="button"
                 onClick={() => {
-                  const s = statementSupplier;
+                  const s = activeStatementSupplier;
                   setStatementSupplier(null);
                   setPayingSupplier(s);
                   setPaymentAmount("");
+                  setIsPaymentModalOpen(true);
                 }}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md flex items-center gap-2 transition-all hover:scale-105"
               >

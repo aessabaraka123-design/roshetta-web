@@ -132,31 +132,39 @@ export default function PurchasesPage() {
   }, [suppliers]);
 
   const getEffectiveRemaining = useCallback((inv: any) => {
-    if (!inv || inv.status === "draft") return 0;
+    if (!inv || inv.status === "draft" || inv.status === "pending" || inv.status === "canceled") return 0;
     const supp = inv.supplier_id
       ? supplierMap.get(inv.supplier_id)
       : (inv.supplier_name ? supplierMap.get(inv.supplier_name.trim()) : null);
     if (supp && Number(supp.balance) <= 0) {
       return 0;
     }
+    const total = Number(inv.total_cost || 0);
+    const paid = Number(inv.paid_amount || 0);
+    const credit = Number(inv.credit_settled || 0);
     const rawRem = Number(
       inv.remaining !== undefined && inv.remaining !== null
         ? inv.remaining
-        : (Number(inv.total_cost || 0) - Number(inv.paid_amount || 0))
+        : Math.max(0, total - paid - credit)
     );
     return Math.max(0, rawRem);
   }, [supplierMap]);
 
   const getEffectivePaid = useCallback((inv: any) => {
     if (!inv) return 0;
-    if (inv.status === "draft") return Number(inv.paid_amount || 0);
+    const paid = Number(inv.paid_amount || 0);
+    if (inv.status === "draft" || inv.status === "pending" || inv.status === "canceled") return paid;
+    const credit = Number(inv.credit_settled || 0);
     const supp = inv.supplier_id
       ? supplierMap.get(inv.supplier_id)
       : (inv.supplier_name ? supplierMap.get(inv.supplier_name.trim()) : null);
     if (supp && Number(supp.balance) <= 0) {
-      return Number(inv.total_cost || 0);
+      if (credit > 0) {
+        return Math.max(paid, Math.max(0, Number(inv.total_cost || 0) - credit));
+      }
+      return Math.max(paid, Number(inv.total_cost || 0));
     }
-    return Number(inv.paid_amount || 0);
+    return paid;
   }, [supplierMap]);
 
   // --- Computed ---
@@ -377,57 +385,132 @@ export default function PurchasesPage() {
       return toast.error(language === "en" ? "Invoice is empty, add items first" : "الفاتورة فارغة، أضف أصناف أولاً");
     setLoading(true);
     try {
-      if (editingId) {
-        await fetch(
-          `${API}/api/pharmacies/${user?.pharmacy_id}/purchases/${editingId}`,
-          { method: "DELETE" },
-        );
-      }
       const selectedBranchObj = branches.find((b: any) =>
         String(b.id) === String(form.branch_id) ||
         String(b.name).trim() === String(form.branch_id).trim()
       );
-      const finalBranchId = selectedBranchObj ? selectedBranchObj.id : (form.branch_id || branches[0]?.id || "Main");
+      const finalBranchId = selectedBranchObj ? selectedBranchObj.id : (form.branch_id && form.branch_id !== "all" ? form.branch_id : (branches[0]?.id || "Main"));
       const finalBranchName = selectedBranchObj ? selectedBranchObj.name.trim() : (branches[0]?.name?.trim() || "الفرع الرئيسي");
 
-      const res = await fetch(
-        `${API}/api/pharmacies/${user?.pharmacy_id}/purchases`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...form,
-            branch_id: finalBranchId,
-            branch: finalBranchName,
-            branchName: finalBranchName,
-            items: cartItems.map((item: any) => ({
-              ...item,
-              qty: parseFloat(item.qty) || 1,
-              purchase_price: parseFloat(item.purchase_price) || 0,
-              sell_price: parseFloat(item.sell_price) || 0,
-              part1_qty: parseInt(item.part1_qty) || 1,
-              part1_price: parseFloat(item.part1_price) || 0,
-              part2_qty: parseInt(item.part2_qty) || 1,
-              part2_price: parseFloat(item.part2_price) || 0,
-              expiry: item.expiry || item.expiry_date || "",
-              expiry_date: item.expiry || item.expiry_date || "",
-              unit_size: (() => {
-                if (item.units) {
-                  try {
-                    const arr = JSON.parse(item.units);
-                    if (arr && arr.length > 0) return arr[0].count;
-                  } catch (e) {}
-                }
-                return 1;
-              })(),
-            })),
-            total_cost: cartTotal,
-            paid_amount: form.paid_amount ? parseFloat(form.paid_amount) : 0,
-          }),
-        },
-      );
-      const r = await res.json();
-      if (r.success) {
+      const mappedItems = cartItems.map((item: any) => {
+        const buy = parseFloat(item.purchase_price) || 0;
+        const sell = parseFloat(item.sell_price) || 0;
+        const exp = item.expiry || item.expiry_date || "";
+        return {
+          ...item,
+          qty: parseFloat(item.qty) || 1,
+          cost: buy,
+          price: sell,
+          purchase_price: buy,
+          sell_price: sell,
+          part1_qty: parseInt(item.part1_qty) || 1,
+          part1_price: parseFloat(item.part1_price) || 0,
+          part2_qty: parseInt(item.part2_qty) || 1,
+          part2_price: parseFloat(item.part2_price) || 0,
+          expiry: exp,
+          expiry_date: exp,
+          unit_size: (() => {
+            if (item.units) {
+              try {
+                const arr = typeof item.units === "string" ? JSON.parse(item.units) : item.units;
+                if (Array.isArray(arr) && arr.length > 0 && arr[0]?.count) return arr[0].count;
+              } catch (e) {}
+            }
+            return Number(item.unit_size) || 1;
+          })(),
+        };
+      });
+
+      const paidVal = form.paid_amount ? parseFloat(form.paid_amount) : 0;
+      const createViaUnifiedEndpoint = async () => {
+        const generatedId = (form.status === "draft" ? "PO-" : "PINV-") + Date.now();
+        const res = await fetch(
+          `${API}/api/pharmacies/${user?.pharmacy_id}/purchase-invoices`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...form,
+              id: generatedId,
+              branch_id: finalBranchId,
+              branch: finalBranchName,
+              branchName: finalBranchName,
+              paidBy: user?.name || user?.managerName || "الإدارة",
+              items: mappedItems,
+              total_cost: cartTotal,
+              paid_amount: paidVal,
+            }),
+          },
+        );
+        return await res.json().catch(() => ({}));
+      };
+
+      let r: any = null;
+
+      if (editingId) {
+        const origInv = invoices.find((i: any) => String(i.id) === String(editingId));
+        const isOrigDraft = origInv?.status === "draft" || origInv?.status === "pending";
+        const draftMetaChanged =
+          isOrigDraft &&
+          ((origInv?.supplier_id || "") !== (form.supplier_id || "") ||
+            (origInv?.notes || "") !== (form.notes || "") ||
+            (origInv?.branch_id || "") !== (finalBranchId || ""));
+        const revertingCompletedToDraft = !isOrigDraft && form.status === "draft";
+
+        if (draftMetaChanged || revertingCompletedToDraft) {
+          const delRes = await fetch(
+            `${API}/api/pharmacies/${user?.pharmacy_id}/purchases/${editingId}`,
+            { method: "DELETE" },
+          );
+          const delData = await delRes.json().catch(() => ({}));
+          if (!delRes.ok) {
+            r = { success: false, error: delData.error || delData.message || "تعذر تعديل الفاتورة" };
+          } else {
+            r = await createViaUnifiedEndpoint();
+          }
+        } else {
+          const putRes = await fetch(
+            `${API}/api/pharmacies/${user?.pharmacy_id}/purchases/${editingId}`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ...form,
+                branch_id: finalBranchId,
+                branch: finalBranchName,
+                branchName: finalBranchName,
+                items: mappedItems,
+                totalCost: cartTotal,
+                paidAmount: paidVal,
+                supplierInvoiceNumber: form.invoice_number,
+              }),
+            },
+          );
+          const putData = await putRes.json().catch(() => ({}));
+          if (
+            putRes.status === 409 &&
+            (putData.code === "PURCHASE_LINES_REQUIRE_STOCK_ADJUSTMENT" ||
+              putData.code === "PURCHASE_QUANTITY_EDIT_REQUIRES_STOCK_ADJUSTMENT")
+          ) {
+            const delRes = await fetch(
+              `${API}/api/pharmacies/${user?.pharmacy_id}/purchases/${editingId}`,
+              { method: "DELETE" },
+            );
+            const delData = await delRes.json().catch(() => ({}));
+            if (!delRes.ok) {
+              r = { success: false, error: delData.error || delData.message || putData.error || "تعذر تعديل كميات الفاتورة" };
+            } else {
+              r = await createViaUnifiedEndpoint();
+            }
+          } else {
+            r = putRes.ok ? { ...putData, success: putData.success !== false } : { success: false, error: putData.error || putData.message || "فشل تحديث الفاتورة" };
+          }
+        }
+      } else {
+        r = await createViaUnifiedEndpoint();
+      }
+
+      if (r?.success) {
         toast.success(
           form.status === "draft"
             ? (language === "en" ? "Draft order saved!" : "تم حفظ الطلبية المبدئية!")
@@ -437,7 +520,9 @@ export default function PurchasesPage() {
         setEditingId(null);
         setCartItems([]);
         mutate();
-      } else toast.error(r.error || (language === "en" ? "Save error" : "خطأ في الحفظ"));
+        mutateInv();
+        mutateSuppliers();
+      } else toast.error(r?.error || (language === "en" ? "Save error" : "خطأ في الحفظ"));
     } catch {
       toast.error(language === "en" ? "Server connection error" : "خطأ في الاتصال بالخادم");
     } finally {
