@@ -3,7 +3,7 @@
 
 
 import { API_BASE_URL } from "@/lib/config";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import AppBar from "@/components/AppBar";
 import SearchBar from "@/components/SearchBar";
 import { Suspense } from "react";
@@ -14,9 +14,16 @@ import { formatQty } from "@/utils/formatQty";
 import { translateErrorMessage } from "@/lib/errorTranslations";
 
 import { BoxIcon } from "@/components/icons";
-import useSWR from "swr";
+import useSWR, { mutate as globalMutate } from "swr";
 import RoshettaLogo from "@/components/RoshettaLogo";
 import LocalBarcode from "@/components/LocalBarcode";
+import {
+  formatPaymentMethod,
+  matchesCustomerBranch,
+  normalizeSalePaymentMethod,
+  round2,
+} from "@/lib/customers/domain";
+import { getWebAuthHeaders } from "@/lib/customers/transport";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -99,6 +106,16 @@ function POSContent() {
     checkout,
   } = useStore();
   const [payMethod, setPayMethod] = useState("cash");
+  const [electronicRef, setElectronicRef] = useState("");
+  const [splitAmounts, setSplitAmounts] = useState<Record<string, string>>({
+    cash: "",
+    card: "",
+    jawwal_pay: "",
+    palpay: "",
+    bank: "",
+    credit: "",
+  });
+  const defaultPmAppliedRef = useRef(false);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
@@ -134,6 +151,17 @@ function POSContent() {
     }
   }, [branches, selectedBranch, user]);
 
+  useEffect(() => {
+    const defPm = pharmacyData?.pharmacy?.defaultPaymentMethod;
+    if (defPm && !defaultPmAppliedRef.current) {
+      defaultPmAppliedRef.current = true;
+      const norm = normalizeSalePaymentMethod(defPm);
+      if (["cash", "card", "jawwal_pay", "palpay", "bank", "credit"].includes(norm)) {
+        setPayMethod(norm);
+      }
+    }
+  }, [pharmacyData?.pharmacy?.defaultPaymentMethod]);
+
   const subtotal = cart.reduce(
     (acc, item) => acc + (item.unitPrice || item.price || 0) * item.cartQty,
     0,
@@ -152,7 +180,7 @@ function POSContent() {
 
   const total = afterDiscount + vatAmount;
 
-  const activeBranchObj = branches.find((b: any) => b.name === selectedBranch);
+  const activeBranchObj = branches.find((b: any) => b.name === selectedBranch || b.id === selectedBranch);
   const activeBranchId = activeBranchObj ? activeBranchObj.id : null;
 
   const branchMeds = meds.filter(
@@ -448,8 +476,36 @@ function POSContent() {
 
   const handleCheckout = async () => {
     if (cart.length === 0) return toast.error(language === 'en' ? "Cart is empty" : "السلة فارغة");
-    if (payMethod === "credit" && !selectedCustomerId)
-      return toast.error(language === 'en' ? "Customer must be selected for credit payment" : "يجب اختيار العميل عند الدفع بالآجل");
+
+    const normalizedMethod = normalizeSalePaymentMethod(payMethod);
+    const parsedSplit: Record<string, number> = {};
+    let splitSum = 0;
+    if (normalizedMethod === "split") {
+      for (const key of ["cash", "card", "jawwal_pay", "palpay", "bank", "credit"]) {
+        const val = round2(Math.max(0, parseFloat(splitAmounts[key] || "0") || 0));
+        if (val > 0) {
+          parsedSplit[key] = val;
+          splitSum = round2(splitSum + val);
+        }
+      }
+      if (splitSum <= 0 || Math.abs(splitSum - round2(total)) > 0.02) {
+        return toast.error(
+          language === "en"
+            ? `Split payments total (${splitSum.toFixed(2)}) must equal invoice total (${round2(total).toFixed(2)})`
+            : `مجموع الدفع المختلط (${splitSum.toFixed(2)} ₪) يجب أن يساوي إجمالي الفاتورة (${round2(total).toFixed(2)} ₪)`
+        );
+      }
+    }
+
+    const creditShare =
+      normalizedMethod === "credit"
+        ? round2(total)
+        : normalizedMethod === "split"
+          ? round2(parsedSplit.credit || 0)
+          : 0;
+
+    if (creditShare > 0 && !selectedCustomerId)
+      return toast.error(language === 'en' ? "Customer must be selected for credit payment" : "يجب اختيار العميل عند البيع بالآجل أو الجزء الآجل");
 
     // Strictly validate available stock before processing payment
     for (const item of cart) {
@@ -519,18 +575,20 @@ function POSContent() {
         `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/sales`,
         {
           method: "POST",
-          headers: {
+          headers: getWebAuthHeaders({
             "Content-Type": "application/json",
             "Idempotency-Key": saleId,
-          },
+          }),
           body: JSON.stringify({
             id: saleId,
             items: payloadItems,
-            total: Number(total),
-            discount: Number(calculatedDiscount || 0),
-            vatAmount: Number(vatAmount || 0),
-            subtotal: Number(subtotal || total),
-            paymentMethod: payMethod,
+            total: round2(total),
+            discount: round2(calculatedDiscount || 0),
+            vatAmount: round2(vatAmount || 0),
+            subtotal: round2(subtotal || total),
+            paymentMethod: normalizedMethod,
+            ...(normalizedMethod === "split" ? { payments: parsedSplit } : {}),
+            ...(electronicRef.trim() ? { electronicRef: electronicRef.trim() } : {}),
             customer: selectedCustomer,
             cashierName: user?.managerName || user?.name || (language === 'en' ? "Pharmacist 1" : "صيدلي 1"),
             branch_id: activeBranchId,
@@ -555,7 +613,10 @@ function POSContent() {
         vatAmount,
         subtotal,
         items: [...cart],
-        method: payMethod,
+        method: normalizedMethod,
+        customer: selectedCustomer,
+        payments: normalizedMethod === "split" ? parsedSplit : undefined,
+        electronicRef: electronicRef.trim() || undefined,
       });
       setShowReceipt(true);
 
@@ -564,7 +625,18 @@ function POSContent() {
       setPrescriptionSearch("");
       setDiscountVal("");
       setShowDiscountInput(false);
+      setElectronicRef("");
+      setSplitAmounts({ cash: "", card: "", jawwal_pay: "", palpay: "", bank: "", credit: "" });
+      setSelectedCustomerId("");
+      setCustomerSearch("");
       mutate(); // refresh inventory qty from backend
+      if (user?.pharmacy_id) {
+        globalMutate(
+          (key) => typeof key === "string" && (key.includes("/customers") || key.includes("/sales") || key.includes("/shifts")),
+          undefined,
+          { revalidate: true }
+        );
+      }
       toast.success(language === 'en' ? "Sale completed successfully!" : "تم إتمام البيع بنجاح!");
     } catch (error: any) {
       const msg = translateErrorMessage(error?.message || error, language === 'en' ? 'en' : 'ar');
@@ -1005,7 +1077,7 @@ function POSContent() {
           <div className="bg-white rounded-2xl border border-mint-line shadow-sm p-4">
             <h3 className="text-[13px] font-bold text-ink-soft uppercase tracking-wide mb-3">
               👤 {language === 'en' ? "Customer " : "العميل "}
-              {payMethod === "credit" ? (
+              {payMethod === "credit" || (payMethod === "split" && Number(splitAmounts.credit || 0) > 0) ? (
                 <span className="text-red-500">{language === 'en' ? "(Required for credit)" : "(إلزامي للآجل)"}</span>
               ) : (
                 language === 'en' ? "(Optional)" : "(اختياري)"
@@ -1025,43 +1097,91 @@ function POSContent() {
                 className="w-full bg-bg border border-mint-line rounded-xl p-3 text-[14px] font-semibold text-ink focus:border-primary focus:outline-none"
               />
               {showCustomerDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-mint-line rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
-                  {customers
-                    .filter(
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-mint-line rounded-xl shadow-lg z-50 max-h-56 overflow-y-auto">
+                  {(() => {
+                    const q = customerSearch.trim().toLowerCase();
+                    const branchCusts = customers.filter(
                       (c: any) =>
-                        c.name.includes(customerSearch) ||
-                        c.phone.includes(customerSearch),
-                    )
-                    .map((c: any) => (
-                      <div
-                        key={c.id}
-                        className="p-3 hover:bg-bg cursor-pointer border-b border-mint-line last:border-0"
-                        onClick={() => {
-                          setSelectedCustomerId(c.id);
-                          setCustomerSearch(`${c.name} - ${c.phone}`);
-                          setShowCustomerDropdown(false);
-                        }}
-                      >
-                        <div className="font-bold text-[14px] text-ink">
-                          {c.name}
+                        matchesCustomerBranch(c, activeBranchId || "all", branches) &&
+                        (!q ||
+                          String(c.name || "").toLowerCase().includes(q) ||
+                          String(c.phone || "").toLowerCase().includes(q))
+                    );
+                    if (branchCusts.length === 0) {
+                      return (
+                        <div className="p-3 text-[13px] text-ink-soft text-center">
+                          {language === 'en' ? "No results" : "لا يوجد نتائج"}
                         </div>
-                        <div className="font-mono text-[12px] text-ink-soft">
-                          {c.phone}
+                      );
+                    }
+                    return branchCusts.map((c: any) => {
+                      const bal = round2(c.debt || 0);
+                      return (
+                        <div
+                          key={c.id}
+                          className="p-3 hover:bg-bg cursor-pointer border-b border-mint-line last:border-0 flex items-center justify-between gap-2"
+                          onClick={() => {
+                            setSelectedCustomerId(c.id);
+                            setCustomerSearch(c.phone ? `${c.name} - ${c.phone}` : c.name);
+                            setShowCustomerDropdown(false);
+                          }}
+                        >
+                          <div className="min-w-0">
+                            <div className="font-bold text-[14px] text-ink truncate">{c.name}</div>
+                            {c.phone && <div className="font-mono text-[12px] text-ink-soft" dir="ltr">{c.phone}</div>}
+                          </div>
+                          {Math.abs(bal) > 0.005 && (
+                            <span
+                              dir="ltr"
+                              className={`text-[11px] font-mono font-black px-2 py-0.5 rounded-lg shrink-0 ${
+                                bal < 0 ? "bg-emerald-50 text-emerald-700" : "bg-coral-pale text-coral"
+                              }`}
+                            >
+                              {bal < 0
+                                ? `+${Math.abs(bal).toFixed(2)} ${language === "en" ? "Cr" : "رصيد"}`
+                                : `${bal.toFixed(2)} ₪`}
+                            </span>
+                          )}
                         </div>
-                      </div>
-                    ))}
-                  {customers.filter(
-                    (c: any) =>
-                      c.name.includes(customerSearch) ||
-                      c.phone.includes(customerSearch),
-                  ).length === 0 && (
-                    <div className="p-3 text-[13px] text-ink-soft text-center">
-                      {language === 'en' ? "No results" : "لا يوجد نتائج"}
-                    </div>
-                  )}
+                      );
+                    });
+                  })()}
                 </div>
               )}
             </div>
+            {(() => {
+              const sel = selectedCustomerId ? customers.find((c: any) => c.id === selectedCustomerId) : null;
+              if (!sel) return null;
+              const bal = round2(sel.debt || 0);
+              return (
+                <div
+                  className={`mt-2 px-3 py-2 rounded-xl text-[12px] font-bold flex items-center justify-between ${
+                    bal < -0.005
+                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                      : bal > 0.005
+                        ? "bg-coral-pale/50 text-coral border border-coral/20"
+                        : "bg-bg text-ink-soft border border-mint-line"
+                  }`}
+                >
+                  <span>
+                    {bal < -0.005
+                      ? language === "en"
+                        ? "Available Store Credit (auto-deducted on Credit sale):"
+                        : "رصيد دائن متاح للعميل (يُخصم عند البيع بالآجل):"
+                      : bal > 0.005
+                        ? language === "en"
+                          ? "Current Debt Balance:"
+                          : "الدين الحالي على العميل:"
+                        : language === "en"
+                          ? "Account Settled"
+                          : "الرصيد مُصفّى"}
+                  </span>
+                  <span dir="ltr" className="font-mono font-black">
+                    {Math.abs(bal).toFixed(2)} ₪
+                  </span>
+                </div>
+              );
+            })()}
             {showCustomerDropdown && (
               <div
                 className="fixed inset-0 z-40"
@@ -1080,26 +1200,81 @@ function POSContent() {
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { id: "cash", label: language === 'en' ? "Cash" : "نقدي", icon: "💵" },
-                  { id: "bank", label: language === 'en' ? "Bank" : "بنكي", icon: "🏦" },
-                  { id: "jawwal", label: language === 'en' ? "Jawwal Pay" : "جوال باي", icon: "📱" },
-                  { id: "palpay", label: language === 'en' ? "PalPay" : "بال باي", icon: "💳" },
-                  { id: "maalchat", label: language === 'en' ? "Maalchat" : "مالتشات", icon: "💬" },
-                  { id: "credit", label: language === 'en' ? "Credit" : "ذمم", icon: "📋" },
+                  { id: "card", label: language === 'en' ? "Card / Visa" : "بطاقة بنكية", icon: "💳" },
+                  { id: "bank", label: language === 'en' ? "Bank Transfer" : "حوالة بنكية", icon: "🏦" },
+                  { id: "jawwal_pay", label: language === 'en' ? "Jawwal Pay" : "جوال باي", icon: "📱" },
+                  { id: "palpay", label: language === 'en' ? "PalPay" : "بال باي", icon: "📲" },
+                  { id: "credit", label: language === 'en' ? "Credit" : "ذمم / آجل", icon: "📋" },
+                  { id: "split", label: language === 'en' ? "Split Payment" : "دفع مختلط (نقد + ذمم...)", icon: "✂️" },
                 ].map((method) => (
                   <button
                     key={method.id}
+                    type="button"
                     onClick={() => setPayMethod(method.id)}
-                    className={`py-3 rounded-xl text-[14px] font-bold border-2 transition-all flex items-center justify-center gap-2 ${
+                    className={`py-2.5 px-2 rounded-xl text-[13px] font-bold border-2 transition-all flex items-center justify-center gap-1.5 ${
+                      method.id === "split" ? "col-span-2" : ""
+                    } ${
                       payMethod === method.id
                         ? "bg-white border-white text-primary shadow-md"
                         : "bg-white/10 border-white/20 text-white hover:bg-white/20"
                     }`}
                   >
-                    <span className="text-[18px]">{method.icon}</span>
+                    <span className="text-[16px]">{method.icon}</span>
                     {method.label}
                   </button>
                 ))}
               </div>
+
+              {["card", "jawwal_pay", "palpay", "bank"].includes(payMethod) && (
+                <div className="mt-3">
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={electronicRef}
+                    onChange={(e) => setElectronicRef(e.target.value)}
+                    placeholder={language === "en" ? "Electronic Reference / Auth # (Optional)" : "رقم المرجع / الحوالة الإلكترونية (اختياري)"}
+                    className="w-full bg-white text-ink text-[13px] font-mono rounded-xl px-3 py-2 outline-none"
+                  />
+                </div>
+              )}
+
+              {payMethod === "split" && (
+                <div className="mt-3 bg-white/10 rounded-xl p-3 border border-white/20 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-white/90">
+                    <span>{language === "en" ? "Split Distribution:" : "توزيع الدفع المختلط:"}</span>
+                    <span dir="ltr" className="font-mono">
+                      {["cash", "card", "jawwal_pay", "palpay", "bank", "credit"]
+                        .reduce((s, k) => s + (parseFloat(splitAmounts[k] || "0") || 0), 0)
+                        .toFixed(2)}{" "}
+                      / {round2(total).toFixed(2)} ₪
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { k: "cash", ar: "نقدي", en: "Cash" },
+                      { k: "card", ar: "بطاقة", en: "Card" },
+                      { k: "jawwal_pay", ar: "جوال باي", en: "Jawwal" },
+                      { k: "palpay", ar: "بال باي", en: "PalPay" },
+                      { k: "bank", ar: "بنكي", en: "Bank" },
+                      { k: "credit", ar: "ذمم (آجل)", en: "Credit" },
+                    ].map((f) => (
+                      <div key={f.k} className="bg-white rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-1">
+                        <span className="text-[11px] font-bold text-ink-soft shrink-0">{language === "en" ? f.en : f.ar}</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          dir="ltr"
+                          value={splitAmounts[f.k] || ""}
+                          onChange={(e) => setSplitAmounts((prev) => ({ ...prev, [f.k]: e.target.value }))}
+                          placeholder="0.00"
+                          className="w-20 text-end text-[13px] font-mono font-bold text-ink outline-none"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Divider */}
@@ -1289,6 +1464,14 @@ function POSContent() {
                     {user?.managerName || user?.username || ""}
                   </span>
                 </div>
+                {lastInvoice.customer?.name && (
+                  <div className="flex justify-between items-center text-[12px]">
+                    <span className="text-ink-soft font-bold">{language === 'en' ? "Customer:" : "العميل:"}</span>
+                    <span className="text-ink font-bold">
+                      {lastInvoice.customer.name}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="text-center text-[#94A3B8] tracking-widest my-3">
@@ -1348,19 +1531,8 @@ function POSContent() {
                   {language === 'en' ? "Payment Method" : "طريقة الدفع"}
                 </span>
                 <span className="text-[12px] font-bold text-ink font-mono">
-                  {lastInvoice.method === "cash"
-                    ? (language === 'en' ? "Cash" : "نقدي")
-                    : lastInvoice.method === "bank"
-                      ? (language === 'en' ? "Bank" : "بنكي")
-                      : lastInvoice.method === "jawwal"
-                        ? (language === 'en' ? "Jawwal Pay" : "جوال باي")
-                        : lastInvoice.method === "palpay"
-                          ? (language === 'en' ? "PalPay" : "بال باي")
-                          : lastInvoice.method === "maalchat"
-                            ? (language === 'en' ? "Maalchat" : "مالتشات")
-                            : lastInvoice.method === "credit"
-                              ? (language === 'en' ? "Credit" : "ذمم")
-                              : (language === 'en' ? "Cash" : "نقدي")}
+                  {formatPaymentMethod(lastInvoice.method, language === "en" ? "en" : "ar").label}
+                  {lastInvoice.electronicRef ? ` (#${lastInvoice.electronicRef})` : ""}
                 </span>
               </div>
 

@@ -103,10 +103,10 @@ export default function Reports() {
     [dateRange, customFrom, customTo],
   );
 
-  const userBranchObj = branches.find((b: any) => b.name === user?.branch);
+  const userBranchObj = branches.find((b: any) => b.id === user?.branch || b.name === user?.branch);
   let activeBranchId = branchFilter;
-  if (user?.role === "صيدلي" || user?.role === "مدير فرع") {
-    activeBranchId = userBranchObj ? userBranchObj.name : "PENDING";
+  if (user?.role === "صيدلي" || user?.role === "مدير فرع" || user?.role === "branchManager") {
+    activeBranchId = userBranchObj ? String(userBranchObj.id) : (user?.branch || "PENDING");
   }
 
   const shouldFetch = user && activeBranchId !== "PENDING";
@@ -135,6 +135,7 @@ export default function Reports() {
   const pb = report.paymentBreakdown || {};
   const pieData = [
     { name: language === "en" ? "Cash" : "نقدي", value: pb.cash || 0 },
+    { name: language === "en" ? "Card" : "بطاقة", value: pb.card || 0 },
     { name: language === "en" ? "Bank" : "بنكي", value: pb.bank || 0 },
     { name: language === "en" ? "Jawwal Pay" : "جوال باي", value: pb.jawwal || 0 },
     { name: language === "en" ? "PalPay" : "بال باي", value: pb.palpay || 0 },

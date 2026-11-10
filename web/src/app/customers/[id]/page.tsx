@@ -1,176 +1,112 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import useSWR, { mutate as globalMutate } from "swr";
 import AppBar from "@/components/AppBar";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import CustomerFormModal from "@/components/customers/CustomerFormModal";
+import CustomerVoucherModal from "@/components/customers/CustomerVoucherModal";
+import CustomerStatementModal from "@/components/customers/CustomerStatementModal";
+import { API_BASE_URL } from "@/lib/config";
+import { useStore } from "@/store";
+import { authJsonFetcher } from "@/lib/customers/api";
+import { resolveBranchId, resolveBranchName, type BranchRecord, type CustomerRecord } from "@/lib/customers/domain";
 
-export default function CustomerProfile() {
-  const { id } = useParams();
+export default function CustomerProfilePage() {
+  const params = useParams();
+  const router = useRouter();
+  const rawId = params?.id;
+  const customerId = Array.isArray(rawId) ? rawId[0] : rawId || "";
 
-  // Fake customer details for demo
-  const customer = {
-    id: id,
-    name: "أحمد محمد",
-    phone: "0599123456",
-    address: "غزة - الرمال",
-    debt: 150.0,
-    history: [
-      {
-        id: "INV-1002",
-        date: "2026-08-09",
-        items: "بنادول أكسترا، فيتامين سي",
-        total: 45.5,
-        status: "paid",
-      },
-      {
-        id: "INV-0988",
-        date: "2026-07-28",
-        items: "دواء ضغط 10ملجم",
-        total: 150.0,
-        status: "debt",
-      },
-    ],
+  const user = useStore((state) => state.user);
+  const language = (useStore((state: any) => state.language) || "ar") as "ar" | "en";
+  const isEn = language === "en";
+
+  const isGeneralManager = Boolean(user && ["manager", "owner", "admin"].includes(user.role || ""));
+  const canDeleteCustomer = Boolean(user && ["manager", "owner", "branchManager", "admin"].includes(user.role || ""));
+
+  const { data: pharmacyData } = useSWR(
+    user ? `${API_BASE_URL}/api/admin/pharmacies/${user.pharmacy_id}` : null,
+    authJsonFetcher
+  );
+  const pharmacyName = pharmacyData?.pharmacy?.name || user?.pharmacyName || (isEn ? "Roshetta Pharmacy" : "صيدلية روشتة");
+
+  const { data: branchesData } = useSWR(
+    user ? `${API_BASE_URL}/api/admin/pharmacies/${user.pharmacy_id}/branches` : null,
+    authJsonFetcher
+  );
+  const activeBranches: BranchRecord[] = useMemo(() => {
+    const raw = branchesData?.branches || [];
+    return raw.filter((b: any) => !["مؤرشف", "archived", "deleted"].includes(String(b.status || "")));
+  }, [branchesData]);
+
+  const userBranchId = useMemo(() => {
+    if (!user || isGeneralManager || !user.branch) return null;
+    return resolveBranchId(user.branch, activeBranches);
+  }, [user, isGeneralManager, activeBranches]);
+
+  const [editingCustomer, setEditingCustomer] = useState<CustomerRecord | null>(null);
+  const [voucherModal, setVoucherModal] = useState<{
+    open: boolean;
+    mode: "payment" | "debit";
+    customer: CustomerRecord | null;
+  }>({ open: false, mode: "payment", customer: null });
+
+  const refreshStatement = () => {
+    if (!user?.pharmacy_id) return;
+    globalMutate(
+      (key) => typeof key === "string" && (key.includes("/customers") || key.includes("/sales") || key.includes("/shifts/current")),
+      undefined,
+      { revalidate: true }
+    );
   };
 
+  if (!user) return null;
+
   return (
-    <>
-      <AppBar />
-      <div className="mb-6 flex items-center gap-4">
-        <Link
-          href="/customers"
-          className="p-2 rounded-lg bg-card border border-mint-line hover:bg-bg transition-all"
-        >
-          <svg
-            className="w-5 h-5 text-ink-soft"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-        </Link>
-        <div>
-          <h1 className="text-[22px] font-bold text-primary">
-            الملف الطبي للعميل
-          </h1>
-          <p className="text-[15px] text-ink-soft mt-1">
-            عرض السجل الطبي والديون السابقة للمريض
-          </p>
-        </div>
+    <main className="w-full pb-24">
+      <AppBar title={isEn ? "Customer Account Statement" : "ملف وكشف حساب العميل"} backHref="/customers" />
+
+      <div className="max-w-5xl mx-auto p-4 md:p-6">
+        <CustomerStatementModal
+          inline
+          customerId={decodeURIComponent(customerId)}
+          pharmacyId={user.pharmacy_id}
+          pharmacyName={pharmacyName}
+          branches={activeBranches}
+          canManageCustomer={canDeleteCustomer}
+          lang={language}
+          onOpenVoucher={(mode, cust) => setVoucherModal({ open: true, mode, customer: cust })}
+          onEditCustomer={(cust) => setEditingCustomer(cust)}
+          onDeleted={() => router.replace("/customers")}
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="bg-card rounded-2xl p-6 shadow-sm border border-mint-line lg:col-span-1">
-          <div className="w-20 h-20 bg-primary-pale rounded-full flex items-center justify-center mx-auto mb-4 text-primary font-bold text-[32px]">
-            {customer.name.charAt(0)}
-          </div>
-          <h2 className="text-center text-[20px] font-bold text-ink mb-1">
-            {customer.name}
-          </h2>
-          <p className="text-center text-[14px] font-mono text-ink-soft mb-6">
-            {customer.id}
-          </p>
+      <CustomerFormModal
+        open={Boolean(editingCustomer)}
+        onClose={() => setEditingCustomer(null)}
+        pharmacyId={user.pharmacy_id}
+        branches={activeBranches}
+        initialCustomer={editingCustomer}
+        isGeneralManager={isGeneralManager}
+        cashierName={user.managerName || user.name || ""}
+        lang={language}
+        onSaved={() => refreshStatement()}
+      />
 
-          <div className="space-y-4">
-            <div className="flex justify-between border-b border-mint-line/50 pb-2">
-              <span className="text-ink-soft text-[14px]">رقم الجوال</span>
-              <span className="font-bold text-[14px]">{customer.phone}</span>
-            </div>
-            <div className="flex justify-between border-b border-mint-line/50 pb-2">
-              <span className="text-ink-soft text-[14px]">العنوان</span>
-              <span className="font-bold text-[14px]">{customer.address}</span>
-            </div>
-            <div className="flex justify-between pb-2">
-              <span className="text-ink-soft text-[14px]">
-                {customer.debt < 0
-                  ? "رصيد دائن مستحق للعميل"
-                  : customer.debt === 0
-                    ? "الرصيد"
-                    : "الرصيد المستحق (ديون)"}
-              </span>
-              <span
-                className={`font-bold text-[16px] ${
-                  customer.debt < 0
-                    ? "text-teal"
-                    : customer.debt === 0
-                      ? "text-ink-soft"
-                      : "text-coral"
-                }`}
-              >
-                {customer.debt < 0
-                  ? `+${Math.abs(customer.debt).toFixed(2)} ₪ (له رصيد)`
-                  : customer.debt === 0
-                    ? "0.00 ₪ (لا يوجد دين)"
-                    : `${customer.debt.toFixed(2)} ₪`}
-              </span>
-            </div>
-          </div>
-
-          {customer.debt > 0 && (
-            <button className="w-full mt-6 py-3 bg-teal text-white font-bold rounded-xl hover:bg-[#259775] transition-all">
-              تسديد جزء من الديون
-            </button>
-          )}
-        </div>
-
-        <div className="bg-card rounded-2xl shadow-sm border border-mint-line lg:col-span-2 overflow-hidden flex flex-col">
-          <div className="p-5 border-b border-mint-line bg-bg flex justify-between items-center">
-            <h2 className="text-[16px] font-bold text-ink">
-              تاريخ المشتريات والروشتات
-            </h2>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            <table className="w-full text-start">
-              <thead>
-                <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-                  <th className="py-3 px-5 font-semibold text-start">رقم الفاتورة</th>
-                  <th className="py-3 px-5 font-semibold text-start">التاريخ</th>
-                  <th className="py-3 px-5 font-semibold text-start">الأصناف</th>
-                  <th className="py-3 px-5 font-semibold text-start">الإجمالي</th>
-                  <th className="py-3 px-5 font-semibold text-start">الحالة</th>
-                </tr>
-              </thead>
-              <tbody>
-                {customer.history.map((hist, i) => (
-                  <tr
-                    key={i}
-                    className="border-b border-mint-line/50 hover:bg-bg/50 transition-all"
-                  >
-                    <td className="py-4 px-5 font-mono text-[14px] font-bold text-ink">
-                      {hist.id}
-                    </td>
-                    <td className="py-4 px-5 text-[14px] text-ink-soft">
-                      {hist.date}
-                    </td>
-                    <td className="py-4 px-5 text-[14px] max-w-[200px] truncate">
-                      {hist.items}
-                    </td>
-                    <td className="py-4 px-5 font-bold text-[14px]">
-                      {hist.total} ₪
-                    </td>
-                    <td className="py-4 px-5">
-                      <span
-                        className={`px-2 py-1 rounded-md text-[12px] font-bold ${
-                          hist.status === "paid"
-                            ? "bg-teal-pale text-teal"
-                            : "bg-coral-pale text-coral"
-                        }`}
-                      >
-                        {hist.status === "paid" ? "مدفوعة" : "آجل (دين)"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </>
+      <CustomerVoucherModal
+        open={voucherModal.open}
+        onClose={() => setVoucherModal({ open: false, mode: "payment", customer: null })}
+        mode={voucherModal.mode}
+        customer={voucherModal.customer}
+        pharmacyId={user.pharmacy_id}
+        pharmacyName={pharmacyName}
+        branchId={userBranchId}
+        branchName={userBranchId ? resolveBranchName(userBranchId, activeBranches, language) : ""}
+        cashierName={user.managerName || user.name || ""}
+        lang={language}
+        onCompleted={() => refreshStatement()}
+      />
+    </main>
   );
 }

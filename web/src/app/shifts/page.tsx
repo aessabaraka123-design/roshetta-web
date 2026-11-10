@@ -97,7 +97,7 @@ export default function ShiftsPage() {
     });
 
     socket.on("sync_update", (data: any) => {
-      if (data?.type === "shifts") {
+      if (data?.type === "shifts" || data?.type === "sales" || data?.type === "customers" || data?.type === "expenses") {
         mutateCurrentShifts();
         mutateShifts();
       }
@@ -394,7 +394,7 @@ export default function ShiftsPage() {
     }
     const opening = Number(shiftToClose.opening_amount || 0);
     const liveCash = Number(shiftToClose.live_cash_sales || shiftToClose.cash_sales || 0);
-    const liveExp = Number(shiftToClose.live_expenses || 0);
+    const liveExp = Number(shiftToClose.live_cash_expenses ?? shiftToClose.live_expenses ?? 0);
     return opening + liveCash - liveExp;
   }, [shiftToClose]);
 
@@ -503,7 +503,7 @@ export default function ShiftsPage() {
                     ? shift.live_cash_sales
                     : shift.cash_sales || 0
                 );
-                const liveExpenses = parseFloat(shift.live_expenses || 0);
+                const liveExpenses = parseFloat(shift.live_cash_expenses ?? shift.live_expenses ?? 0);
                 const liveExpected = parseFloat(
                   shift.live_expected_amount !== undefined
                     ? shift.live_expected_amount

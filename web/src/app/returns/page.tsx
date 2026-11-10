@@ -7,6 +7,13 @@ import { useStore } from "@/store";
 import { useRouter } from "next/navigation";
 import useSWR, { mutate } from "swr";
 import toast from "react-hot-toast";
+import {
+  computeRefundSettlement,
+  normalizeSalePaymentMethod,
+  round2,
+} from "@/lib/customers/domain";
+import { newEventId } from "@/lib/customers/api";
+import { getWebAuthHeaders } from "@/lib/customers/transport";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -133,11 +140,18 @@ export default function Returns() {
   }, [returnQtyMap, selectedInvoice]);
 
   const partialRefundTotal = useMemo(() => {
-    if (!selectedInvoice) return 0;
-    return selectedItemsToRefund.reduce((sum, req) => {
+    if (!selectedInvoice || !Array.isArray(selectedInvoice.items)) return 0;
+    const gross = selectedInvoice.items.reduce(
+      (sum: number, item: any) =>
+        sum + Number(item.cartQty ?? item.qty ?? 1) * Number(item.unitPrice ?? item.price ?? 0),
+      0
+    );
+    const ratio = gross > 0 ? Number(selectedInvoice.total || 0) / gross : 1;
+    const raw = selectedItemsToRefund.reduce((sum, req) => {
       const item = selectedInvoice.items.find((i: any) => i.id === req.id);
-      return sum + (item?.price || 0) * req.qty;
+      return sum + Number(item?.unitPrice ?? item?.price ?? 0) * req.qty * ratio;
     }, 0);
+    return round2(raw);
   }, [selectedItemsToRefund, selectedInvoice]);
 
   const initiateRefund = (mode: "full" | "partial") => {
@@ -146,12 +160,12 @@ export default function Returns() {
 
     const totalRefund =
       mode === "full"
-        ? Number(selectedInvoice.total || 0)
+        ? round2(Number(selectedInvoice.total || 0))
         : partialRefundTotal;
 
     const customer = selectedInvoice.customer;
     const hasCustomer = !!(customer && customer.id);
-    const origPm = (selectedInvoice.paymentMethod || "").toString().trim().toLowerCase();
+    const origPm = normalizeSalePaymentMethod(selectedInvoice.paymentMethod);
 
     let salePayments: any = null;
     try {
@@ -161,64 +175,35 @@ export default function Returns() {
           : selectedInvoice.payments;
     } catch (e) {}
 
-    const hasSplitCredit = salePayments && Number(salePayments.credit || 0) > 0;
-    const isCreditSale =
-      origPm === "credit" ||
-      origPm === "آجل" ||
-      origPm === "اجل" ||
-      origPm === "ذمم" ||
-      origPm === "دين" ||
-      hasSplitCredit;
-
-    const saleTotal = Number(selectedInvoice.total || 0);
-    let creditPart = 0;
-    let paidPart = 0;
-    let paidMethodName = "نقداً (كاش)";
-
     const storeCustomer = hasCustomer
       ? allCustomers.find((c: any) => c.id === customer.id) || customer
       : null;
 
-    if (hasSplitCredit) {
-      creditPart = Number(salePayments.credit || 0);
-      paidPart = Math.max(0, saleTotal - creditPart);
-      if (Number(salePayments.jawwal_pay || salePayments.jawwalpay) > 0)
-        paidMethodName = "جوال باي";
-      else if (Number(salePayments.palpay) > 0) paidMethodName = "بال باي";
-      else if (Number(salePayments.card) > 0) paidMethodName = "بطاقة بنكية";
-      else if (Number(salePayments.bank) > 0) paidMethodName = "تحويل بنكي";
-      else paidMethodName = "نقداً (كاش)";
-    } else if (isCreditSale) {
-      const currentDebt = Number(storeCustomer?.debt || 0);
-      if (currentDebt < saleTotal) {
-        paidPart = Math.max(0, saleTotal - currentDebt);
-        creditPart = Math.max(0, saleTotal - paidPart);
-      } else {
-        creditPart = saleTotal;
-        paidPart = 0;
-      }
-    } else {
-      paidPart = saleTotal;
-      creditPart = 0;
-      if (origPm === "jawwalpay" || origPm === "jawwal") paidMethodName = "جوال باي";
-      else if (origPm === "palpay") paidMethodName = "بال باي";
-      else if (origPm === "card") paidMethodName = "بطاقة بنكية";
-      else if (origPm === "bank") paidMethodName = "تحويل بنكي";
-      else paidMethodName = "نقداً (كاش)";
-    }
+    const settlement = computeRefundSettlement({
+      mode,
+      sale: selectedInvoice,
+      itemsToRefund: mode === "partial" ? selectedItemsToRefund : [],
+      customerDebt: Number(storeCustomer?.debt || 0),
+    });
 
-    const debtToCancel = Math.min(totalRefund, creditPart);
-    const paidAmountToRefund = Math.max(0, totalRefund - debtToCancel);
+    let paidMethodName = "نقداً (كاش)";
+    const checkPm = origPm === "split" && salePayments
+      ? Object.entries(salePayments).find(([k, v]) => normalizeSalePaymentMethod(k) !== "credit" && Number(v) > 0)?.[0] || "cash"
+      : origPm;
+    const normCheck = normalizeSalePaymentMethod(checkPm);
+    if (normCheck === "jawwal_pay") paidMethodName = "جوال باي";
+    else if (normCheck === "palpay") paidMethodName = "بال باي";
+    else if (normCheck === "card") paidMethodName = "بطاقة بنكية";
+    else if (normCheck === "bank") paidMethodName = "تحويل بنكي";
 
-    // إذا كان العميل موجوداً ودفع جزءاً من الفاتورة (> 0): إظهار نافذة التسوية للاختيار
-    if (hasCustomer && paidAmountToRefund > 0) {
-      const currentDebt = Number(storeCustomer?.debt || 0);
-      const previousOtherDebt = Math.max(0, currentDebt - debtToCancel);
+    if (hasCustomer && settlement.paidAmountToRefund > 0) {
+      const currentDebt = round2(storeCustomer?.debt || 0);
+      const previousOtherDebt = round2(Math.max(0, currentDebt - settlement.debtToCancel));
       setSettlementData({
         mode,
         totalRefund,
-        debtToCancel,
-        paidAmountToRefund,
+        debtToCancel: settlement.debtToCancel,
+        paidAmountToRefund: settlement.paidAmountToRefund,
         paidMethodName,
         customer: storeCustomer,
         previousOtherDebt,
@@ -227,7 +212,6 @@ export default function Returns() {
       return;
     }
 
-    // الحالة الأولى: فاتورة ذمم لم يدفع منها شيء (100% دين) أو لا يوجد عميل
     setShowConfirmModal(true);
   };
 
@@ -237,17 +221,31 @@ export default function Returns() {
 
     const totalRefund =
       refundMode === "full"
-        ? Number(selectedInvoice.total || 0)
+        ? round2(Number(selectedInvoice.total || 0))
         : partialRefundTotal;
 
-    const refundOptions = customOptions || {
-      returnPaidMode: "cash_out",
-      debtToCancel: totalRefund,
-      paidAmountToRefund: 0,
-      paymentMethod: selectedInvoice.paymentMethod || "cash",
-      customerId: selectedInvoice.customer?.id,
-      customerName: selectedInvoice.customer?.name,
-    };
+    const hasCustomer = Boolean(selectedInvoice.customer?.id);
+    const refundOptions = customOptions || (hasCustomer
+      ? {
+          returnPaidMode: "cash_out",
+          debtToCancel: totalRefund,
+          paidAmountToRefund: 0,
+          paymentMethod: normalizeSalePaymentMethod(selectedInvoice.paymentMethod || "cash"),
+          customerId: selectedInvoice.customer?.id,
+          customerName: selectedInvoice.customer?.name,
+        }
+      : {
+          returnPaidMode: "cash_out",
+          debtToCancel: 0,
+          paidAmountToRefund: totalRefund,
+          paymentMethod: normalizeSalePaymentMethod(selectedInvoice.paymentMethod || "cash"),
+        });
+
+    const eventId = newEventId();
+    const headers = getWebAuthHeaders({
+      "Content-Type": "application/json",
+      "Idempotency-Key": eventId,
+    });
 
     try {
       let res;
@@ -256,8 +254,8 @@ export default function Returns() {
           `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales/${selectedInvoice.id}/refund`,
           {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refundOptions }),
+            headers,
+            body: JSON.stringify({ eventId, refundOptions }),
           },
         );
       } else {
@@ -265,8 +263,9 @@ export default function Returns() {
           `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales/${selectedInvoice.id}/refund_partial`,
           {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify({
+              eventId,
               itemsToRefund: selectedItemsToRefund,
               totalRefund,
               refundOptions,
@@ -299,6 +298,7 @@ export default function Returns() {
         mutate(`${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/inventory`);
         mutate(`${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`);
         mutate(`${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/customers`);
+        mutate(`${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/shifts/current`);
       } else {
         toast.error(result.error || (language === "en" ? "Failed to refund" : "فشل في الاسترجاع"));
       }

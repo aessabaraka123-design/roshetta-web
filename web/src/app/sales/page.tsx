@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import RoshettaLogo from "@/components/RoshettaLogo";
 import LocalBarcode from "@/components/LocalBarcode";
+import { formatPaymentMethod, isDebtPaymentRecord } from "@/lib/customers/domain";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -507,28 +508,17 @@ export default function SalesLog() {
                 <div className="flex flex-wrap gap-1.5 items-center mb-2.5">
                   <span
                     className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-bold text-[11px] ${
-                      sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين"
+                      isDebtPaymentRecord(sale)
                         ? "bg-purple-100 text-purple-700 border border-purple-200"
                         : sale.paymentMethod === "cash"
                           ? "bg-teal-pale text-teal border border-teal/20"
                           : "bg-primary-pale text-primary border border-primary/20"
                     }`}
                   >
-                    {sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين"
-                      ? (language === 'en' ? "Debt Collection" : "سداد دين") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
-                      : sale.paymentMethod === "cash"
-                        ? (language === 'en' ? "Cash" : "نقدي")
-                        : sale.paymentMethod === "bank"
-                          ? (language === 'en' ? "Bank" : "بنكي")
-                          : sale.paymentMethod === "jawwal"
-                            ? (language === 'en' ? "Jawwal Pay" : "جوال باي")
-                            : sale.paymentMethod === "palpay"
-                              ? (language === 'en' ? "PalPay" : "بال باي")
-                              : sale.paymentMethod === "maalchat"
-                                ? (language === 'en' ? "MaalChat" : "مالتشات")
-                                : sale.paymentMethod === "credit"
-                                  ? (language === 'en' ? "Credit" : "ذمم") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
-                                  : sale.paymentMethod}
+                    {isDebtPaymentRecord(sale)
+                      ? (language === "en" ? "Debt Collection" : "سند قبض / سداد دين") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
+                      : formatPaymentMethod(sale.paymentMethod, language === "en" ? "en" : "ar").label +
+                        (sale.customer?.name && ["credit", "split"].includes(sale.paymentMethod) ? " (" + sale.customer.name + ")" : "")}
                   </span>
 
                   {sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين" || (!sale.items || sale.items.length === 0) ? (
@@ -660,28 +650,17 @@ export default function SalesLog() {
                     <td className="py-4 px-5 text-start">
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[12px] font-bold ${
-                          sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين"
+                          isDebtPaymentRecord(sale)
                             ? "bg-purple-100 text-purple-700 border border-purple-200"
                             : sale.paymentMethod === "cash"
                               ? "bg-teal-pale text-teal border border-teal/20"
                               : "bg-primary-pale text-primary border border-primary/20"
                         }`}
                       >
-                        {sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين"
-                          ? (language === 'en' ? "Debt Collection" : "سداد دين") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
-                          : sale.paymentMethod === "cash"
-                            ? (language === 'en' ? "Cash" : "نقدي")
-                            : sale.paymentMethod === "bank"
-                              ? (language === 'en' ? "Bank" : "بنكي")
-                              : sale.paymentMethod === "jawwal"
-                                ? (language === 'en' ? "Jawwal Pay" : "جوال باي")
-                                : sale.paymentMethod === "palpay"
-                                  ? (language === 'en' ? "PalPay" : "بال باي")
-                                  : sale.paymentMethod === "maalchat"
-                                    ? (language === 'en' ? "MaalChat" : "مالتشات")
-                                    : sale.paymentMethod === "credit"
-                                      ? (language === 'en' ? "Credit" : "ذمم") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
-                                      : sale.paymentMethod}
+                        {isDebtPaymentRecord(sale)
+                          ? (language === "en" ? "Debt Collection" : "سند قبض / سداد دين") + (sale.customer?.name ? " (" + sale.customer.name + ")" : "")
+                          : formatPaymentMethod(sale.paymentMethod, language === "en" ? "en" : "ar").label +
+                            (sale.customer?.name && ["credit", "split"].includes(sale.paymentMethod) ? " (" + sale.customer.name + ")" : "")}
                       </span>
                     </td>
                     <td
@@ -766,21 +745,13 @@ export default function SalesLog() {
               <div className="flex justify-between text-[14px]">
                 <span className="text-ink-soft font-bold">{language === 'en' ? 'Payment Method:' : 'طريقة الدفع:'}</span>
                 <span className="text-ink font-semibold">
-                  {selectedInvoice.status === "debt_payment" || selectedInvoice.paymentMethod === "debt_payment" || selectedInvoice.paymentMethod === "تسديد دين"
-                    ? (language === 'en' ? "Debt Collection" : "سداد دين") + (selectedInvoice.customer?.name ? ` (${selectedInvoice.customer.name})` : "")
-                    : selectedInvoice.paymentMethod === "cash"
-                    ? (language === 'en' ? "Cash" : "نقدي")
-                    : selectedInvoice.paymentMethod === "bank"
-                      ? (language === 'en' ? "Bank" : "بنكي")
-                      : selectedInvoice.paymentMethod === "jawwal"
-                        ? (language === 'en' ? "Jawwal Pay" : "جوال باي")
-                        : selectedInvoice.paymentMethod === "palpay"
-                          ? (language === 'en' ? "PalPay" : "بال باي")
-                          : selectedInvoice.paymentMethod === "maalchat"
-                            ? (language === 'en' ? "MaalChat" : "مالتشات")
-                            : selectedInvoice.paymentMethod === "credit"
-                              ? (language === 'en' ? "Credit" : "ذمم") + (selectedInvoice.customer?.name ? (language === 'en' ? " (Name: " : " (باسم: ") + selectedInvoice.customer.name + ")" : "")
-                              : selectedInvoice.paymentMethod}
+                  {isDebtPaymentRecord(selectedInvoice)
+                    ? (language === "en" ? "Debt Collection" : "سند قبض / سداد دين") + (selectedInvoice.customer?.name ? ` (${selectedInvoice.customer.name})` : "")
+                    : formatPaymentMethod(selectedInvoice.paymentMethod, language === "en" ? "en" : "ar").label +
+                      (selectedInvoice.customer?.name && ["credit", "split"].includes(selectedInvoice.paymentMethod)
+                        ? ` (${selectedInvoice.customer.name})`
+                        : "")}
+                  {selectedInvoice.electronicRef ? ` • #${selectedInvoice.electronicRef}` : ""}
                 </span>
               </div>
               <div className="flex justify-between text-[14px]">
@@ -1141,19 +1112,7 @@ export default function SalesLog() {
                   {language === 'en' ? "Payment Method" : "طريقة الدفع"}
                 </span>
                 <span className="text-[12px] font-bold text-ink font-mono">
-                  {thermalInvoice.paymentMethod === "cash"
-                    ? (language === 'en' ? "Cash" : "نقدي")
-                    : thermalInvoice.paymentMethod === "bank"
-                      ? (language === 'en' ? "Bank" : "بنكي")
-                      : thermalInvoice.paymentMethod === "jawwal"
-                        ? (language === 'en' ? "Jawwal Pay" : "جوال باي")
-                        : thermalInvoice.paymentMethod === "palpay"
-                          ? (language === 'en' ? "PalPay" : "بال باي")
-                          : thermalInvoice.paymentMethod === "maalchat"
-                            ? (language === 'en' ? "Maalchat" : "مالتشات")
-                            : thermalInvoice.paymentMethod === "credit"
-                              ? (language === 'en' ? "Credit" : "ذمم")
-                              : (language === 'en' ? "Cash" : "نقدي")}
+                  {formatPaymentMethod(thermalInvoice.paymentMethod, language === "en" ? "en" : "ar").label}
                 </span>
               </div>
 

@@ -84,6 +84,8 @@ export default function Notifications() {
       case "success":
       case "teal":
         return "border-r-teal bg-teal-pale text-teal";
+      case "debt_payment":
+        return "border-r-emerald-500 bg-emerald-50 text-emerald-700";
       case "credit_sale":
       case "debt":
       case "high_debt":
@@ -105,6 +107,8 @@ export default function Notifications() {
         return "⏰";
       case "staff":
         return "👤";
+      case "debt_payment":
+        return "💰";
       case "credit_sale":
       case "debt":
       case "high_debt":
@@ -135,6 +139,8 @@ export default function Notifications() {
         return language === "en" ? "Expiring Soon" : "اقتراب الصلاحية";
       case "staff":
         return language === "en" ? "Staff" : "طاقم العمل";
+      case "debt_payment":
+        return language === "en" ? "Debt Payment" : "سداد دين";
       case "credit_sale":
       case "debt":
       case "high_debt":

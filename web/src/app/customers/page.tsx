@@ -1,889 +1,438 @@
 "use client";
 
-import { API_BASE_URL } from "@/lib/config";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import useSWR, { mutate as globalMutate } from "swr";
 import AppBar from "@/components/AppBar";
 import SearchBar from "@/components/SearchBar";
-import useSWR from "swr";
+import CustomerFormModal from "@/components/customers/CustomerFormModal";
+import CustomerVoucherModal from "@/components/customers/CustomerVoucherModal";
+import CustomerStatementModal from "@/components/customers/CustomerStatementModal";
+import { API_BASE_URL } from "@/lib/config";
 import { useStore } from "@/store";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import toast from "react-hot-toast";
+import { authJsonFetcher, useCustomersList } from "@/lib/customers/api";
+import {
+  resolveBranchId,
+  resolveBranchName,
+  round2,
+  type BranchRecord,
+  type CustomerRecord,
+} from "@/lib/customers/domain";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
-export default function Customers() {
-  const user = useStore((state: any) => state.user);
-  const language = useStore((state: any) => state.language);
+export default function CustomersPage() {
+  const user = useStore((state) => state.user);
+  const language = (useStore((state: any) => state.language) || "ar") as "ar" | "en";
+  const isEn = language === "en";
   const router = useRouter();
 
-  useEffect(() => {
-    if (!user) {
-      const hasStored = typeof window !== "undefined" && localStorage.getItem("roshetta_user");
-      if (!hasStored) {
-        router.replace("/login");
-      }
-    }
-  }, [user, router]);
+  const isGeneralManager = Boolean(user && ["manager", "owner", "admin"].includes(user.role || ""));
+  const canDeleteCustomer = Boolean(user && ["manager", "owner", "branchManager", "admin"].includes(user.role || ""));
 
-  const [search, setSearch] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showPayModal, setShowPayModal] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
-  const [newCustomer, setNewCustomer] = useState({
-    name: "",
-    phone: "",
-    branch_id: "",
-  });
-  const [paymentAmount, setPaymentAmount] = useState("");
-  const [debtPaymentMethod, setDebtPaymentMethod] = useState("كاش");
-  const [isLoading, setIsLoading] = useState(false);
-  const [customerSales, setCustomerSales] = useState<any[]>([]);
-  const [customerPayments, setCustomerPayments] = useState<any[]>([]);
-  const [salesFilter, setSalesFilter] = useState<
-    "cash" | "credit" | "payments"
-  >("cash");
-
-  const [branchFilter, setBranchFilter] = useState("all");
-  const [branches, setBranches] = useState<any[]>([]);
-
-  useEffect(() => {
-    async function fetchBranches() {
-      if (!user?.pharmacy_id) return;
-      try {
-        const res = await fetch(
-          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`,
-        );
-        const data = await res.json();
-        if (data.success && data.branches?.length > 0) {
-          setBranches(data.branches);
-        }
-      } catch (err) {}
-    }
-    fetchBranches();
-  }, [user?.pharmacy_id]);
-
-  const userBranchObj = branches.find((b: any) => b.name === user?.branch);
-  let activeBranchId = branchFilter;
-  if (user?.role === "صيدلي" || user?.role === "مدير فرع") {
-    activeBranchId = userBranchObj ? userBranchObj.id : "PENDING";
-  }
-
-  const { data, mutate } = useSWR(
-    user && activeBranchId !== "PENDING"
-      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/customers?branch_id=${activeBranchId}`
-      : null,
-    fetcher,
+  const { data: pharmacyData } = useSWR(
+    user ? `${API_BASE_URL}/api/admin/pharmacies/${user.pharmacy_id}` : null,
+    authJsonFetcher
   );
-  const customers = data?.customers || [];
+  const pharmacyName = pharmacyData?.pharmacy?.name || user?.pharmacyName || (isEn ? "Roshetta Pharmacy" : "صيدلية روشتة");
 
-  const fetchCustomerSales = async (customerId: string) => {
-    try {
-      const [resSales, resPayments] = await Promise.all([
-        fetch(
-          `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/customers/${customerId}/sales`,
-        ),
-        fetch(
-          `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/customers/${customerId}/debt-payments`,
-        ),
-      ]);
-      const dataSales = await resSales.json();
-      const dataPayments = await resPayments.json();
+  const { data: branchesData } = useSWR(
+    user ? `${API_BASE_URL}/api/admin/pharmacies/${user.pharmacy_id}/branches` : null,
+    authJsonFetcher
+  );
+  const activeBranches: BranchRecord[] = useMemo(() => {
+    const raw = branchesData?.branches || [];
+    return raw.filter((b: any) => !["مؤرشف", "archived", "deleted"].includes(String(b.status || "")));
+  }, [branchesData]);
 
-      if (dataSales.success) setCustomerSales(dataSales.sales);
-      if (dataPayments.success && Array.isArray(dataPayments.payments)) {
-        const appChar = "R";
-        const pharmChar = (
-          (user?.pharmacy_id || "").replace(/[^A-Za-z0-9]/g, "")[0] || "P"
-        ).toUpperCase();
-        const safeBranch = user?.branch || "الفرع الرئيسي";
-        let branchHash = 0;
-        for (let i = 0; i < safeBranch.length; i++) {
-          branchHash = (branchHash << 5) - branchHash + safeBranch.charCodeAt(i);
-        }
-        const branchStr = Math.abs(branchHash)
-          .toString(36)
-          .substring(0, 3)
-          .toUpperCase()
-          .padStart(3, "X");
-        const prefix = `${appChar}${pharmChar}${branchStr}-DP-`;
+  const userFixedBranchId = useMemo(() => {
+    if (!user || isGeneralManager || !user.branch) return null;
+    return resolveBranchId(user.branch, activeBranches);
+  }, [user, isGeneralManager, activeBranches]);
 
-        const sorted = [...dataPayments.payments].sort(
-          (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
+  const [selectedBranchId, setSelectedBranchId] = useState<string>("all");
+  const effectiveBranchId = userFixedBranchId || selectedBranchId;
 
-        const mappedPayments = dataPayments.payments.map((p: any) => {
-          if (/^[A-Z0-9]{5}-DP-\d{4}/.test(p.id)) return p;
-          const idx = sorted.findIndex((item: any) => item.id === p.id);
-          return {
-            ...p,
-            displayId: `${prefix}${String(idx >= 0 ? idx + 1 : 1).padStart(4, "0")}`,
-          };
-        });
+  const { customers, isLoading, mutate: mutateCustomers } = useCustomersList(
+    user?.pharmacy_id,
+    effectiveBranchId
+  );
 
-        setCustomerPayments(mappedPayments);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [balanceFilter, setBalanceFilter] = useState<"all" | "debt" | "credit" | "settled">("all");
+
+  // Modals State
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<CustomerRecord | null>(null);
+  const [voucherModal, setVoucherModal] = useState<{
+    open: boolean;
+    mode: "payment" | "debit";
+    customer: CustomerRecord | null;
+  }>({ open: false, mode: "payment", customer: null });
+  const [statementCustomerId, setStatementCustomerId] = useState<string | null>(null);
+
+  const stats = useMemo(() => {
+    let totalReceivables = 0;
+    let totalStoreCredit = 0;
+    let debtorsCount = 0;
+    let creditHoldersCount = 0;
+
+    for (const c of customers) {
+      const bal = round2(c.debt || 0);
+      if (bal > 0.005) {
+        totalReceivables = round2(totalReceivables + bal);
+        debtorsCount++;
+      } else if (bal < -0.005) {
+        totalStoreCredit = round2(totalStoreCredit + Math.abs(bal));
+        creditHoldersCount++;
       }
-    } catch (e) {
     }
-  };
 
-  const handleAdd = async () => {
-    if (!newCustomer.name || !newCustomer.phone) return;
+    return {
+      totalCount: customers.length,
+      totalReceivables,
+      totalStoreCredit,
+      debtorsCount,
+      creditHoldersCount,
+    };
+  }, [customers]);
 
-    setIsLoading(true);
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/customers`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...newCustomer,
-            branch_id: newCustomer.branch_id
-              ? newCustomer.branch_id
-              : activeBranchId !== "all" && activeBranchId !== "PENDING"
-                ? activeBranchId
-                : null,
-          }),
-        },
+  const filteredCustomers = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return customers.filter((c) => {
+      const bal = round2(c.debt || 0);
+      if (balanceFilter === "debt" && !(bal > 0.005)) return false;
+      if (balanceFilter === "credit" && !(bal < -0.005)) return false;
+      if (balanceFilter === "settled" && Math.abs(bal) > 0.005) return false;
+      if (!q) return true;
+      return (
+        String(c.name || "").toLowerCase().includes(q) ||
+        String(c.phone || "").toLowerCase().includes(q) ||
+        String(c.id || "").toLowerCase().includes(q)
       );
-      const result = await res.json();
-      if (result.success) {
-        toast.success(language === 'en' ? 'Customer added successfully!' : 'تم إضافة العميل بنجاح!');
-        setShowAddModal(false);
-        setNewCustomer({ name: "", phone: "", branch_id: "" });
-        mutate();
-      } else {
-        toast.error(result.error || (language === 'en' ? 'Add failed' : 'فشل الإضافة'));
-      }
-    } catch (e) {
-      toast.error(language === 'en' ? 'Connection error' : 'خطأ في الاتصال');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    });
+  }, [customers, searchQuery, balanceFilter]);
 
-  const handlePayment = async () => {
-    if (
-      !paymentAmount ||
-      isNaN(Number(paymentAmount)) ||
-      Number(paymentAmount) <= 0
-    )
-      return;
-
-    setIsLoading(true);
-    try {
-      const appChar = "R";
-      const pharmChar = (
-        (user?.pharmacy_id || "").replace(/[^A-Za-z0-9]/g, "")[0] || "P"
-      ).toUpperCase();
-      const safeBranch =
-        user?.branch ||
-        selectedCustomer?.branchName ||
-        selectedCustomer?.branch ||
-        "الفرع الرئيسي";
-      let branchHash = 0;
-      for (let i = 0; i < safeBranch.length; i++) {
-        branchHash = (branchHash << 5) - branchHash + safeBranch.charCodeAt(i);
-      }
-      const branchStr = Math.abs(branchHash)
-        .toString(36)
-        .substring(0, 3)
-        .toUpperCase()
-        .padStart(3, "X");
-
-      const prefix = `${appChar}${pharmChar}${branchStr}-DP-`;
-
-      let nextSeq = 1;
-      try {
-        const checkRes = await fetch(
-          `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/sales?branchName=${encodeURIComponent(safeBranch)}&limit=150`,
-        );
-        const checkData = await checkRes.json();
-        if (checkData.success && Array.isArray(checkData.sales)) {
-          let countDps = 0;
-          checkData.sales.forEach((s: any) => {
-            const isDp =
-              s.status === "debt_payment" ||
-              s.paymentMethod === "debt_payment" ||
-              s.paymentMethod === "تسديد دين" ||
-              (typeof s.id === "string" &&
-                (s.id.startsWith("DP-") || s.id.startsWith("DP ")));
-            if (isDp) {
-              countDps++;
-            }
-            if (s.id && typeof s.id === "string" && s.id.startsWith(prefix)) {
-              const num = parseInt(s.id.substring(prefix.length), 10);
-              if (!isNaN(num) && num >= nextSeq) {
-                nextSeq = num + 1;
-              }
-            }
-          });
-          if (countDps >= nextSeq) {
-            nextSeq = countDps + 1;
-          }
-        }
-      } catch (err) {}
-
-      const customPaymentId = `${prefix}${String(nextSeq).padStart(4, "0")}`;
-
-      const res = await fetch(
-        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/customers/${selectedCustomer.id}/debt`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: customPaymentId,
-            paymentId: customPaymentId,
-            payment: Number(paymentAmount),
-            paymentMethod: debtPaymentMethod,
-            cashierName: user?.name || "مدير الصيدلية",
-            branchName: safeBranch,
-            customerName: selectedCustomer?.name,
-          }),
-        },
+  const refreshAllCustomerViews = (custId?: string) => {
+    mutateCustomers();
+    if (user?.pharmacy_id) {
+      globalMutate(
+        (key) =>
+          typeof key === "string" &&
+          (key.includes(`/customers`) || key.includes(`/sales`) || key.includes(`/shifts/current`)),
+        undefined,
+        { revalidate: true }
       );
-      const result = await res.json();
-      if (result.success) {
-        toast.success(
-          language === "en"
-            ? `Payment recorded successfully! (${customPaymentId})`
-            : `تم تسجيل الدفعة بنجاح! (${customPaymentId})`,
-        );
-        setShowPayModal(false);
-        setPaymentAmount("");
-        setDebtPaymentMethod("كاش");
-        setSelectedCustomer(null);
-        mutate();
-      } else {
-        toast.error(
-          result.error ||
-            (language === "en" ? "Registration failed" : "فشل التسجيل"),
+      if (custId) {
+        globalMutate(
+          `${API_BASE_URL}/api/pharmacies/${encodeURIComponent(user.pharmacy_id)}/customers/${encodeURIComponent(custId)}/statement?lang=${language}`
         );
       }
-    } catch (e) {
-      toast.error(language === "en" ? "Connection error" : "خطأ في الاتصال");
-    } finally {
-      setIsLoading(false);
     }
   };
+
+  if (!user) return null;
+
+  const activeBranchName =
+    effectiveBranchId !== "all" ? resolveBranchName(effectiveBranchId, activeBranches, language) : "";
 
   return (
-    <>
-      <AppBar />
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-[22px] font-bold text-primary flex items-center gap-2">
-            {language === 'en' ? 'Customers and Patients' : 'العملاء والمرضى'}
-          </h1>
-          <p className="text-[15px] text-ink-soft mt-1">
-            {language === 'en' ? 'Frequent customers database and accounts management' : 'قاعدة بيانات الزبائن المترددين وإدارة حساباتهم'}
-          </p>
-        </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-primary text-white px-5 py-2.5 rounded-xl font-bold text-[14px] shadow-sm hover:bg-teal transition-all"
-        >
-          {language === 'en' ? '+ Add New Customer' : '+ إضافة عميل جديد'}
-        </button>
-      </div>
+    <main className="w-full pb-24">
+      <AppBar title={isEn ? "Customers & Accounts Receivable" : "العملاء ودفتر الذمم"} backHref="/" />
 
-      <div className="bg-card rounded-2xl shadow-sm border border-mint-line overflow-hidden">
-        <div className="p-5 border-b border-mint-line bg-bg flex justify-between items-center flex-wrap gap-3">
-          <div className="flex-1 min-w-[200px]">
-            <SearchBar
-              value={search}
-              onChange={setSearch}
-              placeholder={language === 'en' ? 'Search by customer name or mobile...' : 'ابحث باسم العميل أو رقم الجوال...'}
-            />
+      <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
+        {/* Top Action & Branch Bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-mint-line shadow-sm">
+          <div>
+            <h1 className="text-[22px] font-black text-primary">
+              {isEn ? "Customers Ledger & Debt Vouchers" : "إدارة العملاء والذمم المالية"}
+            </h1>
+            <p className="text-[13px] font-medium text-ink-soft mt-0.5">
+              {isEn
+                ? "Unified real-time receivables, advance store credit & chronological account statements."
+                : "متابعة موحدة للديون والرصيد الدائن وسندات القبض وكشوفات الحساب لحظياً مع الموبايل ونقطة البيع."}
+            </p>
           </div>
-          {user?.role === "manager" && branches.length > 0 && (
-            <select
-              value={branchFilter}
-              onChange={(e) => setBranchFilter(e.target.value)}
-              className="p-2.5 border border-mint-line bg-white rounded-xl text-[14px] focus:outline-none focus:border-primary shadow-sm font-bold text-primary min-w-[150px]"
-            >
-              <option value="all">{language === 'en' ? 'All Branches' : 'كل الفروع'}</option>
-              {branches.map((b: any) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
+
+          <button
+            type="button"
+            onClick={() => {
+              setEditingCustomer(null);
+              setFormOpen(true);
+            }}
+            className="px-5 py-3 rounded-2xl bg-primary text-white font-black text-[14px] hover:bg-primary/90 shadow-md flex items-center justify-center gap-2 shrink-0"
+          >
+            <span>+</span>
+            <span>{isEn ? "Add Customer" : "إضافة عميل جديد"}</span>
+          </button>
+        </div>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div className="bg-white rounded-2xl p-4 border border-mint-line shadow-xs">
+            <div className="text-[12px] font-bold text-ink-soft">{isEn ? "Total Customers" : "إجمالي العملاء"}</div>
+            <div className="font-mono font-black text-[24px] text-primary mt-1">{stats.totalCount}</div>
+          </div>
+
+          <div className="bg-coral-pale/40 rounded-2xl p-4 border border-coral/20 shadow-xs">
+            <div className="text-[12px] font-bold text-coral">{isEn ? "Total Debt Receivables" : "إجمالي الذمم المستحقة (لنا)"}</div>
+            <div dir="ltr" className="font-mono font-black text-[22px] text-coral mt-1">
+              {stats.totalReceivables.toFixed(2)} ₪
+            </div>
+            <div className="text-[11px] font-semibold text-ink-soft mt-0.5">
+              {stats.debtorsCount} {isEn ? "accounts with debt" : "عملاء عليهم ذمم"}
+            </div>
+          </div>
+
+          <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-200 shadow-xs">
+            <div className="text-[12px] font-bold text-emerald-700">{isEn ? "Advance Store Credit" : "أرصدة دائنة للعملاء (لهم)"}</div>
+            <div dir="ltr" className="font-mono font-black text-[22px] text-emerald-700 mt-1">
+              {stats.totalStoreCredit.toFixed(2)} ₪
+            </div>
+            <div className="text-[11px] font-semibold text-ink-soft mt-0.5">
+              {stats.creditHoldersCount} {isEn ? "prepaid balances" : "عملاء برصيد متاح"}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-4 border border-mint-line shadow-xs">
+            <div className="text-[12px] font-bold text-ink-soft">{isEn ? "Filtered Results" : "النتائج المعروضة"}</div>
+            <div className="font-mono font-black text-[24px] text-teal mt-1">{filteredCustomers.length}</div>
+          </div>
+        </div>
+
+        {/* Search, Balance Filters & Branch Pills */}
+        <div className="bg-white rounded-3xl p-4 border border-mint-line space-y-3">
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="flex-1">
+              <SearchBar
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder={isEn ? "Search by customer name or phone..." : "ابحث باسم العميل أو رقم الجوال..."}
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 items-center">
+              {[
+                { id: "all" as const, ar: "الكل", en: "All" },
+                { id: "debt" as const, ar: "عليهم ذمم", en: "Has Debt" },
+                { id: "credit" as const, ar: "لهم رصيد دائن", en: "Store Credit" },
+                { id: "settled" as const, ar: "خالص", en: "Settled" },
+              ].map((pill) => (
+                <button
+                  key={pill.id}
+                  type="button"
+                  onClick={() => setBalanceFilter(pill.id)}
+                  className={`px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all border ${
+                    balanceFilter === pill.id
+                      ? "bg-primary text-white border-primary"
+                      : "bg-bg text-ink-soft border-mint-line hover:bg-white"
+                  }`}
+                >
+                  {isEn ? pill.en : pill.ar}
+                </button>
               ))}
-            </select>
+            </div>
+          </div>
+
+          {isGeneralManager && activeBranches.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1 border-t border-mint-line/60">
+              <button
+                type="button"
+                onClick={() => setSelectedBranchId("all")}
+                className={`px-3.5 py-1.5 rounded-full text-[12px] font-bold border transition-all ${
+                  selectedBranchId === "all"
+                    ? "bg-teal text-white border-teal"
+                    : "bg-bg text-ink-soft border-mint-line hover:text-ink"
+                }`}
+              >
+                {isEn ? "All Branches" : "كل الفروع"}
+              </button>
+              {activeBranches.map((br) => (
+                <button
+                  key={br.id}
+                  type="button"
+                  onClick={() => setSelectedBranchId(String(br.id))}
+                  className={`px-3.5 py-1.5 rounded-full text-[12px] font-bold border transition-all ${
+                    String(selectedBranchId) === String(br.id)
+                      ? "bg-teal text-white border-teal"
+                      : "bg-bg text-ink-soft border-mint-line hover:text-ink"
+                  }`}
+                >
+                  🏪 {br.name}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
-        <table className="w-full text-start">
-          <thead>
-            <tr className="border-b border-mint-line text-ink-soft text-[14px]">
-              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Customer Name' : 'اسم العميل'}</th>
-              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Contact Number' : 'رقم التواصل'}</th>
-              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Last Visit' : 'آخر زيارة'}</th>
-              <th className="py-3 px-5 font-semibold text-start">{language === 'en' ? 'Balance / Debt' : 'الرصيد / الديون'}</th>
-              <th className="py-3 px-5 font-semibold text-center">{language === 'en' ? 'Actions' : 'إجراءات'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {customers
-              .filter(
-                (c: any) => c.name.includes(search) || c.phone.includes(search),
-              )
-              .map((customer: any) => (
-                <tr
-                  key={customer.id}
-                  className="border-b border-mint-line/50 hover:bg-bg/50 transition-all"
-                >
-                  <td className="py-4 px-5 font-bold text-primary text-[14px]">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary-pale text-primary flex items-center justify-center text-[12px]">
-                        {customer.name.substring(0, 2)}
-                      </div>
-                      <div className="flex flex-col">
-                        <span>{customer.name}</span>
-                        <span className="text-[11px] font-mono text-ink-soft">
-                          {customer.id}
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-5 font-mono text-[14px] text-ink-soft">
-                    {customer.phone}
-                  </td>
-                  <td className="py-4 px-5 text-[14px] text-ink-soft">
-                    {customer.lastVisit || (language === 'en' ? 'No visits' : 'لا يوجد زيارات')}
-                  </td>
-                  <td className="py-4 px-5">
-                    <span
-                      className={`font-bold text-[14px] ${
-                        customer.debt > 0
-                          ? "text-coral"
-                          : customer.debt < 0
-                            ? "text-teal"
-                            : "text-ink-soft"
-                      }`}
-                    >
-                      {customer.debt > 0
-                        ? `-${customer.debt.toFixed(2)} ₪`
-                        : customer.debt < 0
-                          ? `+${Math.abs(customer.debt).toFixed(2)} ₪ (${language === 'en' ? 'Store Credit' : 'له رصيد'})`
-                          : `0.00 ₪`}
-                    </span>
-                  </td>
-                  <td className="py-4 px-5">
-                    <div className="flex justify-center gap-2">
-                      <button
-                        onClick={() => {
-                          setSelectedCustomer(customer);
-                          setCustomerSales([]);
-                          setShowProfileModal(true);
-                          fetchCustomerSales(customer.id);
-                        }}
-                        className="px-3 py-1.5 text-[12px] font-bold text-primary bg-primary-pale rounded-lg hover:bg-primary-pale/80 transition-all shadow-sm"
-                      >
-                        {language === 'en' ? 'Profile Details' : 'تفاصيل الملف'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedCustomer(customer);
-                          setShowPayModal(true);
-                        }}
-                        className="bg-coral-pale/20 text-coral text-[12px] font-bold px-3 py-1.5 rounded-lg border border-coral/30 hover:bg-coral hover:text-white transition-all flex items-center gap-1"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                          />
-                        </svg>
-                        {language === 'en' ? 'Deposit / Pay' : 'إيداع / تسديد'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            {customers.length === 0 && (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="py-10 text-center text-ink-soft text-[15px]"
-                >
-                  {language === 'en' ? 'No registered customers' : 'لا يوجد عملاء مسجلين'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {showAddModal && (
-        <div className="fixed inset-0 bg-ink/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-card w-full max-w-md rounded-2xl p-6 shadow-2xl">
-            <h3 className="text-[20px] font-bold text-ink mb-6">
-              {language === 'en' ? 'Add New Customer' : 'إضافة عميل جديد'}
-            </h3>
-
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-[14px] font-bold text-ink-soft mb-2">
-                  {language === 'en' ? 'Full Customer Name' : 'اسم العميل بالكامل'}
-                </label>
-                <input
-                  type="text"
-                  value={newCustomer.name}
-                  onChange={(e) =>
-                    setNewCustomer({ ...newCustomer, name: e.target.value })
-                  }
-                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 outline-none focus:border-teal transition-colors"
-                  placeholder={language === 'en' ? 'Example: Youssef Ahmed' : 'مثال: يوسف أحمد'}
-                />
-              </div>
-              <div>
-                <label className="block text-[14px] font-bold text-ink-soft mb-2">
-                  {language === 'en' ? 'Phone / Mobile Number' : 'رقم الهاتف / الجوال'}
-                </label>
-                <input
-                  type="text"
-                  value={newCustomer.phone}
-                  onChange={(e) =>
-                    setNewCustomer({ ...newCustomer, phone: e.target.value })
-                  }
-                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 outline-none focus:border-teal text-start font-mono transition-colors"
-                  placeholder="059XXXXXXX"
-                  dir="ltr"
-                />
-              </div>
-              {user?.role === "manager" && branches.length > 0 && (
-                <div>
-                  <label className="block text-[14px] font-bold text-ink-soft mb-2">
-                    {language === 'en' ? 'Branch' : 'الفرع'}
-                  </label>
-                  <select
-                    value={newCustomer.branch_id || ""}
-                    onChange={(e) =>
-                      setNewCustomer({
-                        ...newCustomer,
-                        branch_id: e.target.value,
-                      })
-                    }
-                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 outline-none focus:border-teal transition-colors text-[14px] font-bold text-primary"
-                  >
-                    <option value="">{language === 'en' ? 'Main Branch (All Branches)' : 'الفرع الرئيسي (لكل الفروع)'}</option>
-                    {branches.map((b: any) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleAdd}
-                disabled={isLoading || !newCustomer.name || !newCustomer.phone}
-                className="flex-1 bg-primary text-white font-bold py-3.5 rounded-xl shadow-md shadow-primary/20 hover:bg-primary-dark transition-all disabled:opacity-50"
-              >
-                {isLoading ? (language === 'en' ? 'Adding...' : 'جاري الإضافة...') : (language === 'en' ? 'Save Customer' : 'حفظ العميل')}
-              </button>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="flex-1 bg-bg text-ink font-bold py-3.5 rounded-xl hover:bg-mint-line transition-all"
-              >
-                {language === 'en' ? 'Cancel' : 'إلغاء'}
-              </button>
-            </div>
+        {/* Customers Grid */}
+        {isLoading && customers.length === 0 ? (
+          <div className="bg-white rounded-3xl p-12 text-center text-ink-soft font-bold border border-mint-line">
+            {isEn ? "Loading customers..." : "جاري تحميل سجل العملاء..."}
           </div>
-        </div>
-      )}
-
-      {showPayModal && selectedCustomer && (
-        <div className="fixed inset-0 bg-primary/20 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl border border-mint-line animate-fade-in-up">
-            <div className="flex justify-between items-center mb-6 border-b border-mint-line pb-4">
-              <h3 className="text-[20px] font-black text-primary">
-                {language === 'en' ? 'Make a Payment' : 'تسديد دفعة مالية'}
-              </h3>
-              <button
-                onClick={() => setShowPayModal(false)}
-                className="text-ink-soft hover:text-coral transition-colors p-2 bg-bg rounded-full"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
+        ) : filteredCustomers.length === 0 ? (
+          <div className="bg-white rounded-3xl p-12 text-center border border-mint-line space-y-2">
+            <div className="text-4xl">👥</div>
+            <div className="text-[16px] font-black text-ink">
+              {isEn ? "No matching customers" : "لا يوجد عملاء مطابقون للبحث"}
             </div>
+            <p className="text-[13px] text-ink-soft">
+              {isEn
+                ? "Add your first customer or adjust search/branch filters."
+                : "أضف عميلاً جديداً أو عدّل خيارات الفلترة لعرض الحسابات."}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredCustomers.map((c) => {
+              const bal = round2(c.debt || 0);
+              const isCredit = bal < -0.005;
+              const isDebt = bal > 0.005;
+              const branchTitle = c.branch_id
+                ? resolveBranchName(c.branch_id, activeBranches, language)
+                : isEn
+                  ? "Shared"
+                  : "عام للجميع";
 
-            <div className="space-y-4 mb-6">
-              <div
-                className={`border rounded-xl p-4 flex justify-between items-center ${selectedCustomer.debt < 0 ? "bg-teal-pale/30 border-teal-pale" : "bg-coral-pale/30 border-coral-pale"}`}
-              >
-                <span className="font-bold text-ink-soft text-[14px]">
-                  {selectedCustomer.debt < 0
-                    ? (language === 'en' ? 'Available Balance:' : 'الرصيد المتاح للعميل:')
-                    : (language === 'en' ? 'Remaining Debt:' : 'الديون المتبقية:')}
-                </span>
-                <span
-                  className={`font-black text-[18px] ${selectedCustomer.debt < 0 ? "text-teal" : "text-coral"}`}
+              return (
+                <div
+                  key={c.id}
+                  className="bg-white rounded-3xl p-5 border border-mint-line shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-4"
                 >
-                  ₪{Math.abs(selectedCustomer.debt).toFixed(2)}
-                </span>
-              </div>
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="text-[17px] font-black text-ink truncate">{c.name}</h3>
+                        <div className="text-[12px] font-mono text-ink-soft mt-0.5" dir="ltr">
+                          {c.phone || (isEn ? "No phone" : "بدون جوال")}
+                        </div>
+                      </div>
 
-              <div>
-                <label className="block text-[14px] font-bold text-ink-soft mb-2">
-                  {language === 'en' ? 'Paid Amount ($)' : 'المبلغ المدفوع ($)'}
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 outline-none focus:border-teal text-start font-mono transition-colors text-[18px]"
-                  placeholder="0.00"
-                  dir="ltr"
-                />
-                            </div>
-
-              <div>
-                <label className="block text-[14px] font-bold text-ink-soft mb-2">
-                  {language === 'en' ? 'Payment Method' : 'طريقة التحويل / الدفع'}
-                </label>
-                <div className="flex flex-wrap gap-2.5 justify-center py-1">
-                  {[
-                    { id: 'كاش', label: language === 'en' ? 'Cash 💵' : 'كاش 💵' },
-                    { id: 'جوال باي', label: language === 'en' ? 'Jawwal Pay 📱' : 'جوال باي 📱' },
-                    { id: 'بال باي', label: language === 'en' ? 'PalPay 💳' : 'بال باي 💳' },
-                    { id: 'بنكي', label: language === 'en' ? 'Bank Transfer 🏦' : 'تحويل بنكي 🏦' },
-                    { id: 'فيزا', label: language === 'en' ? 'Visa Card 💳' : 'بطاقة فيزا 💳' },
-                  ].map((m) => {
-                    const isSelected = debtPaymentMethod === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => setDebtPaymentMethod(m.id)}
-                        className={`px-3.5 py-2.5 rounded-xl text-[14px] font-bold transition-all border flex items-center justify-center gap-1.5 shadow-2xs ${
-                          isSelected
-                            ? "bg-[#1E3A5F] text-white border-[#1E3A5F] ring-2 ring-amber-400/80 shadow-md transform scale-[1.02]"
-                            : "bg-white text-ink border-slate-300 hover:border-slate-400 hover:bg-slate-50"
+                      <div
+                        className={`px-3 py-1.5 rounded-2xl text-center shrink-0 ${
+                          isCredit
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : isDebt
+                              ? "bg-coral-pale text-coral border border-coral/20"
+                              : "bg-slate-100 text-ink-soft"
                         }`}
                       >
-                        {m.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={handlePayment}
-                disabled={isLoading || !paymentAmount}
-                className="flex-1 bg-teal text-white font-bold py-3.5 rounded-xl shadow-md shadow-teal/20 hover:bg-[#259775] transition-all disabled:opacity-50"
-              >
-                {isLoading ? (language === 'en' ? 'Recording...' : 'جاري التسجيل...') : (language === 'en' ? 'Confirm Payment' : 'تأكيد الدفع')}
-              </button>
-              <button
-                onClick={() => setShowPayModal(false)}
-                className="flex-1 bg-bg text-ink font-bold py-3.5 rounded-xl hover:bg-mint-line transition-all"
-              >
-                {language === 'en' ? 'Cancel' : 'إلغاء'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Customer Profile Modal */}
-      {showProfileModal && selectedCustomer && (
-        <div className="fixed inset-0 bg-primary/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-xl border border-mint-line animate-fade-in-up">
-            {/* Header */}
-            <div className="p-6 border-b border-mint-line bg-bg flex justify-between items-center shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-primary text-white flex items-center justify-center text-[20px] font-black shadow-sm">
-                  {selectedCustomer.name.substring(0, 2)}
-                </div>
-                <div>
-                  <h3 className="text-[24px] font-black text-primary leading-none mb-1">
-                    {selectedCustomer.name}
-                  </h3>
-                  <div className="flex gap-3 text-[14px] font-mono font-bold text-ink-soft">
-                    <span>{selectedCustomer.phone}</span>
-                    <span>•</span>
-                    <span>{selectedCustomer.id}</span>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowProfileModal(false)}
-                className="text-ink-soft hover:text-coral transition-colors p-2 bg-white rounded-full shadow-sm border border-mint-line"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="p-6 overflow-y-auto bg-[#F8FAFC]">
-              {/* Stats Cards */}
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div
-                  className={`flex flex-col items-center justify-center p-6 border rounded-xl shadow-sm ${selectedCustomer.debt < 0 ? "border-teal/30 bg-teal-pale/10" : "border-mint-line bg-white"}`}
-                >
-                  <span className="text-[13px] font-bold text-ink-soft mb-2">
-                    {selectedCustomer.debt < 0
-                      ? (language === 'en' ? 'Available Customer Balance (Store Credit)' : 'رصيد دائن مستحق للعميل (له رصيد)')
-                      : selectedCustomer.debt === 0
-                        ? (language === 'en' ? 'Balance (No Debt)' : 'الرصيد: 0.00 ₪ (لا يوجد دين)')
-                        : (language === 'en' ? 'Total Remaining Debt' : 'إجمالي الديون المتبقية (عليه دين)')}
-                  </span>
-                  <span
-                    className={`text-[28px] font-mono font-black ${
-                      selectedCustomer.debt < 0
-                        ? "text-teal"
-                        : selectedCustomer.debt === 0
-                          ? "text-ink-soft"
-                          : "text-coral"
-                    }`}
-                  >
-                    ₪{Math.abs(selectedCustomer.debt).toFixed(2)}
-                  </span>
-                </div>
-                <div className="bg-white p-5 rounded-2xl border border-mint-line shadow-sm flex flex-col items-center justify-center">
-                  <div className="text-[14px] font-bold text-ink-soft mb-2">
-                    {language === 'en' ? 'Last Visit Date' : 'تاريخ آخر زيارة'}
-                  </div>
-                  <div className="text-[22px] font-mono font-black text-primary">
-                    {selectedCustomer.lastVisit || (language === 'en' ? 'None' : 'لا يوجد')}
-                  </div>
-                </div>
-              </div>
-
-              {/* Purchase History */}
-              <div>
-                <h4 className="text-[18px] font-black text-primary mb-4 flex items-center gap-2">
-                  <svg
-                    className="w-5 h-5 text-teal"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                    />
-                  </svg>
-                  {language === 'en' ? 'Purchase History (Invoices)' : 'سجل المشتريات (الفواتير)'}
-                </h4>
-                <div className="flex items-center gap-2 mb-4 bg-[#F8FAFC] p-1.5 rounded-xl border border-mint-line w-full">
-                  <button
-                    onClick={() => setSalesFilter("cash")}
-                    className={`flex-1 py-2 rounded-lg text-[14px] font-bold transition-all ${salesFilter === "cash" ? "bg-white shadow-sm text-teal" : "text-ink-soft hover:text-primary"}`}
-                  >
-                    {language === 'en' ? 'Paid Sales' : 'المبيعات المدفوعة'}
-                  </button>
-                  <button
-                    onClick={() => setSalesFilter("credit")}
-                    className={`flex-1 py-2 rounded-lg text-[14px] font-bold transition-all ${salesFilter === "credit" ? "bg-white shadow-sm text-amber-dark" : "text-ink-soft hover:text-primary"}`}
-                  >
-                    {language === 'en' ? 'Credit Sales' : 'مبيعات الأجل'}
-                  </button>
-                  <button
-                    onClick={() => setSalesFilter("payments")}
-                    className={`flex-1 py-2 rounded-lg text-[14px] font-bold transition-all ${salesFilter === "payments" ? "bg-white shadow-sm text-coral" : "text-ink-soft hover:text-primary"}`}
-                  >
-                    {language === 'en' ? 'Payment History' : 'سجل الدفعات'}
-                  </button>
-                  <button
-                    onClick={() => setShowPayModal(true)}
-                    className="flex-1 py-2 rounded-lg text-[14px] font-bold transition-all bg-coral-pale/20 text-coral hover:bg-coral hover:text-white border border-coral/30"
-                  >
-                    {language === 'en' ? 'Deposit / Pay' : 'إيداع / تسديد'}
-                  </button>
-                </div>
-
-                {salesFilter === "payments" ? (
-                  customerPayments.length === 0 ? (
-                    <div className="bg-white rounded-2xl p-8 border border-mint-line text-center">
-                      <div className="text-ink-soft font-bold text-[15px]">
-                        {language === 'en' ? 'No financial payments recorded for this customer.' : 'لا توجد دفعات مالية مسجلة لهذا العميل.'}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {customerPayments.map((payment: any) => (
-                        <div
-                          key={payment.id}
-                          className="bg-white rounded-2xl border border-mint-line p-5 shadow-sm flex justify-between items-center"
-                        >
-                          <div>
-                            <div className="text-[14px] font-mono font-bold text-ink-soft mb-1">
-                              {payment.displayId || payment.id}
-                            </div>
-                            <div className="text-[15px] font-bold text-primary flex gap-2 items-center">
-                              {new Date(payment.date).toLocaleString(language === 'en' ? 'en-US' : 'ar-EG')}
-                            </div>
-                          </div>
-                          <div className="text-start">
-                            <div className="text-[13px] font-bold text-ink-soft mb-1">
-                              {language === 'en' ? 'Paid Amount' : 'المبلغ المدفوع'}
-                            </div>
-                            <div className="text-[20px] font-mono font-black text-coral">
-                              ₪{payment.amount.toFixed(2)}
-                            </div>
-                          </div>
+                        <div className="text-[10px] font-bold">
+                          {isCredit
+                            ? isEn
+                              ? "Credit"
+                              : "له رصيد"
+                            : isDebt
+                              ? isEn
+                                ? "Owes"
+                                : "عليه دين"
+                              : isEn
+                                ? "Settled"
+                                : "خالص"}
                         </div>
-                      ))}
-                    </div>
-                  )
-                ) : customerSales.length === 0 ? (
-                  <div className="bg-white rounded-2xl p-8 border border-mint-line text-center">
-                    <div className="text-ink-soft font-bold text-[15px]">
-                      {language === 'en' ? 'No purchase history yet.' : 'لا يوجد سجل مشتريات حتى الآن.'}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {customerSales.filter((sale: any) => {
-                      if (salesFilter === "cash")
-                        return (
-                          sale.paymentMethod !== "credit" &&
-                          sale.paymentMethod !== "آجل"
-                        );
-                      if (salesFilter === "credit")
-                        return (
-                          sale.paymentMethod === "credit" ||
-                          sale.paymentMethod === "آجل"
-                        );
-                      return true;
-                    }).length === 0 ? (
-                      <div className="bg-white rounded-2xl p-8 border border-mint-line text-center">
-                        <div className="text-ink-soft font-bold text-[15px]">
-                          {language === 'en' ? 'No invoices match the selected filter.' : 'لا توجد فواتير مطابقة للفلتر المحدد.'}
+                        <div dir="ltr" className="font-mono font-black text-[15px]">
+                          {Math.abs(bal).toFixed(2)} ₪
                         </div>
                       </div>
-                    ) : (
-                      customerSales
-                        .filter((sale: any) => {
-                          if (salesFilter === "cash")
-                            return (
-                              sale.paymentMethod !== "credit" &&
-                              sale.paymentMethod !== "آجل"
-                            );
-                          if (salesFilter === "credit")
-                            return (
-                              sale.paymentMethod === "credit" ||
-                              sale.paymentMethod === "آجل"
-                            );
-                          return true;
-                        })
-                        .map((sale: any) => (
-                          <div
-                            key={sale.id}
-                            className="bg-white rounded-2xl border border-mint-line p-5 shadow-sm hover:shadow-md transition-shadow"
-                          >
-                            <div className="flex justify-between items-start mb-4 border-b border-mint-line pb-4">
-                              <div>
-                                <div className="text-[14px] font-mono font-bold text-ink-soft mb-1">
-                                  {sale.id}
-                                </div>
-                                <div className="text-[15px] font-bold text-primary flex gap-2 items-center">
-                                  {new Date(sale.date).toLocaleString(language === 'en' ? 'en-US' : 'ar-EG')}
-                                  <span
-                                    className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                                      sale.paymentMethod === "credit" ||
-                                      sale.paymentMethod === "آجل"
-                                        ? "bg-amber-pale text-[#B9791C]"
-                                        : "bg-teal-pale text-teal"
-                                    }`}
-                                  >
-                                    {sale.paymentMethod === "credit" ||
-                                    sale.paymentMethod === "آجل"
-                                      ? (language === 'en' ? 'Credit (Debt)' : 'آجل (دين)')
-                                      : (language === 'en' && sale.paymentMethod === 'كاش' ? 'Cash' : sale.paymentMethod)}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="text-start">
-                                <div className="text-[13px] font-bold text-ink-soft mb-1">
-                                  {language === 'en' ? 'Total' : 'الإجمالي'}
-                                </div>
-                                <div className="text-[20px] font-mono font-black text-teal">
-                                  ₪{sale.total.toFixed(2)}
-                                </div>
-                              </div>
-                            </div>
+                    </div>
 
-                            <div className="bg-[#F8FAFC] rounded-xl p-3 border border-mint-line/50">
-                              <div className="text-[12px] font-bold text-ink-soft mb-2">
-                                {language === 'en' ? 'Purchased Items:' : 'الأصناف المشتراة:'}
-                              </div>
-                              <div className="space-y-2">
-                                {sale.items.map((item: any, idx: number) => (
-                                  <div
-                                    key={idx}
-                                    className="flex justify-between items-center text-[14px]"
-                                  >
-                                    <span className="font-bold text-ink">
-                                      <span className="text-teal ml-2">
-                                        {item.cartQty || item.qty}x
-                                      </span>
-                                      {item.name}
-                                    </span>
-                                    <span className="font-mono font-bold text-ink-soft">
-                                      ₪
-                                      {(
-                                        item.price * (item.cartQty || item.qty)
-                                      ).toFixed(2)}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        ))
+                    <div className="flex flex-wrap items-center gap-2 mt-3 text-[11px] font-bold text-ink-soft">
+                      <span className="bg-bg px-2.5 py-1 rounded-lg border border-mint-line/70">🏪 {branchTitle}</span>
+                      {c.lastVisit && (
+                        <span className="bg-bg px-2.5 py-1 rounded-lg border border-mint-line/70">🕒 {c.lastVisit}</span>
+                      )}
+                    </div>
+
+                    {c.notes && (
+                      <p className="text-[12px] text-ink-soft mt-2 line-clamp-2 bg-bg/60 rounded-xl px-3 py-1.5">
+                        {c.notes}
+                      </p>
                     )}
                   </div>
-                )}
-              </div>
-            </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-3 border-t border-mint-line/70">
+                    <button
+                      type="button"
+                      onClick={() => setVoucherModal({ open: true, mode: "payment", customer: c })}
+                      className="py-2 px-3 rounded-xl bg-teal text-white text-[12px] font-black hover:bg-teal/90"
+                    >
+                      💰 {isEn ? "Pay / Credit" : "سند قبض"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatementCustomerId(c.id)}
+                      className="py-2 px-3 rounded-xl bg-primary-pale text-primary text-[12px] font-black hover:bg-primary hover:text-white transition-all"
+                    >
+                      📄 {isEn ? "Statement" : "كشف حساب"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVoucherModal({ open: true, mode: "debit", customer: c })}
+                      className="py-1.5 px-3 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-[12px] font-bold hover:bg-amber-100"
+                    >
+                      ➕ {isEn ? "Manual Debt" : "دين يدوي"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/customers/${encodeURIComponent(c.id)}`)}
+                      className="py-1.5 px-3 rounded-xl bg-bg text-ink-soft border border-mint-line text-[12px] font-bold hover:text-ink"
+                    >
+                      ↗️ {isEn ? "Full Page" : "صفحة العميل"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
-      )}
-    </>
+        )}
+      </div>
+
+      {/* Add / Edit Customer Modal */}
+      <CustomerFormModal
+        open={formOpen}
+        onClose={() => {
+          setFormOpen(false);
+          setEditingCustomer(null);
+        }}
+        pharmacyId={user.pharmacy_id}
+        branches={activeBranches}
+        initialCustomer={editingCustomer}
+        defaultBranchId={effectiveBranchId}
+        isGeneralManager={isGeneralManager}
+        cashierName={user.managerName || user.name || ""}
+        lang={language}
+        onSaved={(cid) => refreshAllCustomerViews(cid)}
+      />
+
+      {/* Payment / Manual Debt Voucher Modal */}
+      <CustomerVoucherModal
+        open={voucherModal.open}
+        onClose={() => setVoucherModal({ open: false, mode: "payment", customer: null })}
+        mode={voucherModal.mode}
+        customer={voucherModal.customer}
+        pharmacyId={user.pharmacy_id}
+        pharmacyName={pharmacyName}
+        branchId={effectiveBranchId !== "all" ? effectiveBranchId : null}
+        branchName={activeBranchName}
+        cashierName={user.managerName || user.name || ""}
+        lang={language}
+        onCompleted={() => refreshAllCustomerViews(voucherModal.customer?.id)}
+      />
+
+      {/* Unified Account Statement Modal */}
+      <CustomerStatementModal
+        customerId={statementCustomerId}
+        pharmacyId={user.pharmacy_id}
+        pharmacyName={pharmacyName}
+        branches={activeBranches}
+        canManageCustomer={canDeleteCustomer}
+        lang={language}
+        onClose={() => setStatementCustomerId(null)}
+        onOpenVoucher={(mode, cust) => setVoucherModal({ open: true, mode, customer: cust })}
+        onEditCustomer={(cust) => {
+          setEditingCustomer(cust);
+          setFormOpen(true);
+        }}
+        onDeleted={() => refreshAllCustomerViews()}
+      />
+    </main>
   );
 }

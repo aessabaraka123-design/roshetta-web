@@ -82,8 +82,20 @@ export default function SocketProvider({
         mutate((key) => typeof key === "string" && key.includes("/staff"), undefined, { revalidate: true });
       } else if (type === "branches") {
         mutate((key) => typeof key === "string" && key.includes("/branches"), undefined, { revalidate: true });
+      } else if (type === "customers" || type === "customer") {
+        mutate(
+          (key) =>
+            typeof key === "string" &&
+            (key.includes("/customers") || key.includes("/statement") || key.includes("/debt-payments")),
+          undefined,
+          { revalidate: true }
+        );
       } else if (type === "sales") {
-        mutate((key) => typeof key === "string" && key.includes("/sales"), undefined, { revalidate: true });
+        mutate(
+          (key) => typeof key === "string" && (key.includes("/sales") || key.includes("/shifts") || key.includes("/customers")),
+          undefined,
+          { revalidate: true }
+        );
       } else if (type === "purchases" || type === "suppliers" || type === "inventory" || type === "expenses") {
         mutate(
           (key) =>
@@ -246,6 +258,13 @@ export default function SocketProvider({
     });
 
     newSocket.on("new_notification", (data) => {
+      const currentUser = userRef.current;
+      const role = String(currentUser?.role || "").trim();
+      const targetRoles = Array.isArray(data?.targetRoles) ? data.targetRoles : null;
+      if (targetRoles && targetRoles.length > 0 && role && !targetRoles.includes(role)) {
+        return;
+      }
+
       // Force SWR to re-fetch notifications immediately
       mutate(
         (key) => typeof key === "string" && key.includes("/notifications"),

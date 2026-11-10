@@ -171,7 +171,7 @@ export default function PharmacyManager() {
   );
   const totalCustomerDebt = useMemo(() => {
     return (custData?.customers || []).reduce(
-      (sum: number, c: any) => sum + (Number(c.debt) || 0),
+      (sum: number, c: any) => sum + Math.max(0, Number(c.debt) || 0),
       0
     );
   }, [custData]);
