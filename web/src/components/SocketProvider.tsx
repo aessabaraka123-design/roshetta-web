@@ -84,6 +84,22 @@ export default function SocketProvider({
         mutate((key) => typeof key === "string" && key.includes("/branches"), undefined, { revalidate: true });
       } else if (type === "sales") {
         mutate((key) => typeof key === "string" && key.includes("/sales"), undefined, { revalidate: true });
+      } else if (type === "purchases" || type === "suppliers" || type === "inventory" || type === "expenses") {
+        mutate(
+          (key) =>
+            typeof key === "string" &&
+            (key.includes("/purchases") ||
+              key.includes("/purchase-invoices") ||
+              key.includes("/suppliers") ||
+              key.includes("/supplier-accounts") ||
+              key.includes("/statement") ||
+              key.includes("/transactions") ||
+              key.includes("/inventory") ||
+              key.includes("/expenses") ||
+              key.includes("/stats")),
+          undefined,
+          { revalidate: true }
+        );
       } else {
         mutate(
           (key) =>
@@ -211,14 +227,17 @@ export default function SocketProvider({
 
     // 🔔 Listen for subscription approval
     newSocket.on("subscription_approved", (data) => {
-      // Update the user in store to remove read-only mode instantly
+      // Update the user in store to remove read-only mode instantly while preserving auth token
       const currentUser = userRef.current;
       if (currentUser) {
-        loginFnRef.current({
-          ...currentUser,
-          isReadOnly: false,
-          subscriptionType: data.subscriptionType || currentUser.subscriptionType,
-        });
+        loginFnRef.current(
+          {
+            ...currentUser,
+            isReadOnly: false,
+            subscriptionType: data.subscriptionType || currentUser.subscriptionType,
+          },
+          useStore.getState().token || undefined
+        );
       }
       toast.success(
         langRef.current === "en" ? "🎉 Subscription activated successfully! You can now use the full system." : "🎉 تم تفعيل اشتراكك بنجاح! يمكنك الآن استخدام النظام بالكامل.",

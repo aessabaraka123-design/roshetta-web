@@ -120,6 +120,12 @@ export const ERROR_TRANSLATIONS_AR: Record<string, string> = {
   "PURCHASE_PRICE_TARGET_REQUIRES_RECONCILIATION": "تحديث سعر الشراء يتطلب تسوية الفاتورة",
   "PURCHASE_QUANTITY_EDIT_REQUIRES_STOCK_ADJUSTMENT": "تعديل كمية الشراء يتطلب تسوية المخزون",
   "LEGACY_PURCHASE_REVERSAL_REQUIRES_RECONCILIATION": "إلغاء الفاتورة السابقة يتطلب تسوية الأصناف",
+  "PURCHASE_MUST_BE_COMPLETED_BEFORE_PAYMENT": "يجب اعتماد واستلام الفاتورة قبل تسجيل دفعة مالية عليها",
+  "PURCHASE_PAYMENT_EXCEEDS_REMAINING": "مبلغ السداد يتجاوز الرصيد المتبقي على الفاتورة",
+  "CANNOT_REDUCE_BELOW_VOUCHER_PAID": "لا يمكن تخفيض المدفوع لأقل من قيمة السندات المسددة على الفاتورة",
+  "SUPPLIER_EXPENSE_PROTECTED": "سندات سداد الموردين محمية ولا يمكن حذفها من شاشة المصروفات؛ يُرجى إدارتها من الموردين",
+  "PURCHASE_ALREADY_CANCELED": "الفاتورة ملغاة مسبقاً",
+  "INVALID_PURCHASE_STATUS": "حالة الفاتورة المحددة غير صالحة",
 
   // Sales & Shifts
   "INVALID_SALE": "بيانات الفاتورة غير صالحة أو السلة فارغة",
@@ -155,9 +161,7 @@ export const ERROR_TRANSLATIONS_AR: Record<string, string> = {
   // System, Network & Validation
   "REQUIRED_FIELD": "يرجى ملء جميع الحقول المطلوبة",
   "A stable request_id is required": "معرف الطلب مطلوب لضمان عدم تكرار العملية",
-  "EVENT_ID_REQUIRED": "معرف الحركة المالية مطلوب",
   "EVENT_ID_MISMATCH": "معرف المعاملة غير متطابق",
-  "EVENT_CONTENT_CONFLICT": "تضارب في بيانات المعاملة، يرجى المحاولة ثانية",
   "EMPTY_UPDATE": "لم يتم تعديل أي حقول لحفظها",
   "INVALID_DATE": "صيغة التاريخ غير صالحة",
   "INVALID_EMAIL": "صيغة البريد الإلكتروني غير صالحة",

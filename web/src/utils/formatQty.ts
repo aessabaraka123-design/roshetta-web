@@ -1,3 +1,5 @@
+import { parseUnitsArray } from "@/lib/purchases/domain";
+
 export function formatQty(qty: number, unitsJson?: string | null, language: string = "ar"): string {
   const q = Number(qty) || 0;
   if (q <= 0) return language === "en" ? "Out of Stock" : "نفد المخزون";
@@ -30,7 +32,7 @@ export function formatQty(qty: number, unitsJson?: string | null, language: stri
 
   if (unitsJson) {
     try {
-      const parsedUnits = typeof unitsJson === "string" ? JSON.parse(unitsJson) : unitsJson;
+      const parsedUnits = parseUnitsArray(unitsJson);
       if (Array.isArray(parsedUnits) && parsedUnits.length > 1) {
         const boxesCount = Number(parsedUnits[0]?.count) || 1;
         const boxes = Math.floor(q / boxesCount);

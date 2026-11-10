@@ -1,2919 +1,346 @@
 "use client";
-import { API_BASE_URL } from "@/lib/config";
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import AppBar from "@/components/AppBar";
-import useSWR from "swr";
-import { useStore } from "@/store";
-import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
-import { formatQty } from "@/utils/formatQty";
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
-const API = API_BASE_URL;
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import useSWR from "swr";
+import toast from "react-hot-toast";
+import AppBar from "@/components/AppBar";
+import ConfirmModal from "@/components/ConfirmModal";
+import PurchaseStatsHeader from "@/components/purchases/PurchaseStatsHeader";
+import PurchaseFiltersBar from "@/components/purchases/PurchaseFiltersBar";
+import PurchaseInvoiceCard from "@/components/purchases/PurchaseInvoiceCard";
+import PurchaseEditorModal from "@/components/purchases/PurchaseEditorModal";
+import QuickPayInvoiceModal from "@/components/purchases/QuickPayInvoiceModal";
+import InvoicePreviewPdfModal from "@/components/purchases/InvoicePreviewPdfModal";
+import { useStore } from "@/store";
+import {
+  formatInvoiceStatus,
+  isDraftStatus,
+  normalizeInvoiceStatus,
+  resolveBranchId,
+  resolveBranchName,
+  safeJson,
+} from "@/lib/purchases/domain";
+import {
+  deletePurchaseAction,
+  jsonFetcher,
+  loadDomainSnapshot,
+  revalidatePurchaseDomain,
+  saveDomainSnapshot,
+  swrPurchaseKeys,
+} from "@/lib/purchases/api";
+import { normalizeSearchText } from "@/utils/textUtils";
 
 export default function PurchasesPage() {
   const user = useStore((s: any) => s.user);
-  const language = useStore((s: any) => s.language);
+  const language = (useStore((s: any) => s.language) || "ar") as "ar" | "en";
+  const isEn = language === "en";
   const router = useRouter();
   const pdfRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    if (!user) {
-      const hasStored = typeof window !== "undefined" && localStorage.getItem("roshetta_user");
-      if (!hasStored) {
-        router.replace("/login");
-      }
+    if (!user && typeof window !== "undefined" && !localStorage.getItem("roshetta_user")) {
+      router.replace("/login");
     }
   }, [user, router]);
 
-  // --- State ---
-  const [branchFilter, setBranchFilter] = useState("all");
-  const [showAdd, setShowAdd] = useState(false);
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
-  const [showPreview, setShowPreview] = useState<any>(null);
-  const [pdfInvoice, setPdfInvoice] = useState<any>(null);
-  const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
-  const [payingInvoice, setPayingInvoice] = useState<any>(null);
-  const [invoicePaymentAmount, setInvoicePaymentAmount] = useState("");
-  const [invoicePaymentMethod, setInvoicePaymentMethod] = useState("كاش");
-  const [invoicePaymentReference, setInvoicePaymentReference] = useState("");
-  const [isPayingInvoice, setIsPayingInvoice] = useState(false);
+  const pharmacyId = user?.pharmacy_id ? String(user.pharmacy_id) : "";
+  const canSwitchBranch = ["manager", "owner", "superadmin"].includes(user?.role || "");
+  const keys = swrPurchaseKeys(pharmacyId);
 
-  const downloadPDF = async (inv: any) => {
-    setDownloadingPdf(inv.id);
+  const { data: purchasesData, isLoading: purchasesLoading } = useSWR(
+    keys ? keys.purchases : null,
+    jsonFetcher,
+    { fallbackData: loadDomainSnapshot(pharmacyId, "purchases") }
+  );
+  const { data: suppliersData } = useSWR(
+    keys ? keys.suppliers : null,
+    jsonFetcher,
+    { fallbackData: loadDomainSnapshot(pharmacyId, "suppliers") }
+  );
+  const { data: inventoryData } = useSWR(
+    keys ? keys.inventory : null,
+    jsonFetcher,
+    { fallbackData: loadDomainSnapshot(pharmacyId, "inventory") }
+  );
+  const { data: branchesData } = useSWR(
+    keys && (canSwitchBranch || user?.role === "branchManager") ? keys.branches : null,
+    jsonFetcher,
+    { fallbackData: loadDomainSnapshot(pharmacyId, "branches") }
+  );
+
+  useEffect(() => {
+    if (purchasesData?.purchases) saveDomainSnapshot(pharmacyId, "purchases", purchasesData);
+  }, [pharmacyId, purchasesData]);
+  useEffect(() => {
+    if (suppliersData?.suppliers) saveDomainSnapshot(pharmacyId, "suppliers", suppliersData);
+  }, [pharmacyId, suppliersData]);
+  useEffect(() => {
+    if (inventoryData?.inventory) saveDomainSnapshot(pharmacyId, "inventory", inventoryData);
+  }, [pharmacyId, inventoryData]);
+  useEffect(() => {
+    if (branchesData?.branches) saveDomainSnapshot(pharmacyId, "branches", branchesData);
+  }, [pharmacyId, branchesData]);
+
+  const branches = branchesData?.branches || [];
+  const suppliers = suppliersData?.suppliers || [];
+  const inventory = inventoryData?.inventory || [];
+  const purchases = purchasesData?.purchases || purchasesData?.invoices || [];
+
+  const defaultBranchId = useMemo(
+    () => resolveBranchId(user?.branch_id || user?.branch, branches),
+    [user, branches]
+  );
+
+  const [branchFilter, setBranchFilter] = useState("all");
+  const [supplierFilter, setSupplierFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "draft">("all");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (!canSwitchBranch && user?.branch) {
+      setBranchFilter(resolveBranchId(user.branch_id || user.branch, branches));
+    }
+  }, [canSwitchBranch, user, branches]);
+
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
+  const [payingInvoice, setPayingInvoice] = useState<any | null>(null);
+  const [previewInvoice, setPreviewInvoice] = useState<any | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [pdfInvoice, setPdfInvoice] = useState<any | null>(null);
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
+
+  const filteredPurchases = useMemo(() => {
+    const q = normalizeSearchText(search);
+    const rawQ = search.trim().toLowerCase();
+    return purchases.filter((inv: any) => {
+      const invStatus = normalizeInvoiceStatus(inv.status, "completed");
+      if (statusFilter !== "all" && invStatus !== statusFilter) return false;
+      if (branchFilter !== "all" && resolveBranchId(inv.branch_id || inv.branch, branches) !== branchFilter) return false;
+      if (supplierFilter !== "all" && String(inv.supplier_id || "") !== String(supplierFilter)) return false;
+      if (!q) return true;
+      const numMatch = String(inv.invoice_number || inv.id || "").toLowerCase().includes(rawQ);
+      const suppMatch = normalizeSearchText(inv.supplier_name).includes(q);
+      const items = safeJson<any[]>(inv.items, []);
+      const itemMatch = items.some((it) => normalizeSearchText(it.name).includes(q) || String(it.barcode || "").toLowerCase().includes(rawQ));
+      return numMatch || suppMatch || itemMatch;
+    });
+  }, [purchases, statusFilter, branchFilter, supplierFilter, search, branches]);
+
+  const handleDirectDownloadPdf = async (inv: any) => {
+    setDownloadingPdfId(inv.id);
     setPdfInvoice(inv);
     setTimeout(async () => {
       try {
-        // @ts-ignore
-        const html2pdf = (await import("html2pdf.js")).default;
-        const el = pdfRef.current;
-        if (el) {
-          const opt = {
-            margin: 0,
-            filename: `فاتورة-${inv.id}.pdf`,
-            image: { type: "jpeg" as const, quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
-          };
-          await html2pdf().from(el).set(opt).save();
+        if (pdfRef.current) {
+          // @ts-ignore
+          const html2pdf = (await import("html2pdf.js")).default;
+          await html2pdf()
+            .from(pdfRef.current)
+            .set({
+              margin: 8,
+              filename: `purchase-${inv.invoice_number || inv.id}.pdf`,
+              image: { type: "jpeg", quality: 0.98 },
+              html2canvas: { scale: 2 },
+              jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+            })
+            .save();
         }
-      } catch (e) {
+      } catch {
+        toast.error(isEn ? "Failed to export PDF" : "تعذر إنشاء ملف PDF");
+      } finally {
+        setDownloadingPdfId(null);
+        setPdfInvoice(null);
       }
-      setDownloadingPdf(null);
-      setPdfInvoice(null);
-    }, 150);
+    }, 120);
   };
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [itemSearch, setItemSearch] = useState("");
-  const tName = (name: string) => {
-    if (language !== "en") return name;
-    const dict: any = { "شريط": "Strip", "أمبولة": "Ampoule", "مغلف": "Sachet", "قطرة": "Drop", "حبة": "Pill", "مل": "ml", "غرام": "Gram", "علبة": "Box" };
-    return dict[name] || name;
-  };
-  const [showDrop, setShowDrop] = useState(false);
-  const [cartItems, setCartItems] = useState<any[]>([]);
-  const [form, setForm] = useState({
-    supplier_id: "",
-    supplier_name: "",
-    invoice_number: "",
-    notes: "",
-    branch_id: "all",
-    status: "completed",
-    paid_amount: "",
-  });
-  const [newItem, setNewItem] = useState({
-    name: "",
-    scientificName: "",
-    company: "",
-    category: "",
-    price_sell: "",
-    price_buy: "",
-    minQty: "",
-    expiry: "",
-    barcode: "",
-  });
-
-  // --- Data ---
-  const { data: branchesData } = useSWR(
-    user && (user.role === "owner" || user?.role === "manager" || user.role === "superadmin")
-      ? `${API}/api/admin/pharmacies/${user.pharmacy_id}/branches`
-      : null,
-    fetcher,
-  );
-  const { data: invoicesData, mutate } = useSWR(
-    user
-      ? `${API}/api/pharmacies/${user.pharmacy_id}/purchases`
-      : null,
-    fetcher,
-  );
-  const { data: inventoryData, mutate: mutateInv } = useSWR(
-    user ? `${API}/api/pharmacies/${user.pharmacy_id}/inventory` : null,
-    fetcher,
-  );
-  const { data: suppliersData, mutate: mutateSuppliers } = useSWR(
-    user ? `${API}/api/pharmacies/${user.pharmacy_id}/suppliers` : null,
-    fetcher,
-  );
-
-  const branches = branchesData?.branches || [];
-  const invoices = invoicesData?.purchases || invoicesData?.invoices || [];
-  const inventory = (inventoryData?.inventory || []).filter((i: any) => !i.archived_at);
-  const suppliers = suppliersData?.suppliers || [];
-
-  const supplierMap = useMemo(() => {
-    const map = new Map<string, any>();
-    suppliers.forEach((s: any) => {
-      if (s.id) map.set(s.id, s);
-      if (s.name) map.set(s.name.trim(), s);
-    });
-    return map;
-  }, [suppliers]);
-
-  const getEffectiveRemaining = useCallback((inv: any) => {
-    if (!inv || inv.status === "draft" || inv.status === "pending" || inv.status === "canceled") return 0;
-    const supp = inv.supplier_id
-      ? supplierMap.get(inv.supplier_id)
-      : (inv.supplier_name ? supplierMap.get(inv.supplier_name.trim()) : null);
-    if (supp && Number(supp.balance) <= 0) {
-      return 0;
-    }
-    const total = Number(inv.total_cost || 0);
-    const paid = Number(inv.paid_amount || 0);
-    const credit = Number(inv.credit_settled || 0);
-    const rawRem = Number(
-      inv.remaining !== undefined && inv.remaining !== null
-        ? inv.remaining
-        : Math.max(0, total - paid - credit)
-    );
-    return Math.max(0, rawRem);
-  }, [supplierMap]);
-
-  const getEffectivePaid = useCallback((inv: any) => {
-    if (!inv) return 0;
-    const paid = Number(inv.paid_amount || 0);
-    if (inv.status === "draft" || inv.status === "pending" || inv.status === "canceled") return paid;
-    const credit = Number(inv.credit_settled || 0);
-    const supp = inv.supplier_id
-      ? supplierMap.get(inv.supplier_id)
-      : (inv.supplier_name ? supplierMap.get(inv.supplier_name.trim()) : null);
-    if (supp && Number(supp.balance) <= 0) {
-      if (credit > 0) {
-        return Math.max(paid, Math.max(0, Number(inv.total_cost || 0) - credit));
-      }
-      return Math.max(paid, Number(inv.total_cost || 0));
-    }
-    return paid;
-  }, [supplierMap]);
-
-  // --- Computed ---
-  const cartTotal = cartItems.reduce(
-    (s, i) => s + (parseFloat(i.qty) || 0) * (parseFloat(i.purchase_price) || 0),
-    0,
-  );
-  const filteredInvoices = useMemo(() => {
-    if (branchFilter === "all") return invoices;
-    const selBranch = branches.find(
-      (b: any) => String(b.id) === String(branchFilter) || String(b.name).trim() === String(branchFilter).trim()
-    );
-    const bId = selBranch ? String(selBranch.id).trim() : String(branchFilter).trim();
-    const bName = selBranch ? String(selBranch.name).trim() : String(branchFilter).trim();
-    const isMain = ["main", "الفرع الرئيسي", "الصيدلية الرئيسية"].includes(bName.toLowerCase()) ||
-                   ["main", "الفرع الرئيسي", "الصيدلية الرئيسية"].includes(bId.toLowerCase());
-
-    return invoices.filter((inv: any) => {
-      const invBId = inv.branch_id ? String(inv.branch_id).trim() : "";
-      const invBName = inv.branch ? String(inv.branch).trim() : (inv.branchName ? String(inv.branchName).trim() : "");
-
-      if (isMain) {
-        if (!invBId && !invBName) return true;
-        if (["all", "main", "الفرع الرئيسي", "الصيدلية الرئيسية", "المخزن الرئيسي"].includes(invBId.toLowerCase())) return true;
-        if (["all", "main", "الفرع الرئيسي", "الصيدلية الرئيسية", "المخزن الرئيسي"].includes(invBName.toLowerCase())) return true;
-        if (bId && (invBId === bId || invBName === bId)) return true;
-        if (bName && (invBId === bName || invBName === bName)) return true;
-        return false;
-      }
-
-      // Non-main branch (e.g., وسطى)
-      return (
-        (bId && (invBId === bId || invBName === bId)) ||
-        (bName && (invBId === bName || invBName === bName)) ||
-        (bName && (invBId.includes(bName) || bName.includes(invBId))) ||
-        (bName && (invBName.includes(bName) || bName.includes(invBName)))
-      );
-    });
-  }, [invoices, branchFilter, branches]);
-
-  const actualInvoices = useMemo(
-    () => filteredInvoices.filter((i: any) => i.status !== "draft"),
-    [filteredInvoices]
-  );
-  const totalCost = actualInvoices.reduce(
-    (s: number, i: any) => s + (Number(i.total_cost) || 0),
-    0,
-  );
-  const totalPaid = actualInvoices.reduce(
-    (s: number, i: any) => s + getEffectivePaid(i),
-    0,
-  );
-  const totalRemaining = actualInvoices.reduce(
-    (s: number, i: any) => s + getEffectiveRemaining(i),
-    0,
-  );
-
-  const branchInv =
-    form.branch_id === "all"
-      ? inventory
-      : inventory.filter(
-          (d: any) =>
-            d.branch_id === form.branch_id ||
-            String(d.branch_id) === String(form.branch_id),
-        );
-  const uniqueMap = new Map();
-  branchInv.forEach((d: any) => {
-    if (!uniqueMap.has(d.name)) uniqueMap.set(d.name, d);
-  });
-  const uniqueInv = Array.from(uniqueMap.values());
-  const filteredInv = itemSearch
-    ? uniqueInv.filter(
-        (d: any) =>
-          d.name.toLowerCase().includes(itemSearch.toLowerCase()) ||
-          (d.scientificName && d.scientificName.toLowerCase().includes(itemSearch.toLowerCase())) ||
-          (d.barcode && d.barcode.includes(itemSearch)),
-      )
-    : uniqueInv.slice(0, 20);
-
-  // --- Handlers ---
-  const openNew = () => {
-    setEditingId(null);
-    setForm({
-      supplier_id: "",
-      supplier_name: "",
-      invoice_number: "",
-      notes: "",
-      branch_id: branchFilter !== "all" ? branchFilter : (branches[0]?.id || "all"),
-      status: "completed",
-      paid_amount: "",
-    });
-    setCartItems([]);
-    setItemSearch("");
-    setShowAdd(true);
-  };
-
-  const openEdit = (inv: any) => {
-    setEditingId(inv.id);
-    const matchingBranch = branches.find((b: any) =>
-      String(b.id) === String(inv.branch_id) ||
-      String(b.name).trim() === String(inv.branch_id).trim() ||
-      ((inv.branch_id === "all" || inv.branch_id === "Main" || inv.branch_id === "الفرع الرئيسي") &&
-       ["الفرع الرئيسي", "Main", "main"].includes(String(b.name).trim()))
-    );
-
-    setForm({
-      supplier_id: inv.supplier_id || "",
-      supplier_name: inv.supplier_name || "",
-      invoice_number: inv.invoice_number || "",
-      notes: inv.notes || "",
-      branch_id: matchingBranch ? matchingBranch.id : (inv.branch_id || branches[0]?.id || ""),
-      status: inv.status || "completed",
-      paid_amount: inv.paid_amount || "",
-    });
-    const items =
-      typeof inv.items === "string"
-        ? JSON.parse(inv.items || "[]")
-        : inv.items || [];
-    setCartItems(
-      items.map((i: any) => ({
-        ...i,
-        purchase_price:
-          i.purchase_price === 0 || i.purchase_price === "0"
-            ? ""
-            : i.purchase_price ?? "",
-        sell_price:
-          i.sell_price === 0 || i.sell_price === "0"
-            ? ""
-            : i.sell_price ?? "",
-        part1_price:
-          i.part1_price === 0 || i.part1_price === "0"
-            ? ""
-            : i.part1_price ?? "",
-        part2_price:
-          i.part2_price === 0 || i.part2_price === "0"
-            ? ""
-            : i.part2_price ?? "",
-      })),
-    );
-    setItemSearch("");
-    setShowAdd(true);
-  };
-
-  const addItemToCart = (drug: any) => {
-    const existing = cartItems.find((i) => i.id === drug.id);
-    if (existing)
-      setCartItems((c) =>
-        c.map((i) =>
-          i.id === drug.id
-            ? { ...i, qty: (parseFloat(i.qty) || 0) + 1 }
-            : i,
-        ),
-      );
-    else
-      setCartItems((c) => [
-        ...c,
-        {
-          id: drug.id,
-          name: drug.name,
-          scientificName: drug.scientificName || drug.scientific_name || "",
-          qty: 1,
-          purchase_price: drug.cost && drug.cost > 0 ? drug.cost : "",
-          sell_price: drug.price && drug.price > 0 ? drug.price : "",
-          expiry: drug.expiry || drug.expiry_date || "",
-          expiry_date: drug.expiry || drug.expiry_date || "",
-          has_parts: false,
-          part1_name: "شريط",
-          part1_qty: 10,
-          part1_price: "",
-          has_subparts: false,
-          part2_name: "حبة",
-          part2_qty: 10,
-          part2_price: "",
-        },
-      ]);
-    setItemSearch("");
-    setShowDrop(false);
-  };
-
-  const pullLowStock = () => {
-    const low = uniqueInv.filter((d: any) => (d.qty || 0) <= (d.minQty || 0));
-    if (low.length === 0) {
-      toast(language === "en" ? "No shortages in this branch" : "لا يوجد نواقص في هذا الفرع");
-      return;
-    }
-    const newCart = [...cartItems];
-    low.forEach((d: any) => {
-      if (!newCart.find((i) => i.id === d.id)) {
-        const needed = Math.max(1, (d.minQty || 0) - (d.qty || 0) + 10);
-        newCart.push({
-          id: d.id,
-          name: d.name,
-          scientificName: d.scientificName || d.scientific_name || "",
-          qty: needed,
-          purchase_price: d.cost && d.cost > 0 ? d.cost : "",
-          sell_price: d.price && d.price > 0 ? d.price : "",
-          expiry: d.expiry || d.expiry_date || "",
-          expiry_date: d.expiry || d.expiry_date || "",
-          has_parts: false,
-          part1_name: "شريط",
-          part1_qty: 10,
-          part1_price: "",
-          has_subparts: false,
-          part2_name: "حبة",
-          part2_qty: 10,
-          part2_price: "",
-        });
-      }
-    });
-    setCartItems(newCart);
-    toast.success(language === "en" ? `Fetched ${low.length} short items!` : `تم جلب ${low.length} صنف ناقص!`);
-  };
-
-  const handleSave = async () => {
-    if (!form.supplier_name && !form.supplier_id && form.status !== "draft")
-      return toast.error(language === "en" ? "Supplier must be selected for actual invoices" : "يجب تحديد المورد للفاتورة الفعلية");
-    if (cartItems.length === 0)
-      return toast.error(language === "en" ? "Invoice is empty, add items first" : "الفاتورة فارغة، أضف أصناف أولاً");
-    setLoading(true);
+  const confirmDelete = async () => {
+    if (!deleteTarget || !pharmacyId) return;
+    const target = deleteTarget;
+    setDeleteTarget(null);
     try {
-      const selectedBranchObj = branches.find((b: any) =>
-        String(b.id) === String(form.branch_id) ||
-        String(b.name).trim() === String(form.branch_id).trim()
+      await deletePurchaseAction(pharmacyId, target.id, target.supplier_id, language);
+      toast.success(
+        isDraftStatus(target.status)
+          ? isEn
+            ? "Draft deleted"
+            : "تم حذف الطلبية المبدئية"
+          : isEn
+          ? "Invoice reversed cleanly"
+          : "تم إلغاء الفاتورة وعكس المخزون والرصيد بنجاح"
       );
-      const finalBranchId = selectedBranchObj ? selectedBranchObj.id : (form.branch_id && form.branch_id !== "all" ? form.branch_id : (branches[0]?.id || "Main"));
-      const finalBranchName = selectedBranchObj ? selectedBranchObj.name.trim() : (branches[0]?.name?.trim() || "الفرع الرئيسي");
-
-      const mappedItems = cartItems.map((item: any) => {
-        const buy = parseFloat(item.purchase_price) || 0;
-        const sell = parseFloat(item.sell_price) || 0;
-        const exp = item.expiry || item.expiry_date || "";
-        return {
-          ...item,
-          qty: parseFloat(item.qty) || 1,
-          cost: buy,
-          price: sell,
-          purchase_price: buy,
-          sell_price: sell,
-          part1_qty: parseInt(item.part1_qty) || 1,
-          part1_price: parseFloat(item.part1_price) || 0,
-          part2_qty: parseInt(item.part2_qty) || 1,
-          part2_price: parseFloat(item.part2_price) || 0,
-          expiry: exp,
-          expiry_date: exp,
-          unit_size: (() => {
-            if (item.units) {
-              try {
-                const arr = typeof item.units === "string" ? JSON.parse(item.units) : item.units;
-                if (Array.isArray(arr) && arr.length > 0 && arr[0]?.count) return arr[0].count;
-              } catch (e) {}
-            }
-            return Number(item.unit_size) || 1;
-          })(),
-        };
-      });
-
-      const paidVal = form.paid_amount ? parseFloat(form.paid_amount) : 0;
-      const createViaUnifiedEndpoint = async () => {
-        const generatedId = (form.status === "draft" ? "PO-" : "PINV-") + Date.now();
-        const res = await fetch(
-          `${API}/api/pharmacies/${user?.pharmacy_id}/purchase-invoices`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ...form,
-              id: generatedId,
-              branch_id: finalBranchId,
-              branch: finalBranchName,
-              branchName: finalBranchName,
-              paidBy: user?.name || user?.managerName || "الإدارة",
-              items: mappedItems,
-              total_cost: cartTotal,
-              paid_amount: paidVal,
-            }),
-          },
-        );
-        return await res.json().catch(() => ({}));
-      };
-
-      let r: any = null;
-
-      if (editingId) {
-        const origInv = invoices.find((i: any) => String(i.id) === String(editingId));
-        const isOrigDraft = origInv?.status === "draft" || origInv?.status === "pending";
-        const draftMetaChanged =
-          isOrigDraft &&
-          ((origInv?.supplier_id || "") !== (form.supplier_id || "") ||
-            (origInv?.notes || "") !== (form.notes || "") ||
-            (origInv?.branch_id || "") !== (finalBranchId || ""));
-        const revertingCompletedToDraft = !isOrigDraft && form.status === "draft";
-
-        if (draftMetaChanged || revertingCompletedToDraft) {
-          const delRes = await fetch(
-            `${API}/api/pharmacies/${user?.pharmacy_id}/purchases/${editingId}`,
-            { method: "DELETE" },
-          );
-          const delData = await delRes.json().catch(() => ({}));
-          if (!delRes.ok) {
-            r = { success: false, error: delData.error || delData.message || "تعذر تعديل الفاتورة" };
-          } else {
-            r = await createViaUnifiedEndpoint();
-          }
-        } else {
-          const putRes = await fetch(
-            `${API}/api/pharmacies/${user?.pharmacy_id}/purchases/${editingId}`,
-            {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                ...form,
-                branch_id: finalBranchId,
-                branch: finalBranchName,
-                branchName: finalBranchName,
-                items: mappedItems,
-                totalCost: cartTotal,
-                paidAmount: paidVal,
-                supplierInvoiceNumber: form.invoice_number,
-              }),
-            },
-          );
-          const putData = await putRes.json().catch(() => ({}));
-          if (
-            putRes.status === 409 &&
-            (putData.code === "PURCHASE_LINES_REQUIRE_STOCK_ADJUSTMENT" ||
-              putData.code === "PURCHASE_QUANTITY_EDIT_REQUIRES_STOCK_ADJUSTMENT")
-          ) {
-            const delRes = await fetch(
-              `${API}/api/pharmacies/${user?.pharmacy_id}/purchases/${editingId}`,
-              { method: "DELETE" },
-            );
-            const delData = await delRes.json().catch(() => ({}));
-            if (!delRes.ok) {
-              r = { success: false, error: delData.error || delData.message || putData.error || "تعذر تعديل كميات الفاتورة" };
-            } else {
-              r = await createViaUnifiedEndpoint();
-            }
-          } else {
-            r = putRes.ok ? { ...putData, success: putData.success !== false } : { success: false, error: putData.error || putData.message || "فشل تحديث الفاتورة" };
-          }
-        }
-      } else {
-        r = await createViaUnifiedEndpoint();
-      }
-
-      if (r?.success) {
-        toast.success(
-          form.status === "draft"
-            ? (language === "en" ? "Draft order saved!" : "تم حفظ الطلبية المبدئية!")
-            : (language === "en" ? "Purchase invoice saved!" : "تم حفظ فاتورة المشتريات!"),
-        );
-        setShowAdd(false);
-        setEditingId(null);
-        setCartItems([]);
-        mutate();
-        mutateInv();
-        mutateSuppliers();
-      } else toast.error(r?.error || (language === "en" ? "Save error" : "خطأ في الحفظ"));
-    } catch {
-      toast.error(language === "en" ? "Server connection error" : "خطأ في الاتصال بالخادم");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleQuickAdd = async () => {
-    if (!newItem.name || !newItem.price_sell) {
-      toast.error(language === "en" ? "Enter trade name and selling price" : "أدخل الاسم التجاري وسعر البيع للصنف");
-      return;
-    }
-    setLoading(true);
-    try {
-      const buyPrice = parseFloat(newItem.price_buy) || 0;
-      const sellPrice = parseFloat(newItem.price_sell) || 0;
-
-      const res = await fetch(
-        `${API}/api/pharmacies/${user?.pharmacy_id}/inventory`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: newItem.name.trim(),
-            trade_name: newItem.name.trim(),
-            scientificName: (newItem.scientificName || "").trim(),
-            category: (newItem.category || "").trim() || "General medicines",
-            company: (newItem.company || "").trim(),
-            manufacturer: (newItem.company || "").trim(),
-            price_sell: sellPrice,
-            price_buy: buyPrice,
-            cost: buyPrice,
-            minQty: parseInt(newItem.minQty) || 5,
-            expiry: newItem.expiry || "",
-            expiry_date: newItem.expiry || "",
-            barcode: (newItem.barcode || "").trim(),
-            qty: 0,
-            branch_id: form.branch_id === "all" ? null : form.branch_id,
-          }),
-        },
-      );
-      const r = await res.json();
-      if (r.success) {
-        toast.success(language === "en" ? "Item added to inventory & invoice!" : "تمت إضافة الصنف للمخزون وللفاتورة!");
-        setCartItems((c) => [
-          ...c,
-          {
-            id: r.itemId || r.id || ("MED-" + Date.now()),
-            name: newItem.name.trim(),
-            scientificName: (newItem.scientificName || "").trim(),
-            qty: 1,
-            purchase_price: buyPrice && buyPrice > 0 ? buyPrice : "",
-            sell_price: sellPrice && sellPrice > 0 ? sellPrice : "",
-            expiry: newItem.expiry || "",
-            expiry_date: newItem.expiry || "",
-            barcode: (newItem.barcode || "").trim(),
-            has_parts: false,
-            part1_name: "شريط",
-            part1_qty: 10,
-            part1_price: "",
-            has_subparts: false,
-            part2_name: "حبة",
-            part2_qty: 10,
-            part2_price: "",
-          },
-        ]);
-        setShowQuickAdd(false);
-        setNewItem({
-          name: "",
-          scientificName: "",
-          company: "",
-          category: "",
-          price_sell: "",
-          price_buy: "",
-          minQty: "",
-          expiry: "",
-          barcode: "",
-        });
-        mutateInv();
-      } else toast.error(r.error);
-    } catch {
-      toast.error(language === "en" ? "Connection error" : "خطأ في الاتصال");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const executeDelete = async (id: string) => {
-    const r = await (
-      await fetch(
-        `${API}/api/pharmacies/${user?.pharmacy_id}/purchases/${id}`,
-        { method: "DELETE" },
-      )
-    ).json();
-    if (r.success) {
-      toast.success(language === "en" ? "Deleted successfully" : "تم الحذف");
-      mutate();
-    } else toast.error(r.error);
-  };
-
-  // --- UI Helpers ---
-  const StatusBadge = ({ inv }: { inv: any }) => {
-    if (inv.status === "draft")
-      return (
-        <span className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-[#F5F5F0] text-[#888]">
-          {language === "en" ? "Draft Order" : "طلبية مبدئية"}
-        </span>
-      );
-    if ((inv.remaining || 0) <= 0)
-      return (
-        <span className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-teal-pale text-teal">
-          مدفوعة بالكامل
-        </span>
-      );
-    if ((inv.paid_amount || 0) > 0)
-      return (
-        <span className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-amber-100 text-amber-700">
-          دفع جزئي
-        </span>
-      );
-    return (
-      <span className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-coral-pale text-coral">
-        غير مدفوعة
-      </span>
-    );
-  };
-
-  const parseItems = (items: any) => {
-    if (Array.isArray(items)) return items;
-    try {
-      return JSON.parse(items || "[]");
-    } catch {
-      return [];
+    } catch (err: any) {
+      toast.error(err?.message || (isEn ? "Cannot delete invoice" : "تعذر حذف الفاتورة"));
     }
   };
 
   return (
-    <>
-      <AppBar title={language === 'en' ? "Purchases" : "المشتريات"} showNotifs showLogo />
+    <div className="min-h-screen bg-bg text-ink pb-20">
+      <AppBar title={isEn ? "Purchase Invoices" : "فواتير المشتريات"} />
 
-      <div className="p-4 md:p-6 pb-28 md:pb-8 max-w-5xl mx-auto">
-        {/* Header Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-white rounded-2xl p-4 border border-mint-line shadow-sm">
-            <p className="text-[12px] font-bold text-ink-soft mb-1">
-              {language === 'en' ? "Total Invoices" : "إجمالي الفواتير"}
-            </p>
-            <p className="text-[22px] font-mono font-black text-ink">
-              ₪{totalCost.toFixed(2)}
-            </p>
-          </div>
-          <div className="bg-white rounded-2xl p-4 border border-mint-line shadow-sm">
-            <p className="text-[12px] font-bold text-ink-soft mb-1">
-              {language === 'en' ? "Total Paid" : "إجمالي المدفوع"}
-            </p>
-            <p className="text-[22px] font-mono font-black text-teal">
-              ₪{totalPaid.toFixed(2)}
-            </p>
-          </div>
-          <div className="bg-white rounded-2xl p-4 border border-mint-line shadow-sm">
-            <p className="text-[12px] font-bold text-ink-soft mb-1">
-              {language === "en" ? "Total Remaining" : "إجمالي المتبقي"}
-            </p>
-            <p className="text-[22px] font-mono font-black text-coral">
-              ₪{totalRemaining.toFixed(2)}
-            </p>
-          </div>
-        </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+        <p className="text-xs sm:text-sm font-bold text-ink-soft mb-4">
+          {isEn
+            ? "Manage supplier bills, inventory receipts, batches & credit offsets"
+            : "إدارة فواتير الشراء، الاعتماد المخزني، وتحديث الأسعار"}
+        </p>
+        <PurchaseStatsHeader purchases={purchases} lang={language} />
 
-        {/* Marquee Ticker */}
-        <style>{`
-          @keyframes marquee-rtl {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-          }
-          .animate-marquee-rtl {
-            display: inline-flex;
-            animation: marquee-rtl 35s linear infinite;
-          }
-          .animate-marquee-rtl:hover {
-            animation-play-state: paused;
-          }
-        `}</style>
-        <div
-          className="mb-6 bg-white overflow-hidden rounded-2xl border border-mint-line shadow-sm flex items-center p-3 relative"
-          dir="rtl"
-        >
-          <div className="flex-shrink-0 z-10 bg-white pl-3 flex items-center gap-2 border-l border-mint-line">
-            <span className="text-xl">✨</span>
-            <span className="font-bold text-primary text-[14px]">
-              {language === 'en' ? "Quick Tip:" : "نصيحة سريعة:"}
-            </span>
+        <PurchaseFiltersBar
+          search={search}
+          onSearchChange={setSearch}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          supplierFilter={supplierFilter}
+          onSupplierFilterChange={setSupplierFilter}
+          branchFilter={branchFilter}
+          onBranchFilterChange={setBranchFilter}
+          canSwitchBranch={canSwitchBranch}
+          branches={branches}
+          suppliers={suppliers}
+          onNewInvoice={() => {
+            setEditingInvoice(null);
+            setEditorOpen(true);
+          }}
+          lang={language}
+        />
+
+        {purchasesLoading && purchases.length === 0 ? (
+          <div className="bg-card border border-mint-line rounded-2xl p-12 text-center font-bold text-ink-soft">
+            {isEn ? "Loading purchase invoices..." : "جارٍ تحميل فواتير المشتريات..."}
           </div>
-          <div className="flex-1 overflow-hidden relative flex items-center">
-            <div className="animate-marquee-rtl flex items-center gap-6 text-[14px] font-bold text-ink-soft w-max">
-              <span>
-                {language === 'en' ? "Purchasing system now supports FIFO for 100% accurate profit calculation 💰" : "نظام المشتريات يدعم الآن نظام الدفعات (FIFO) لضمان حساب أرباحك بدقة 100% 💰"}
-              </span>
-              <span className="text-mint-line">|</span>
-              <span>{language === 'en' ? 'You can edit "Selling Price" directly from within the invoice 🏷️' : 'يمكنك تعديل "سعر البيع" مباشرة من داخل الفاتورة 🏷️'}</span>
-              <span className="text-mint-line">|</span>
-              <span>
-                {language === 'en' ? 'Remember: "Draft" invoices do not change stock, "Completed" ones apply quantities and prices instantly ✅' : 'تذكر: الفاتورة "المبدئية" لا تُغيّر أرقام مخزونك، الفاتورة "المكتملة" تعتمد الكميات والأسعار فوراً ✅'}
-              </span>
-              <span className="text-mint-line">|</span>
-              <span>
-                {language === 'en' ? "Made a mistake? Don't worry! Deleting a completed invoice automatically reverts the stock 🔄" : "هل أخطأت؟ لا تقلق! حذف الفاتورة المكتملة يسحب كمياتها من المخزون تلقائياً 🔄"}
-              </span>
+        ) : filteredPurchases.length === 0 ? (
+          <div className="bg-card border border-mint-line rounded-2xl p-12 text-center space-y-2">
+            <div className="text-lg font-black text-ink">
+              {isEn ? "No matching purchase invoices" : "لا توجد فواتير مشتريات مطابقة"}
             </div>
-          </div>
-        </div>
-
-        {/* Actions Row */}
-        <div className="flex items-center gap-3 mb-6">
-          <button
-            onClick={openNew}
-            className="flex items-center gap-2 bg-primary text-white font-bold py-3 px-6 rounded-2xl shadow-lg shadow-primary/20 hover:opacity-90 transition-all text-[14px]"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2.5"
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            {language === 'en' ? "New Invoice" : "فاتورة جديدة"}
-          </button>
-          {(user?.role === "owner" || user?.role === "manager" || user?.role === "superadmin") &&
-            branches.length > 0 && (
-              <select
-                value={branchFilter}
-                onChange={(e) => setBranchFilter(e.target.value)}
-                className="bg-white border border-mint-line text-ink font-bold py-3 px-4 rounded-2xl outline-none focus:border-primary text-[14px]"
-              >
-                <option value="all">{language === 'en' ? "All Branches" : "كل الفروع"}</option>
-                {branches.map((b: any) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            )}
-        </div>
-
-        {/* Invoices List */}
-        {filteredInvoices.length === 0 ? (
-          <div className="text-center py-24 bg-white rounded-3xl border-2 border-dashed border-mint-line">
-            <div className="w-20 h-20 bg-primary-pale rounded-3xl flex items-center justify-center mx-auto mb-5">
-              <svg
-                className="w-10 h-10 text-primary"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.5"
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-            </div>
-            <h3 className="text-[17px] font-black text-ink mb-2">
-              {language === 'en' ? "No invoices yet" : "لا توجد فواتير بعد"}
-            </h3>
-            <p className="text-[14px] text-ink-soft">
-              {language === 'en' ? "Start by adding a purchase invoice or draft order" : "ابدأ بإضافة فاتورة مشتريات أو طلبية مبدئية"}
+            <p className="text-xs font-bold text-ink-soft">
+              {isEn ? "Create a new purchase invoice or clear active filters." : "أنشئ فاتورة شراء جديدة أو عدّل خيارات البحث أعلاه."}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredInvoices.map((inv: any) => {
-              const items = parseItems(inv.items);
-              const isDraft = inv.status === "draft";
-              return (
-                <div
-                  key={inv.id}
-                  className={`bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all ${isDraft ? "border-r-4 border-r-[#ccc] border-mint-line" : "border-mint-line"}`}
-                >
-                  <div className="p-5">
-                    {/* Row 1: Icon + Name + Badge | Price */}
-                    <div className="flex items-start justify-between gap-4 mb-4">
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <div
-                          className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${isDraft ? "bg-[#F5F5F0]" : "bg-primary-pale"}`}
-                        >
-                          <svg
-                            className={`w-5 h-5 ${isDraft ? "text-ink-soft" : "text-primary"}`}
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                            />
-                          </svg>
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <span className="font-black text-[17px] text-ink">
-                              {inv.supplier_name ||
-                                (isDraft ? (language === 'en' ? "Draft without supplier" : "طلبية بدون مورد") : (language === 'en' ? "Unspecified supplier" : "مورد غير محدد"))}
-                            </span>
-                            <StatusBadge inv={inv} />
-                            {inv.invoice_number && (
-                              <span className="text-[12px] font-mono text-ink-soft bg-bg px-2 py-0.5 rounded-lg border border-mint-line">
-                                #{inv.invoice_number}
-                              </span>
-                            )}
-                            {(inv.branch || inv.branch_id) && (
-                              <span className="text-[12px] font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-lg border border-primary/20">
-                                📍 {inv.branch || branches.find((b: any) => String(b.id) === String(inv.branch_id) || String(b.name).trim() === String(inv.branch_id).trim())?.name || inv.branch_id}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[12px] text-ink-soft">
-                            {new Date(inv.date).toLocaleDateString(language === "en" ? "en-US" : "ar-EG", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })}
-                          </p>
-                        </div>
-                      </div>
-                      {/* Price Block */}
-                      <div className="shrink-0 text-start">
-                        <p className="text-[22px] font-mono font-black text-ink leading-tight">
-                          ₪{(inv.total_cost || 0).toFixed(2)}
-                        </p>
-                        {Number(inv.credit_settled) > 0 && (
-                          <p className="text-[11px] font-bold text-teal text-start">
-                            {language === 'en' ? 'Credit offset: ' : 'تسوية من الرصيد: '}₪{Number(inv.credit_settled).toFixed(2)}
-                          </p>
-                        )}
-                        {(() => {
-                          const rem = getEffectiveRemaining(inv);
-                          if (rem > 0) {
-                            return (
-                              <p className="text-[12px] font-bold text-coral text-start font-mono">
-                                {language === 'en' ? "Remaining" : "متبقي"} ₪{rem.toFixed(2)}
-                              </p>
-                            );
-                          }
-                          if (inv.status !== "draft") {
-                            return (
-                              <p className="text-[12px] font-bold text-teal text-start">
-                                {language === 'en' ? "Fully Paid ✓" : "مدفوعة بالكامل ✓"}
-                              </p>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </div>
-                    </div>
-
-                    {/* Row 2: Items */}
-                    {items.length > 0 && (
-                      <div className="flex flex-wrap gap-3 pt-3 border-t border-mint-line">
-                        {items.slice(0, 5).map((item: any, idx: number) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center gap-1.5 bg-bg text-primary text-[11px] font-bold px-3 py-1.5 rounded-xl border border-mint-line"
-                          >
-                            {item.name}{" "}
-                            <span className="text-ink-soft font-medium">
-                              × {item.qty}
-                            </span>
-                          </span>
-                        ))}
-                        {items.length > 5 && (
-                          <span className="text-[11px] text-ink-soft py-1 self-center">
-                            +{items.length - 5} {language === 'en' ? "more" : "أخرى"}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {/* Row 3: Action Buttons */}
-                    <div className="flex gap-2 pt-3 mt-1 border-t border-mint-line justify-end items-center flex-wrap">
-                      {getEffectiveRemaining(inv) > 0 && inv.status !== "draft" && (
-                        <button
-                          onClick={() => {
-                            setPayingInvoice(inv);
-                            setInvoicePaymentAmount(String(getEffectiveRemaining(inv)));
-                            setInvoicePaymentMethod("كاش");
-                            setInvoicePaymentReference("");
-                          }}
-                          className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl text-[13px] font-bold transition-all flex items-center gap-1.5 shadow-xs border border-emerald-200/60"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                          </svg>
-                          {language === 'en' ? "Pay" : "تسديد"}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => openEdit(inv)}
-                        className={`px-4 py-2 rounded-xl text-[13px] font-bold transition-all ${isDraft ? "bg-primary text-white hover:opacity-90" : "bg-primary-pale text-primary hover:bg-primary hover:text-white"}`}
-                      >
-                        {isDraft ? (language === 'en' ? "Add to Stock" : "إدخال للمخزون") : (language === 'en' ? "Edit" : "تعديل")}
-                      </button>
-                      <button
-                        onClick={() => setShowPreview(inv)}
-                        className="px-4 py-2 bg-bg text-ink-soft rounded-xl text-[13px] font-bold hover:bg-mint-line transition-all"
-                      >
-                        {language === 'en' ? "Preview" : "معاينة"}
-                      </button>
-                      <button
-                        onClick={() => downloadPDF(inv)}
-                        disabled={downloadingPdf === inv.id}
-                        className="px-4 py-2 bg-bg text-teal rounded-xl text-[13px] font-bold hover:bg-teal/10 transition-all disabled:opacity-50 flex items-center gap-1"
-                      >
-                        {downloadingPdf === inv.id ? (
-                          <svg
-                            className="w-4 h-4 animate-spin"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                            />
-                          </svg>
-                        ) : (
-                          "PDF"
-                        )}
-                      </button>
-                      <button
-                        onClick={() => setDeleteTarget(inv.id)}
-                        className="px-4 py-2 bg-bg text-coral rounded-xl text-[13px] font-bold hover:bg-coral-pale transition-all"
-                      >
-                        {language === 'en' ? "Delete" : "حذف"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {filteredPurchases.map((inv: any) => (
+              <PurchaseInvoiceCard
+                key={inv.id}
+                invoice={inv}
+                branches={branches}
+                lang={language}
+                isDownloadingPdf={downloadingPdfId === inv.id}
+                onPreview={(target) => setPreviewInvoice(target)}
+                onDownloadPdf={handleDirectDownloadPdf}
+                onPay={(target) => setPayingInvoice(target)}
+                onEdit={(target) => {
+                  setEditingInvoice(target);
+                  setEditorOpen(true);
+                }}
+                onDelete={(target) => setDeleteTarget(target)}
+              />
+            ))}
           </div>
         )}
-      </div>
+      </main>
 
-      {/* ===== Add / Edit Modal (Split Panel) ===== */}
-      {showAdd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-hidden">
-          <div
-            className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
-            onClick={() => setShowAdd(false)}
-          />
-          <div
-            className="relative bg-white rounded-3xl w-full max-w-5xl flex flex-col shadow-2xl border border-mint-line z-10 overflow-hidden"
-            style={{ height: "min(85vh, 750px)" }}
-          >
-            {/* ── Header ── */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-mint-line bg-white">
-              <div className="flex items-center gap-4">
-                <div
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center ${form.status === "draft" ? "bg-coral-pale" : "bg-primary-pale"}`}
-                >
-                  <svg
-                    className={`w-6 h-6 ${form.status === "draft" ? "text-coral" : "text-primary"}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-[22px] font-black text-ink leading-tight">
-                    {editingId ? (language === 'en' ? "Edit Invoice" : "تعديل الفاتورة") : (language === 'en' ? "New Purchase Invoice" : "فاتورة مشتريات جديدة")}
-                  </h2>
-                  <p className="text-[13px] text-ink-soft mt-0.5">
-                    {form.status === "draft"
-                      ? (language === 'en' ? "Draft Order — does not affect stock" : "طلبية مبدئية — لا تؤثر على المخزون")
-                      : (language === 'en' ? "Actual Invoice — adds to stock and supplier account" : "فاتورة فعلية — تضاف للمخزون وحساب المورد")}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowAdd(false)}
-                className="w-10 h-10 flex items-center justify-center rounded-full bg-bg hover:bg-mint-line transition-colors text-ink-soft"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2.5"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
+      <PurchaseEditorModal
+        isOpen={editorOpen}
+        editingInvoice={editingInvoice}
+        pharmacyId={pharmacyId}
+        suppliers={suppliers}
+        inventory={inventory}
+        branches={branches}
+        defaultBranchId={defaultBranchId}
+        canSwitchBranch={canSwitchBranch}
+        lang={language}
+        onClose={() => {
+          setEditorOpen(false);
+          setEditingInvoice(null);
+        }}
+        onSaved={() => revalidatePurchaseDomain(pharmacyId)}
+      />
 
-            {/* ── Body: Split Panels ── */}
-            <div className="flex flex-1 min-h-0 overflow-hidden">
-              {/* RIGHT PANEL — Controls */}
-              <div className="w-80 shrink-0 border-l border-mint-line bg-[#FAFAF8] flex flex-col">
-                <div className="flex-1 overflow-y-auto p-5 space-y-5">
-                  {/* Type Toggle */}
-                  <div>
-                    <label className="block text-[13px] font-black text-ink-soft uppercase tracking-wide mb-2">
-                      {language === 'en' ? "Invoice Type" : "نوع الفاتورة"}
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setForm({ ...form, status: "completed" })
-                        }
-                        className={`py-3 rounded-xl border-2 text-[14px] font-black transition-all ${form.status === "completed" ? "border-primary bg-primary-pale text-primary shadow-sm" : "border-mint-line bg-white text-ink-soft hover:border-primary/40"}`}
-                      >
-                        {language === 'en' ? "Actual" : "فعلية"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setForm({ ...form, status: "draft" })}
-                        className={`py-3 rounded-xl border-2 text-[14px] font-black transition-all ${form.status === "draft" ? "border-coral bg-coral-pale text-coral shadow-sm" : "border-mint-line bg-white text-ink-soft hover:border-coral/40"}`}
-                      >
-                        {language === 'en' ? "Draft" : "مبدئية"}
-                      </button>
-                    </div>
-                  </div>
+      <QuickPayInvoiceModal
+        invoice={payingInvoice}
+        pharmacyId={pharmacyId}
+        lang={language}
+        onClose={() => setPayingInvoice(null)}
+        onSuccess={() => revalidatePurchaseDomain(pharmacyId, payingInvoice?.supplier_id)}
+      />
 
-                  {/* Supplier */}
-                  <div>
-                    <label className="block text-[13px] font-black text-ink-soft uppercase tracking-wide mb-1.5">
-                      {language === "en" ? "Supplier" : "المورد"} {" "}
-                      {form.status === "completed" && (
-                        <span className="text-coral">*</span>
-                      )}
-                    </label>
-                    <select
-                      value={form.supplier_id}
-                      onChange={(e) => {
-                        const sel = suppliers.find(
-                          (s: any) => s.id === e.target.value,
-                        );
-                        setForm((p) => ({
-                          ...p,
-                          supplier_id: e.target.value,
-                          supplier_name: sel ? sel.name : "",
-                        }));
-                      }}
-                      className="w-full bg-white border border-mint-line rounded-xl px-4 py-3 text-[14px] font-bold text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-                    >
-                      <option value="">{language === "en" ? "Select Supplier..." : "اختر المورد..."}</option>
-                      {suppliers.map((s: any) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                    {(() => {
-                      const sel = suppliers.find((s: any) => s.id === form.supplier_id);
-                      if (sel && Number(sel.balance) < 0) {
-                        const credit = Math.abs(Number(sel.balance));
-                        return (
-                          <div className="mt-2.5 p-3 bg-teal-pale/40 border border-teal/30 rounded-xl text-start">
-                            <p className="text-xs font-bold text-teal flex items-center gap-1.5">
-                              <span>💡</span>
-                              <span>
-                                {language === "en" 
-                                  ? `You have ₪${credit.toFixed(2)} credit with this supplier.` 
-                                  : `لديك رصيد دائن مستحق عند هذا المورد: ₪${credit.toFixed(2)}.`}
-                              </span>
-                            </p>
-                            <p className="text-[11px] text-teal mt-1">
-                              {language === "en" 
-                                ? 'It will be automatically deducted to settle this invoice.' 
-                                : 'سيتم خصم قيمة الفاتورة تلقائياً من رصيدك الدائن عند هذا المورد.'}
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </div>
+      <InvoicePreviewPdfModal
+        invoice={previewInvoice}
+        branches={branches}
+        pharmacyName={user?.pharmacyName}
+        lang={language}
+        onClose={() => setPreviewInvoice(null)}
+      />
 
-                  {/* Invoice Number */}
-                  <div>
-                    <label className="block text-[13px] font-black text-ink-soft uppercase tracking-wide mb-1.5">
-                      {language === "en" ? "Supplier Invoice No" : "رقم فاتورة المورد"}
-                    </label>
-                    <input
-                      type="text"
-                      value={form.invoice_number}
-                      onChange={(e) =>
-                        setForm((p) => ({
-                          ...p,
-                          invoice_number: e.target.value,
-                        }))
-                      }
-                      placeholder={language === "en" ? "Optional" : "اختياري"}
-                      className="w-full bg-white border border-mint-line rounded-xl px-4 py-3 text-[14px] font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-                    />
-                  </div>
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title={
+          deleteTarget && isDraftStatus(deleteTarget.status)
+            ? isEn
+              ? "Delete Draft Order?"
+              : "حذف الطلبية المبدئية؟"
+            : isEn
+            ? "Reverse & Delete Invoice?"
+            : "إلغاء وعكس فاتورة الشراء؟"
+        }
+        message={
+          deleteTarget && isDraftStatus(deleteTarget.status)
+            ? isEn
+              ? "This draft purchase order has not entered inventory and will be permanently deleted."
+              : "لم تدخل هذه الطلبية للمخزون بعد وسيتم حذفها نهائياً."
+            : isEn
+            ? "Deleting a completed invoice reverses untouched stock batches and restores supplier debt balance (preserving separate vouchers as credit). If any item has already been sold, deletion is blocked."
+            : "سيتم عكس الكميات من المخزون وتعديل رصيد المورد مع الحفاظ على أي سندات صرف منفصلة كرصيد دائن لنا. إذا تم بيع جزء من البضاعة سيتم رفض الإلغاء تلقائياً."
+        }
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+        confirmText={isEn ? "Yes, Confirm" : "نعم، تأكيد"}
+        cancelText={isEn ? "Cancel" : "تراجع"}
+        isDestructive={true}
+      />
 
-                  {/* Branch */}
-                  {(user?.role === "owner" || user?.role === "manager" || user?.role === "superadmin") &&
-                    branches.length > 0 && (
-                      <div>
-                        <label className="block text-[13px] font-black text-ink-soft uppercase tracking-wide mb-1.5">
-                          الفرع
-                        </label>
-                        <select
-                          value={form.branch_id}
-                          onChange={(e) =>
-                            setForm((p) => ({
-                              ...p,
-                              branch_id: e.target.value,
-                            }))
-                          }
-                          className="w-full bg-white border border-mint-line rounded-xl px-4 py-3 text-[14px] font-bold text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-                        >
-                          {branches.length === 0 && (
-                            <option value="all">{language === 'en' ? 'Main Branch' : 'الفرع الرئيسي'}</option>
-                          )}
-                          {branches.map((b: any) => (
-                            <option key={b.id} value={b.id}>
-                              {b.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                  {/* Paid Amount */}
-                  {form.status !== "draft" && (
-                    <div>
-                      <label className="block text-[13px] font-black text-ink-soft uppercase tracking-wide mb-1.5">
-                        {language === "en" ? "Paid Amount (₪)" : "المبلغ المدفوع (₪)"}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={form.paid_amount}
-                        onChange={(e) =>
-                          setForm({ ...form, paid_amount: e.target.value })
-                        }
-                        onFocus={(e) => e.target.select()}
-                        onClick={(e) => (e.target as HTMLInputElement).select()}
-                        placeholder="0.00"
-                        className="w-full bg-white border border-mint-line rounded-xl px-4 py-3 text-[15px] font-mono font-black text-teal outline-none focus:border-teal focus:ring-2 focus:ring-teal/20 transition-all"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Total block */}
-                <div className="p-5 border-t border-mint-line bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[14px] font-bold text-ink-soft">
-                      {language === "en" ? "Grand Total" : "الإجمالي الكلي"}
-                    </span>
-                    <span className="text-[24px] font-mono font-black text-primary">
-                      ₪{cartTotal.toFixed(2)}
-                    </span>
-                  </div>
-                  {(() => {
-                    const sel = suppliers.find((s: any) => s.id === form.supplier_id);
-                    const availCredit = sel && Number(sel.balance) < 0 ? Math.abs(Number(sel.balance)) : 0;
-                    const paid = parseFloat(form.paid_amount) || 0;
-                    const unpaidBeforeCredit = Math.max(0, cartTotal - paid);
-                    const creditOffset = Math.min(availCredit, unpaidBeforeCredit);
-                    const finalRemaining = unpaidBeforeCredit - creditOffset;
-
-                    return (
-                      <div className="space-y-1.5 mt-2 pt-2 border-t border-dashed border-mint-line">
-                        {paid > 0 && (
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-ink-soft">{language === "en" ? "Cash Paid" : "المدفوع نقداً"}</span>
-                            <span className="font-mono font-bold text-teal">₪{paid.toFixed(2)}</span>
-                          </div>
-                        )}
-                        {creditOffset > 0 && (
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="font-bold text-teal">{language === "en" ? "Auto Credit Offset" : "خصم تلقائي من الرصيد"}</span>
-                            <span className="font-mono font-bold text-teal">- ₪{creditOffset.toFixed(2)} ✓</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between items-center pt-1 border-t border-mint-line">
-                          <span className="text-[13px] font-bold text-ink-soft">
-                            {language === "en" ? "Remaining (Debt)" : "المتبقي (دين)"}
-                          </span>
-                          <span className={`text-[16px] font-mono font-black ${finalRemaining === 0 ? 'text-teal' : 'text-coral'}`}>
-                            {finalRemaining === 0 
-                              ? (language === "en" ? "₪0.00 (Fully Settled ✓)" : "₪0.00 (مسددة بالكامل ✓)")
-                              : `₪${finalRemaining.toFixed(2)}`}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {/* LEFT PANEL — Items */}
-              <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
-                {/* Search bar */}
-                <div className="px-6 py-4 border-b border-mint-line bg-white shrink-0">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="relative flex-1">
-                      <div className="flex items-center gap-3 bg-bg border border-mint-line rounded-xl px-4 py-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-                        <svg
-                          className="w-5 h-5 text-ink-soft shrink-0"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                          />
-                        </svg>
-                        <input
-                          type="text"
-                          value={itemSearch}
-                          onChange={(e) => {
-                            setItemSearch(e.target.value);
-                            setShowDrop(true);
-                          }}
-                          onFocus={() => setShowDrop(true)}
-                          placeholder={language === "en" ? "Search and add item..." : "ابحث عن صنف وأضفه..."}
-                          className="flex-1 bg-transparent text-[15px] outline-none placeholder:text-ink-soft/70"
-                        />
-                      </div>
-                      {showDrop && itemSearch && (
-                        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-mint-line rounded-xl shadow-xl z-50 overflow-hidden max-h-60 overflow-y-auto">
-                          {filteredInv.map((d: any) => (
-                            <button
-                              key={d.id}
-                              type="button"
-                              onClick={() => addItemToCart(d)}
-                              className="w-full flex items-center justify-between px-5 py-3 hover:bg-bg transition-colors text-start border-b border-mint-line last:border-0"
-                            >
-                              <div className="flex flex-col text-start">
-                                <span className="text-[15px] font-bold text-ink">
-                                  {d.name}
-                                </span>
-                                {d.scientificName && (
-                                  <span className="text-[12px] text-ink-soft font-mono">
-                                    {d.scientificName}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-[13px] font-mono text-ink-soft">
-                                {language === "en" ? "In Stock:" : "في المخزون:"} {formatQty(d.qty, d.units, language)}
-                              </span>
-                            </button>
-                          ))}
-                          {filteredInv.length === 0 && (
-                            <div className="p-5 text-center">
-                              <p className="text-[14px] text-ink-soft mb-3">
-                                {language === "en" ? `"${itemSearch}" not found` : `"${itemSearch}" غير موجود`}
-                              </p>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setShowDrop(false);
-                                  setNewItem({ ...newItem, name: itemSearch });
-                                  setShowQuickAdd(true);
-                                }}
-                                className="px-4 py-2 bg-primary text-white rounded-lg text-[14px] font-bold hover:opacity-90 transition-all"
-                              >
-                                + إضافته كصنف جديد
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={pullLowStock}
-                      className="flex items-center gap-2 text-[14px] font-bold text-primary bg-primary-pale hover:bg-primary hover:text-white px-4 py-3 rounded-xl transition-all whitespace-nowrap"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2.5"
-                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                        />
-                      </svg>
-                      {language === "en" ? "Fetch Shortages" : "جلب النواقص"}
-                    </button>
-                  </div>
-                  <p className="text-[13px] text-ink-soft">
-                    {cartItems.length} {language === "en" ? "items added • Click on item to edit quantity and price" : "صنف مضاف • اضغط على الصنف لتعديل الكمية والسعر"}
-
-                  </p>
-                </div>
-
-                {/* Items list */}
-                <div className="flex-1 overflow-y-auto">
-                  {cartItems.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-center py-16">
-                      <div className="w-20 h-20 bg-bg rounded-3xl flex items-center justify-center mb-5 border border-mint-line">
-                        <svg
-                          className="w-10 h-10 text-ink-soft/50"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="1.5"
-                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                          />
-                        </svg>
-                      </div>
-                      <p className="text-[18px] font-black text-ink-soft">
-                        {language === "en" ? "No items added yet" : "لم تضف أصنافاً بعد"}
-                      </p>
-                      <p className="text-[14px] text-ink-soft/70 mt-2">
-                        {language === "en" ? "Search for an item above to add to the invoice" : "ابحث عن صنف في الأعلى لإضافته للفاتورة"}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-transparent">
-                      {cartItems.map((item, idx) => {
-                        const hasParts = item.has_parts || false;
-                        const hasSubparts = item.has_subparts || false;
-                        const p1Name = item.part1_name || "شريط";
-                        const p2Name = item.part2_name || "حبة";
-                        const unitSize =
-                          (hasParts ? item.part1_qty || 1 : 1) *
-                          (hasParts && hasSubparts ? item.part2_qty || 1 : 1);
-                        const effectiveQty = Math.round(item.qty * unitSize);
-                        const upd = (field: string, val: any) =>
-                          setCartItems((c) =>
-                            c.map((i, j) => {
-                              if (j !== idx) return i;
-                              const n = { ...i, [field]: val };
-                              if (field === "expiry" || field === "expiry_date") {
-                                n.expiry = val;
-                                n.expiry_date = val;
-                              }
-                              if (
-                                [
-                                  "sell_price",
-                                  "part1_qty",
-                                  "part2_qty",
-                                  "has_parts",
-                                  "has_subparts",
-                                ].includes(field)
-                              ) {
-                                if (n.has_parts && (parseInt(n.part1_qty) || 0) > 0) {
-                                  const sp = parseFloat(n.sell_price);
-                                  const p1q = parseInt(n.part1_qty) || 1;
-                                  if (!isNaN(sp) && sp > 0) {
-                                    n.part1_price = Number(
-                                      (sp / p1q).toFixed(2),
-                                    );
-                                    if (n.has_subparts && (parseInt(n.part2_qty) || 0) > 0) {
-                                      const p2q = parseInt(n.part2_qty) || 1;
-                                      n.part2_price = Number(
-                                        (n.part1_price / p2q).toFixed(2),
-                                      );
-                                    }
-                                  } else {
-                                    n.part1_price = "";
-                                    if (n.has_subparts) n.part2_price = "";
-                                  }
-                                }
-                              }
-                              return n;
-                            }),
-                          );
-
-                        return (
-                          <div
-                            key={idx}
-                            className={`px-6 py-6 transition-colors ${idx % 2 === 0 ? "bg-white" : "bg-[#F8FAFC]"}`}
-                          >
-                            {/* Name + Delete */}
-                            <div
-                              className="flex items-center justify-between mb-6"
-                              dir="rtl"
-                            >
-                              <div className="flex flex-col text-start">
-                                <span className="font-black text-[15px] text-ink">
-                                  {item.name}
-                                </span>
-                                {item.scientificName && (
-                                  <span className="text-[12px] text-ink-soft font-mono">
-                                    {item.scientificName}
-                                  </span>
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setCartItems((c) =>
-                                    c.filter((_, j) => j !== idx),
-                                  )
-                                }
-                                className="text-coral hover:bg-coral-pale p-1.5 rounded-lg transition-colors"
-                              >
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2.5"
-                                    d="M6 18L18 6M6 6l12 12"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
-
-                            {/* Base Qty & Price & Expiry */}
-                            <div
-                              className="grid grid-cols-2 sm:grid-cols-5 gap-3 items-end mb-5"
-                              dir="rtl"
-                            >
-                              {/* الكمية */}
-                              <div>
-                                <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                  {language === "en" ? "Quantity (Box)" : "الكمية (علبة)"}
-                                </label>
-                                <div className="flex items-center bg-white rounded-xl border border-[#CBD5E1] overflow-hidden w-full h-[42px]">
-                                  <button
-                                    type="button"
-                                    onClick={() => upd("qty", (parseFloat(item.qty) || 0) + 1)}
-                                    className="w-10 h-full flex items-center justify-center text-ink-soft hover:bg-bg font-light text-[18px] transition-colors"
-                                  >
-                                    +
-                                  </button>
-                                  <input
-                                    type="number"
-                                    value={item.qty ?? ""}
-                                    onChange={(e) =>
-                                      upd("qty", e.target.value)
-                                    }
-                                    onFocus={(e) => e.target.select()}
-                                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                                    className="flex-1 w-full text-center font-mono font-black text-[14px] text-ink outline-none border-x border-[#CBD5E1] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      upd("qty", Math.max(1, (parseFloat(item.qty) || 1) - 1))
-                                    }
-                                    className="w-10 h-full flex items-center justify-center text-ink-soft hover:bg-bg font-light text-[18px] transition-colors"
-                                  >
-                                    −
-                                  </button>
-                                </div>
-                              </div>
-                              {/* سعر الشراء */}
-                              <div>
-                                <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                  {language === "en" ? "Purchase price (box)" : "سعر شراء العلبة"}
-                                </label>
-                                <div className="relative">
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    value={item.purchase_price ?? ""}
-                                    onChange={(e) =>
-                                      upd("purchase_price", e.target.value)
-                                    }
-                                    onFocus={(e) => e.target.select()}
-                                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                                    placeholder="0.00"
-                                    className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[14px] font-mono font-bold outline-none focus:border-primary text-center h-[42px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                  />
-                                  <span className="absolute left-3 top-3 text-[12px] text-ink-soft font-bold">
-                                    ₪
-                                  </span>
-                                </div>
-                              </div>
-                              {/* سعر البيع */}
-                              <div>
-                                <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                  {language === "en" ? "Sale price (box)" : "سعر بيع العلبة"}
-                                </label>
-                                <div className="relative">
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    value={item.sell_price ?? ""}
-                                    onChange={(e) =>
-                                      upd("sell_price", e.target.value)
-                                    }
-                                    onFocus={(e) => e.target.select()}
-                                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                                    placeholder="0.00"
-                                    className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[14px] font-mono font-bold outline-none focus:border-primary text-center h-[42px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                  />
-                                  <span className="absolute left-3 top-3 text-[12px] text-ink-soft font-bold">
-                                    ₪
-                                  </span>
-                                </div>
-                              </div>
-                              {/* تاريخ الصلاحية */}
-                              <div>
-                                <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                  {language === "en" ? "Expiry Date" : "تاريخ الصلاحية"}
-                                </label>
-                                <input
-                                  type="date"
-                                  value={item.expiry || item.expiry_date || ""}
-                                  onChange={(e) =>
-                                    upd("expiry", e.target.value)
-                                  }
-                                  className="w-full bg-white border border-[#CBD5E1] rounded-xl px-2 py-2 text-[12px] font-bold text-ink outline-none focus:border-primary text-center h-[42px] transition-colors"
-                                />
-                              </div>
-                              {/* الإجمالي */}
-                              <div>
-                                <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                  {language === "en" ? "Total for boxes" : "الإجمالي للعلب"}
-                                </label>
-                                <div className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl px-3 text-[15px] font-mono font-black text-primary text-center h-[42px] flex items-center justify-center">
-                                  ₪
-                                  {(
-                                    (parseFloat(item.qty) || 0) * (parseFloat(item.purchase_price) || 0)
-                                  ).toFixed(2)}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Parts Toggle Area */}
-                            <div
-                              className="border border-ink-soft/30 rounded-2xl p-4 mb-4 bg-white"
-                              dir="rtl"
-                            >
-                              <label className="flex items-center justify-start gap-3 cursor-pointer group">
-                                <div
-                                  className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors ${hasParts ? "bg-ink border-ink" : "bg-white border-[#CBD5E1]"}`}
-                                >
-                                  {hasParts && (
-                                    <svg
-                                      className="w-3.5 h-3.5 text-white"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="4"
-                                        d="M5 13l4 4L19 7"
-                                      />
-                                    </svg>
-                                  )}
-                                </div>
-                                <span className="text-[13px] font-bold text-ink">
-                                  {language === "en" ? "Sold in parts (strips/pills)?" : "يُباع بالأجزاء (أشرطة / حبات)؟"}
-                                </span>
-                                <input
-                                  type="checkbox"
-                                  className="hidden"
-                                  checked={hasParts}
-                                  onChange={(e) =>
-                                    upd("has_parts", e.target.checked)
-                                  }
-                                />
-                              </label>
-
-                              {hasParts && (
-                                <div className="mt-4 pt-4 border-t border-ink-soft/30">
-                                  <h4 className="text-[12px] font-bold text-ink-soft mb-4 text-start">
-                                    {language === "en" ? "First part (e.g. strip)" : "الجزء الأول (مثال: شريط)"}
-                                  </h4>
-                                  <div className="flex flex-wrap gap-4 mb-5">
-                                    <div className="flex-1 min-w-[100px]">
-                                      <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                        {language === "en" ? "Part name" : "اسم الجزء"}
-                                      </label>
-                                      <select
-                                        value={p1Name}
-                                        onChange={(e) =>
-                                          upd("part1_name", e.target.value)
-                                        }
-                                        className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[13px] font-bold text-ink outline-none focus:border-primary text-start h-[40px]"
-                                      >
-                                        <option value="شريط">{language === "en" ? "Strip" : "شريط"}</option>
-                                        <option value="أمبولة">{language === "en" ? "Ampoule" : "أمبولة"}</option>
-                                        <option value="مغلف">{language === "en" ? "Sachet" : "مغلف"}</option>
-                                        <option value="قطرة">{language === "en" ? "Drop" : "قطرة"}</option>
-                                      </select>
-                                    </div>
-                                    <div className="flex-1 min-w-[110px]">
-                                      <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                        {language === "en" ? `How many ${tName(p1Name)}s in a box?` : `كم ${p1Name} في العلبة؟`}
-                                      </label>
-                                      <input
-                                        type="number"
-                                        min="1"
-                                        value={item.part1_qty ?? ""}
-                                        onChange={(e) =>
-                                          upd("part1_qty", e.target.value)
-                                        }
-                                        onFocus={(e) => e.target.select()}
-                                        onClick={(e) => (e.target as HTMLInputElement).select()}
-                                        placeholder="10"
-                                        className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[14px] font-mono outline-none focus:border-primary text-center h-[40px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                      />
-                                    </div>
-                                    <div className="flex-1 min-w-[100px]">
-                                      <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                        {language === "en" ? `Price per ${tName(p1Name)}` : `سعر الـ ${p1Name}`}
-                                      </label>
-                                      <div className="relative">
-                                        <input
-                                          type="number"
-                                          step="0.01"
-                                          value={item.part1_price ?? ""}
-                                          onChange={(e) =>
-                                            upd("part1_price", e.target.value)
-                                          }
-                                          onFocus={(e) => e.target.select()}
-                                          onClick={(e) => (e.target as HTMLInputElement).select()}
-                                          placeholder="0.00"
-                                          className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[14px] font-mono outline-none focus:border-primary text-center h-[40px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                        />
-                                        <span className="absolute left-3 top-2.5 text-[11px] text-ink-soft font-bold">
-                                          ₪
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <label className="flex items-center justify-start gap-3 cursor-pointer group mt-2">
-                                    <div
-                                      className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors ${hasSubparts ? "bg-ink border-ink" : "bg-white border-[#CBD5E1]"}`}
-                                    >
-                                      {hasSubparts && (
-                                        <svg
-                                          className="w-3.5 h-3.5 text-white"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="4"
-                                            d="M5 13l4 4L19 7"
-                                          />
-                                        </svg>
-                                      )}
-                                    </div>
-                                    <span className="text-[12px] font-bold text-ink">
-                                      {language === "en" ? `Is ${tName(p1Name)} sold in smaller parts?` : `هل يباع الـ ${p1Name} مجزأ؟ (مثال: حبة)`}
-                                    </span>
-                                    <input
-                                      type="checkbox"
-                                      className="hidden"
-                                      checked={hasSubparts}
-                                      onChange={(e) =>
-                                        upd("has_subparts", e.target.checked)
-                                      }
-                                    />
-                                  </label>
-
-                                  {hasSubparts && (
-                                    <div className="mt-4 pt-4 border-t border-ink-soft/30 flex flex-wrap gap-4">
-                                      <div className="flex-1 min-w-[100px]">
-                                        <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">{language === "en" ? "Part name" : "اسم الجزء"}</label>
-                                        <select
-                                          value={p2Name}
-                                          onChange={(e) =>
-                                            upd("part2_name", e.target.value)
-                                          }
-                                          className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[13px] font-bold text-ink outline-none focus:border-primary text-start h-[40px]"
-                                        >
-                                          <option value="حبة">{language === "en" ? "Pill" : "حبة"}</option>
-                                          <option value="مل">{language === "en" ? "ml" : "مل"}</option>
-                                          <option value="غرام">{language === "en" ? "Gram" : "غرام"}</option>
-                                        </select>
-                                      </div>
-                                      <div className="flex-1 min-w-[110px]">
-                                        <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                          {language === "en" ? `How many ${tName(p2Name)}s in a ${tName(p1Name)}?` : `كم ${p2Name} في الـ ${p1Name}؟`}
-                                        </label>
-                                        <input
-                                          type="number"
-                                          min="1"
-                                          value={item.part2_qty ?? ""}
-                                          onChange={(e) =>
-                                            upd("part2_qty", e.target.value)
-                                          }
-                                          onFocus={(e) => e.target.select()}
-                                          onClick={(e) => (e.target as HTMLInputElement).select()}
-                                          placeholder="10"
-                                          className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[14px] font-mono outline-none focus:border-primary text-center h-[40px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                        />
-                                      </div>
-                                      <div className="flex-1 min-w-[100px]">
-                                        <label className="block text-[11px] font-bold text-ink-soft mb-2 text-start">
-                                          {language === "en" ? `Price per ${tName(p2Name)}` : `سعر الـ ${p2Name}`}
-                                        </label>
-                                        <div className="relative">
-                                          <input
-                                            type="number"
-                                            step="0.01"
-                                            value={item.part2_price ?? ""}
-                                            onChange={(e) =>
-                                              upd("part2_price", e.target.value)
-                                            }
-                                            onFocus={(e) => e.target.select()}
-                                            onClick={(e) => (e.target as HTMLInputElement).select()}
-                                            placeholder="0.00"
-                                            className="w-full bg-white border border-[#CBD5E1] rounded-xl px-3 py-2 text-[14px] font-mono outline-none focus:border-primary text-center h-[40px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                          />
-                                          <span className="absolute left-3 top-2.5 text-[11px] text-ink-soft font-bold">
-                                            ₪
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Effective Qty badge */}
-                            <div className="flex justify-start" dir="rtl">
-                              <div className="bg-[#F8FAFC] text-ink px-4 py-2.5 rounded-full border border-ink-soft/30 text-[12px] font-bold inline-flex items-center gap-2">
-                                📦 {language === "en" ? "Will be added to stock:" : "سيتم إضافة للمخزون:"} {" "}
-                                <span className="font-mono text-[14px] font-black">
-                                  {effectiveQty}
-                                </span>{" "}
-                                {hasParts
-                                  ? hasSubparts
-                                    ? p2Name
-                                    : p1Name
-                                  : "علبة"}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* ── Footer ── */}
-            <div className="px-6 py-4 border-t border-mint-line bg-white flex gap-4 shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={loading}
-                className="flex-1 bg-primary text-white font-black py-4 text-[16px] rounded-2xl hover:opacity-90 disabled:opacity-50 transition-all shadow-[0_8px_16px_rgba(20,184,166,0.25)] flex items-center justify-center gap-2"
-              >
-                {loading
-                  ? "جاري الحفظ..."
-                  : form.status === "draft"
-                    ? (language === "en" ? "💾 Save as Draft" : "💾 حفظ كطلبية مبدئية")
-                    : (language === "en" ? "✅ Save and Enter to Stock" : "✅ حفظ وإدخال للمخزون")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowAdd(false)}
-                className="px-8 py-4 bg-bg text-ink text-[16px] font-bold rounded-2xl hover:bg-mint-line transition-all"
-              >
-                {language === "en" ? "Cancel" : "إلغاء"}
-              </button>
-            </div>
+      {/* Offscreen A4 PDF Render Target for Quick One-Click PDF */}
+      {pdfInvoice && (
+        <div className="fixed -left-[9999px] top-0 w-[794px] bg-white text-slate-900 p-8" ref={pdfRef} dir={isEn ? "ltr" : "rtl"}>
+          <div className="text-center pb-4 mb-4 border-b-2 border-slate-200">
+            <h2 className="text-2xl font-black">{pdfInvoice.supplier_name || (isEn ? "No Supplier" : "بدون مورد")}</h2>
+            <p className="text-sm font-mono text-slate-600 mt-1">
+              #{pdfInvoice.invoice_number || pdfInvoice.id} • {resolveBranchName(pdfInvoice.branch_id, branches, language)} •{" "}
+              {formatInvoiceStatus(pdfInvoice.status, language).label}
+            </p>
           </div>
-          {showDrop && (
-            <div
-              className="absolute inset-0 z-[5]"
-              onClick={() => setShowDrop(false)}
-            />
-          )}
-        </div>
-      )}
-
-      {/* ===== Quick Add Item Modal ===== */}
-      {showQuickAdd && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
-            onClick={() => setShowQuickAdd(false)}
-          />
-          <div className="relative bg-white rounded-3xl w-full max-w-md shadow-2xl border border-mint-line z-10 overflow-hidden flex flex-col max-h-[90vh]">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-mint-line bg-white shrink-0">
-              <div>
-                <h3 className="text-[17px] font-black text-ink">
-                  تعريف صنف جديد
-                </h3>
-                <p className="text-[11px] text-ink-soft">
-                  سيُضاف للمخزون وللفاتورة معاً
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowQuickAdd(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-bg hover:bg-mint-line text-ink-soft transition-colors"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2.5"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            {/* Body */}
-            <div
-              className="flex-1 overflow-y-auto px-6 py-5 space-y-4"
-              dir="rtl"
-            >
-              {/* الاسم التجاري */}
-              <div>
-                <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                  {language === "en" ? "Trade Name (Brand Name) *" : "الاسم التجاري *"}{" "}
-                  <span className="text-coral">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={newItem.name}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, name: e.target.value })
-                  }
-                  autoFocus
-                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[14px] font-bold outline-none focus:border-primary transition-colors text-start"
-                  placeholder={language === "en" ? "e.g. Augmentin 1g / Panadol Extra" : "مثال: أوجمنتين 1 جم / بنادول إكسترا"}
-                />
-              </div>
-
-              {/* الاسم العلمي */}
-              <div>
-                <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                  {language === "en" ? "Scientific / Generic Name" : "الاسم العلمي (المادة الفعالة)"}
-                </label>
-                <input
-                  type="text"
-                  value={newItem.scientificName}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, scientificName: e.target.value })
-                  }
-                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold outline-none focus:border-primary transition-colors text-start"
-                  placeholder={language === "en" ? "e.g. Amoxicillin / Paracetamol" : "مثال: أموكسيسيلين / باراسيتامول"}
-                />
-              </div>
-
-              {/* الشركة المصنعة + الفئة */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                    {language === "en" ? "Manufacturer" : "الشركة المصنّعة"}
-                  </label>
-                  <input
-                    type="text"
-                    value={newItem.company}
-                    onChange={(e) =>
-                      setNewItem({ ...newItem, company: e.target.value })
-                    }
-                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold outline-none focus:border-primary transition-colors text-start"
-                    placeholder={language === "en" ? "e.g. Pfizer / Hikma / GSK" : "مثال: فايزر / الحكمة / دار الدواء"}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                    {language === "en" ? "Category" : "الفئة العلاجية"}
-                  </label>
-                  <input
-                    type="text"
-                    value={newItem.category}
-                    onChange={(e) =>
-                      setNewItem({ ...newItem, category: e.target.value })
-                    }
-                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold outline-none focus:border-primary transition-colors text-start"
-                    placeholder={language === "en" ? "e.g. Antibiotic" : "مثال: مضاد حيوي / مسكن"}
-                  />
-                </div>
-              </div>
-
-              {/* سعر الشراء + سعر البيع + الكمية الدنيا */}
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                    {language === "en" ? "Purchase Price (₪)" : "سعر الشراء (₪)"}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newItem.price_buy}
-                    onChange={(e) =>
-                      setNewItem({ ...newItem, price_buy: e.target.value })
-                    }
-                    onFocus={(e) => e.target.select()}
-                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                    className="w-full bg-bg border border-mint-line rounded-xl px-3 py-2.5 text-[13px] font-mono font-bold outline-none focus:border-primary transition-colors text-center"
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                    {language === "en" ? "Selling Price (₪)" : "سعر البيع (₪)"} <span className="text-coral">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newItem.price_sell}
-                    onChange={(e) =>
-                      setNewItem({ ...newItem, price_sell: e.target.value })
-                    }
-                    onFocus={(e) => e.target.select()}
-                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                    className="w-full bg-bg border border-mint-line rounded-xl px-3 py-2.5 text-[13px] font-mono font-bold outline-none focus:border-primary transition-colors text-center"
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                    {language === "en" ? "Min Qty" : "الحد الأدنى"}
-                  </label>
-                  <input
-                    type="number"
-                    value={newItem.minQty}
-                    onChange={(e) =>
-                      setNewItem({ ...newItem, minQty: e.target.value })
-                    }
-                    onFocus={(e) => e.target.select()}
-                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                    className="w-full bg-bg border border-mint-line rounded-xl px-3 py-2.5 text-[13px] font-mono font-bold outline-none focus:border-primary transition-colors text-center"
-                    placeholder="5"
-                  />
-                </div>
-              </div>
-
-              {/* تاريخ الصلاحية + رقم الدفعة */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                    {language === "en" ? "Expiry Date" : "تاريخ الصلاحية"}
-                  </label>
-                  <input
-                    type="date"
-                    value={newItem.expiry}
-                    onChange={(e) =>
-                      setNewItem({ ...newItem, expiry: e.target.value })
-                    }
-                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold outline-none focus:border-primary transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-black text-ink-soft mb-1.5">
-                    {language === "en" ? "Barcode" : "الباركود"}
-                  </label>
-                  <input
-                    type="text"
-                    value={newItem.barcode}
-                    onChange={(e) =>
-                      setNewItem({ ...newItem, barcode: e.target.value })
-                    }
-                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-mono font-bold outline-none focus:border-primary transition-colors text-start"
-                    placeholder={language === "en" ? "Optional" : "اختياري"}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-mint-line bg-bg shrink-0">
-              <button
-                type="button"
-                onClick={handleQuickAdd}
-                disabled={loading}
-                className="w-full bg-primary text-white font-black py-3 rounded-2xl hover:opacity-90 disabled:opacity-50 shadow-md shadow-primary/20 transition-all text-[15px]"
-              >
-                {loading
-                  ? (language === "en" ? "Adding..." : "جاري الإضافة...")
-                  : (language === "en" ? "✅ Add to Inventory & Invoice" : "✅ إضافة للمخزون وإدراج بالفاتورة")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===== Preview Modal ===== */}
-      {showPreview && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
-            onClick={() => setShowPreview(null)}
-          />
-          <div className="relative bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-mint-line z-10 overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-mint-line">
-              <h3 className="text-[18px] font-black text-ink">
-                {language === "en" ? "Invoice Preview" : "معاينة الفاتورة"}
-              </h3>
-              <button
-                onClick={() => setShowPreview(null)}
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-bg hover:bg-mint-line transition-colors text-ink-soft"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-6 py-5" id="print-area">
-              <div className="text-center mb-6 pb-5 border-b-2 border-dashed border-mint-line">
-                <div className="w-16 h-16 bg-primary-pale rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <svg
-                    className="w-8 h-8 text-primary"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="1.5"
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                </div>
-                <h2 className="text-[22px] font-black text-ink">
-                  {showPreview.supplier_name || language === "en" ? "No Supplier" : "بدون مورد"}
-                </h2>
-                {showPreview.invoice_number && (
-                  <p className="text-[14px] font-mono text-ink-soft mt-1">
-                    {language === "en" ? "Invoice No:" : "رقم الفاتورة:"} {showPreview.invoice_number}
-                  </p>
-                )}
-                <p className="text-[13px] text-ink-soft mt-1">
-                  {new Date(showPreview.date).toLocaleDateString(language === "en" ? "en-US" : "ar-EG", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </p>
-                <div className="mt-3">
-                  <StatusBadge inv={showPreview} />
-                </div>
-              </div>
-              <table className="w-full text-start">
-                <thead>
-                  <tr className="border-b border-mint-line">
-                    <th className="pb-2 text-[13px] font-black text-ink-soft text-start">
-                      الصنف
-                    </th>
-                    <th className="pb-2 text-[13px] font-black text-ink-soft text-center">
-                      الكمية
-                    </th>
-                    <th className="pb-2 text-[13px] font-black text-ink-soft text-start">
-                      السعر
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-mint-line">
-                  {parseItems(showPreview.items).map(
-                    (item: any, idx: number) => (
-                      <tr key={idx}>
-                        <td className="py-3 text-[14px] font-bold text-ink">
-                          <div>{item.name}</div>
-                          {(item.expiry || item.expiry_date) && (
-                            <div className="text-[11px] font-mono font-semibold text-ink-soft mt-0.5">
-                              {language === "en" ? "Exp: " : "الصلاحية: "}
-                              {item.expiry || item.expiry_date}
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-3 text-[14px] font-mono text-center text-ink">
-                          {item.qty}
-                        </td>
-                        <td className="py-3 text-[14px] font-mono font-bold text-ink text-start">
-                          ₪{(item.purchase_price || 0).toFixed(2)}
-                        </td>
-                      </tr>
-                    ),
-                  )}
-                </tbody>
-              </table>
-              <div className="mt-4 pt-4 border-t-2 border-dashed border-mint-line space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-[16px] font-black text-ink">
-                    {language === "en" ? "Grand Total" : "الإجمالي الكلي"}
-                  </span>
-                  <span className="text-[22px] font-mono font-black text-primary">
-                    ₪{(showPreview.total_cost || 0).toFixed(2)}
-                  </span>
-                </div>
-                {getEffectivePaid(showPreview) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-[14px] font-bold text-ink-soft">
-                      {language === "en" ? "Paid" : "المدفوع"}
-                    </span>
-                    <span className="text-[14px] font-mono font-bold text-teal">
-                      ₪{getEffectivePaid(showPreview).toFixed(2)}
-                    </span>
-                  </div>
-                )}
-                {(showPreview.credit_settled || 0) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-[14px] font-bold text-teal">
-                      {language === "en" ? "Auto Credit Offset" : "مخصوم من رصيد المورد"}
-                    </span>
-                    <span className="text-[14px] font-mono font-bold text-teal">
-                      - ₪{(showPreview.credit_settled || 0).toFixed(2)} ✓
-                    </span>
-                  </div>
-                )}
-                {getEffectiveRemaining(showPreview) > 0 ? (
-                  <div className="flex justify-between">
-                    <span className="text-[14px] font-bold text-ink-soft">
-                      {language === "en" ? "Remaining" : "المتبقي"}
-                    </span>
-                    <span className="text-[14px] font-mono font-bold text-coral">
-                      ₪{getEffectiveRemaining(showPreview).toFixed(2)}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex justify-between items-center py-1 bg-mint-light/40 px-2 rounded-lg">
-                    <span className="text-[14px] font-bold text-teal">
-                      {language === "en" ? "Status" : "الحالة"}
-                    </span>
-                    <span className="text-[13px] font-black text-teal">
-                      {language === "en" ? "Fully Paid ✓" : "مدفوعة بالكامل ✓"}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-mint-line flex gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  const el = document.getElementById("print-area");
-                  if (el) {
-                    const w = window.open("", "_blank");
-                    if (w) {
-                      w.document.write(
-                        `<html dir="rtl"><head><style>body{font-family:Arial;padding:20px;direction:rtl} table{width:100%;border-collapse:collapse} td,th{padding:8px;border-bottom:1px solid #eee}</style></head><body>${el.innerHTML}</body></html>`,
-                      );
-                      w.document.close();
-                      w.print();
-                    }
-                  }
-                }}
-                className="flex-1 bg-primary text-white font-black py-4 rounded-2xl hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-md shadow-primary/20"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                  />
-                </svg>
-                {language === "en" ? "Print Invoice" : "طباعة الفاتورة"}
-              </button>
-
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    // @ts-ignore
-                    const html2pdf = (await import("html2pdf.js")).default;
-                    const el = pdfRef.current;
-                    if (el) {
-                      const opt = {
-                        margin: 0,
-                        filename: `فاتورة-${showPreview.id}.pdf`,
-                        image: { type: "jpeg" as const, quality: 0.98 },
-                        html2canvas: { scale: 2 },
-                        jsPDF: {
-                          unit: "mm",
-                          format: "a4",
-                          orientation: "portrait" as const,
-                        },
-                      };
-                      html2pdf().from(el).set(opt).save();
-                    }
-                  } catch (e) {
-                  }
-                }}
-                className="flex-1 bg-teal text-white font-black py-4 rounded-2xl hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-md shadow-teal/20"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                  />
-                </svg>
-                {language === "en" ? "Download PDF" : "تنزيل PDF"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Hidden A4 Template for PDF */}
-      {(pdfInvoice || showPreview) && (
-        <div style={{ position: "absolute", top: "-9999px", left: "-9999px" }}>
-          <div
-            ref={pdfRef}
-            style={{
-              width: "800px",
-              padding: "40px",
-              backgroundColor: "white",
-              color: "black",
-              direction: "rtl",
-              fontFamily: "Arial, sans-serif",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                borderBottom: "2px solid #14b8a6",
-                paddingBottom: "20px",
-                marginBottom: "20px",
-              }}
-            >
-              <div>
-                <h1
-                  style={{
-                    fontSize: "32px",
-                    fontWeight: "bold",
-                    margin: 0,
-                    color: "#0f172a",
-                  }}
-                >
-                  {(pdfInvoice || showPreview).status === "completed"
-                    ? language === "en" ? "Purchase Invoice" : "فاتورة مشتريات"
-                    : language === "en" ? "Purchase Order (Draft)" : "طلب شراء مبدئي"}
-                </h1>
-                <p
-                  style={{
-                    fontSize: "14px",
-                    color: "#64748b",
-                    marginTop: "8px",
-                  }}
-                >
-                  {language === "en" ? "Invoice No:" : "رقم الفاتورة:"}{" "}
-                  {(pdfInvoice || showPreview).invoice_number ||
-                    (pdfInvoice || showPreview).id}
-                </p>
-                <p
-                  style={{
-                    fontSize: "14px",
-                    color: "#64748b",
-                    marginTop: "4px",
-                  }}
-                >
-                  {language === "en" ? "Date:" : "التاريخ:"}{" "}
-                  {new Date(
-                    (pdfInvoice || showPreview).date,
-                  ).toLocaleDateString(language === "en" ? "en-US" : "ar-EG", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </p>
-              </div>
-              <div style={{ textAlign: "left" }}>
-                <h2
-                  style={{
-                    fontSize: "20px",
-                    fontWeight: "bold",
-                    margin: 0,
-                    color: "#0f172a",
-                  }}
-                >
-                  {(pdfInvoice || showPreview).status === "completed"
-                    ? language === "en" ? "Invoice from:" : "فاتورة قادمة من:"
-                    : language === "en" ? "Invoice to:" : "فاتورة إلى:"}
-                </h2>
-                <h3
-                  style={{
-                    fontSize: "18px",
-                    fontWeight: "bold",
-                    margin: "4px 0 0 0",
-                    color: "#14b8a6",
-                  }}
-                >
-                  {(pdfInvoice || showPreview).supplier_name || language === "en" ? "No Supplier" : "بدون مورد"}
-                </h3>
-                <p
-                  style={{
-                    fontSize: "14px",
-                    color: "#64748b",
-                    marginTop: "4px",
-                    maxWidth: "200px",
-                  }}
-                >
-                  {(pdfInvoice || showPreview).status === "completed"
-                    ? language === "en" ? "This invoice documents the receipt of medicines from the mentioned supplier and their actual entry into the inventory." : "هذه الفاتورة توثق استلام أدوية من المورد المذكور وإدخالها للمخزون بشكل فعلي."
-                    : language === "en" ? "This is a draft purchase order directed to the mentioned supplier to prepare the order." : "هذا طلب شراء مبدئي موجه للمورد المذكور لتجهيز الطلبية."}
-                </p>
-              </div>
-            </div>
-
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                marginBottom: "30px",
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    backgroundColor: "#f1f5f9",
-                    borderBottom: "2px solid #cbd5e1",
-                  }}
-                >
-                  <th
-                    style={{
-                      padding: "12px",
-                      textAlign: "right",
-                      fontSize: "14px",
-                      color: "#334155",
-                    }}
-                  >
-                    الرقم
-                  </th>
-                  <th
-                    style={{
-                      padding: "12px",
-                      textAlign: "right",
-                      fontSize: "14px",
-                      color: "#334155",
-                    }}
-                  >
-                    الصنف
-                  </th>
-                  <th
-                    style={{
-                      padding: "12px",
-                      textAlign: "center",
-                      fontSize: "14px",
-                      color: "#334155",
-                    }}
-                  >
-                    الكمية
-                  </th>
-                  <th
-                    style={{
-                      padding: "12px",
-                      textAlign: "left",
-                      fontSize: "14px",
-                      color: "#334155",
-                    }}
-                  >
-                    السعر الإفرادي
-                  </th>
-                  <th
-                    style={{
-                      padding: "12px",
-                      textAlign: "left",
-                      fontSize: "14px",
-                      color: "#334155",
-                    }}
-                  >
-                    الإجمالي
-                  </th>
+          <table className="w-full text-start border-collapse">
+            <thead>
+              <tr className="border-b-2 border-slate-200 text-xs font-black">
+                <th className="py-2 text-start">{isEn ? "Item" : "الصنف"}</th>
+                <th className="py-2 text-center">{isEn ? "Qty" : "الكمية"}</th>
+                <th className="py-2 text-center">{isEn ? "Cost" : "التكلفة"}</th>
+                <th className="py-2 text-end">{isEn ? "Total" : "الإجمالي"}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {safeJson<any[]>(pdfInvoice.items, []).map((it, i) => (
+                <tr key={i}>
+                  <td className="py-2 text-sm font-bold">{it.name}</td>
+                  <td className="py-2 text-sm font-mono text-center">{it.qty}</td>
+                  <td className="py-2 text-sm font-mono text-center">₪{Number(it.cost ?? it.purchase_price ?? 0).toFixed(2)}</td>
+                  <td className="py-2 text-sm font-mono font-bold text-end">
+                    ₪{(Number(it.qty || 0) * Number(it.cost ?? it.purchase_price ?? 0)).toFixed(2)}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {parseItems((pdfInvoice || showPreview).items).map(
-                  (item: any, idx: number) => (
-                    <tr key={idx} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                      <td
-                        style={{
-                          padding: "12px",
-                          textAlign: "right",
-                          fontSize: "14px",
-                          color: "#475569",
-                        }}
-                      >
-                        {idx + 1}
-                      </td>
-                      <td
-                        style={{
-                          padding: "12px",
-                          textAlign: "right",
-                          fontSize: "14px",
-                          fontWeight: "bold",
-                          color: "#0f172a",
-                        }}
-                      >
-                        {item.name}
-                      </td>
-                      <td
-                        style={{
-                          padding: "12px",
-                          textAlign: "center",
-                          fontSize: "14px",
-                          color: "#475569",
-                        }}
-                      >
-                        {item.qty}
-                      </td>
-                      <td
-                        style={{
-                          padding: "12px",
-                          textAlign: "left",
-                          fontSize: "14px",
-                          color: "#475569",
-                        }}
-                      >
-                        <span
-                          dir="ltr"
-                          style={{ display: "inline-block", direction: "ltr" }}
-                        >
-                          ₪ {(item.purchase_price || 0).toFixed(2)}
-                        </span>
-                      </td>
-                      <td
-                        style={{
-                          padding: "12px",
-                          textAlign: "left",
-                          fontSize: "14px",
-                          fontWeight: "bold",
-                          color: "#0f172a",
-                        }}
-                      >
-                        <span
-                          dir="ltr"
-                          style={{ display: "inline-block", direction: "ltr" }}
-                        >
-                          ₪{" "}
-                          {(
-                            (item.purchase_price || 0) * (item.qty || 1)
-                          ).toFixed(2)}
-                        </span>
-                      </td>
-                    </tr>
-                  ),
-                )}
-              </tbody>
-            </table>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-start",
-                direction: "ltr",
-              }}
-            >
-              <div
-                style={{
-                  width: "350px",
-                  backgroundColor: "#f8fafc",
-                  padding: "24px",
-                  borderRadius: "12px",
-                  border: "1px solid #e2e8f0",
-                  direction: "rtl",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: "12px",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: "16px",
-                      color: "#475569",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {language === "en" ? "Grand Total" : "الإجمالي الكلي"}:
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "20px",
-                      fontWeight: "900",
-                      color: "#0f172a",
-                    }}
-                  >
-                    <span
-                      dir="ltr"
-                      style={{ display: "inline-block", direction: "ltr" }}
-                    >
-                      ₪{" "}
-                      {((pdfInvoice || showPreview).total_cost || 0).toFixed(2)}
-                    </span>
-                  </span>
-                </div>
-                {((pdfInvoice || showPreview).paid_amount || 0) > 0 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: "12px",
-                    }}
-                  >
-                    <span style={{ fontSize: "15px", color: "#475569" }}>
-                      {language === "en" ? "Paid:" : "المدفوع:"}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "16px",
-                        color: "#10b981",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      <span
-                        dir="ltr"
-                        style={{ display: "inline-block", direction: "ltr" }}
-                      >
-                        ₪{" "}
-                        {((pdfInvoice || showPreview).paid_amount || 0).toFixed(
-                          2,
-                        )}
-                      </span>
-                    </span>
-                  </div>
-                )}
-                {((pdfInvoice || showPreview).credit_settled || 0) > 0 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: "12px",
-                    }}
-                  >
-                    <span style={{ fontSize: "15px", color: "#0d9488", fontWeight: "bold" }}>
-                      {language === "en" ? "Credit Settled:" : "مخصوم من رصيد المورد:"}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "16px",
-                        color: "#0d9488",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      <span
-                        dir="ltr"
-                        style={{ display: "inline-block", direction: "ltr" }}
-                      >
-                        - ₪{" "}
-                        {((pdfInvoice || showPreview).credit_settled || 0).toFixed(
-                          2,
-                        )} ✓
-                      </span>
-                    </span>
-                  </div>
-                )}
-                {((pdfInvoice || showPreview).remaining || 0) > 0 ? (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      paddingTop: "12px",
-                      borderTop: "1px solid #cbd5e1",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: "16px",
-                        fontWeight: "bold",
-                        color: "#ef4444",
-                      }}
-                    >
-                      {language === "en" ? "Remaining (Debt):" : "المتبقي (دين):"}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "18px",
-                        fontWeight: "black",
-                        color: "#ef4444",
-                      }}
-                    >
-                      <span
-                        dir="ltr"
-                        style={{ display: "inline-block", direction: "ltr" }}
-                      >
-                        ₪{" "}
-                        {((pdfInvoice || showPreview).remaining || 0).toFixed(
-                          2,
-                        )}
-                      </span>
-                    </span>
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      paddingTop: "12px",
-                      borderTop: "1px solid #cbd5e1",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: "16px",
-                        fontWeight: "bold",
-                        color: "#0d9488",
-                      }}
-                    >
-                      {language === "en" ? "Status:" : "الحالة:"}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "16px",
-                        fontWeight: "bold",
-                        color: "#0d9488",
-                      }}
-                    >
-                      {language === "en" ? "Fully Paid ✓" : "مدفوعة بالكامل ✓"}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: "60px",
-                textAlign: "center",
-                fontSize: "13px",
-                color: "#94a3b8",
-                borderTop: "1px solid #e2e8f0",
-                paddingTop: "20px",
-              }}
-            >
-              <p>{language === "en" ? "Thank you for doing business with us." : "شكراً لتعاملكم معنا."}</p>
-              <p style={{ marginTop: "4px" }}>
-                تم إصدار هذه الفاتورة من نظام روشتة لإدارة الصيدليات
-              </p>
-            </div>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-4 pt-3 border-t-2 border-slate-200 flex justify-between font-black text-base">
+            <span>{isEn ? "Grand Total" : "الإجمالي الكلي"}</span>
+            <span className="font-mono">₪{Number(pdfInvoice.total_cost ?? pdfInvoice.total ?? 0).toFixed(2)}</span>
           </div>
         </div>
       )}
-
-      {/* Invoice Quick Payment Modal */}
-      {payingInvoice && (
-        <div className="fixed inset-0 bg-ink/70 flex items-center justify-center p-4 z-[70] backdrop-blur-xs">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col border border-slate-200">
-            <div className="p-5 border-b border-mint-line flex justify-between items-center bg-[#F8FAFC]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-black text-[17px] text-ink">
-                    {language === 'en' ? 'Settle Invoice Payment' : 'تسديد دفعة على الفاتورة'}
-                  </h3>
-                  <p className="text-[12px] text-ink-soft font-mono">
-                    {payingInvoice.invoice_number ? `#${payingInvoice.invoice_number}` : payingInvoice.id}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setPayingInvoice(null)}
-                className="text-ink-soft hover:text-coral transition-colors bg-white hover:bg-coral-pale w-8 h-8 flex items-center justify-center rounded-lg border border-mint-line"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (!user || !payingInvoice) return;
-                const pAmt = parseFloat(invoicePaymentAmount);
-                if (!pAmt || pAmt <= 0) {
-                  return toast.error(language === 'en' ? "Please enter a valid amount" : "يرجى إدخال مبلغ صحيح");
-                }
-                setIsPayingInvoice(true);
-                try {
-                  const targetId = payingInvoice.id || payingInvoice._id;
-                  const payload = JSON.stringify({
-                    payment: pAmt,
-                    paymentMethod: invoicePaymentMethod,
-                    notes: invoicePaymentReference ? `${invoicePaymentMethod} (${invoicePaymentReference})` : invoicePaymentMethod,
-                    reference: invoicePaymentReference || undefined,
-                  });
-
-                  let res = await fetch(`${API}/api/pharmacies/${user.pharmacy_id}/purchase-invoices/${targetId}/pay`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: payload,
-                  });
-
-                  if (!res.ok) {
-                    res = await fetch(`${API}/api/pharmacies/${user.pharmacy_id}/purchases/${targetId}/pay`, {
-                      method: "PUT",
-                      headers: { "Content-Type": "application/json" },
-                      body: payload,
-                    });
-                  }
-
-                  const data = await res.json().catch(() => ({}));
-                  if (!res.ok || (!data.success && data.error)) {
-                    throw new Error(data.error || (language === 'en' ? "Payment failed" : "فشل تسجيل الدفعة"));
-                  }
-
-                  toast.success(language === 'en' ? "Payment registered successfully" : "تم تسجيل الدفعة بنجاح");
-                  mutate();
-                  if (mutateSuppliers) mutateSuppliers();
-                  setPayingInvoice(null);
-                  setInvoicePaymentAmount("");
-                } catch (err: any) {
-                  toast.error(err?.message || (language === 'en' ? "Failed to register payment" : "فشل تسجيل الدفعة"));
-                } finally {
-                  setIsPayingInvoice(false);
-                }
-              }}
-              className="p-6 space-y-4"
-              dir={language === 'en' ? 'ltr' : 'rtl'}
-            >
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex justify-between items-center">
-                <div>
-                  <span className="text-[12px] text-ink-soft font-bold block">
-                    {language === 'en' ? 'Remaining Debt' : 'المبلغ المتبقي الحالي'}
-                  </span>
-                  <span className="text-[18px] font-black font-mono text-coral">
-                    ₪{getEffectiveRemaining(payingInvoice).toFixed(2)}
-                  </span>
-                </div>
-                {payingInvoice.supplier_name && (
-                  <div className="text-end">
-                    <span className="text-[12px] text-ink-soft font-bold block">
-                      {language === 'en' ? 'Supplier' : 'المورد'}
-                    </span>
-                    <span className="text-[14px] font-black text-ink">
-                      {payingInvoice.supplier_name}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="text-[13px] font-bold text-ink mb-1.5 block">
-                  {language === 'en' ? 'Payment Amount (₪)' : 'المبلغ المراد سداده (₪)'}
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  required
-                  value={invoicePaymentAmount}
-                  onChange={(e) => setInvoicePaymentAmount(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-teal outline-none font-mono text-[16px] font-bold"
-                  placeholder="0.00"
-                />
-              </div>
-
-              <div>
-                <label className="text-[13px] font-bold text-ink mb-2 block">
-                  {language === 'en' ? 'Payment Method' : 'طريقة الدفع'}
-                </label>
-                <div className="flex flex-wrap gap-2.5 justify-center py-1">
-                  {[
-                    { id: 'كاش', label: language === 'en' ? 'Cash 💵' : 'كاش 💵' },
-                    { id: 'جوال باي', label: language === 'en' ? 'Jawwal Pay 📱' : 'جوال باي 📱' },
-                    { id: 'بال باي', label: language === 'en' ? 'PalPay 💳' : 'بال باي 💳' },
-                    { id: 'بنكي', label: language === 'en' ? 'Bank Transfer 🏦' : 'تحويل بنكي 🏦' },
-                    { id: 'فيزا', label: language === 'en' ? 'Visa Card 💳' : 'بطاقة فيزا 💳' },
-                  ].map((m) => {
-                    const isSelected = invoicePaymentMethod === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => setInvoicePaymentMethod(m.id)}
-                        className={`px-4 py-2.5 rounded-xl text-[14px] font-bold transition-all border flex items-center justify-center gap-1.5 shadow-2xs ${
-                          isSelected
-                            ? "bg-[#1E3A5F] text-white border-[#1E3A5F] ring-2 ring-amber-400/80 shadow-md transform scale-[1.02]"
-                            : "bg-white text-ink border-slate-300 hover:border-slate-400 hover:bg-slate-50"
-                        }`}
-                      >
-                        {m.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {invoicePaymentMethod !== "كاش" && (
-                <div>
-                  <label className="text-[13px] font-bold text-ink mb-1.5 block">
-                    {invoicePaymentMethod === "بنكي"
-                      ? (language === 'en' ? 'Bank Transfer Reference (Optional)' : 'رقم الحوالة / اسم البنك (اختياري)')
-                      : invoicePaymentMethod === "فيزا"
-                      ? (language === 'en' ? 'Visa / Receipt Reference (Optional)' : 'رقم عملية الفيزا / الإيصال (اختياري)')
-                      : (language === 'en' ? 'Transaction ID / Reference (Optional)' : 'رقم العملية / الحساب (اختياري)')}
-                  </label>
-                  <input
-                    type="text"
-                    value={invoicePaymentReference}
-                    onChange={(e) => setInvoicePaymentReference(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-teal outline-none text-[14px] font-medium"
-                    placeholder={
-                      invoicePaymentMethod === "بنكي"
-                        ? (language === 'en' ? 'e.g. Bank of Palestine - Ref 8821' : 'مثال: بنك فلسطين - حوالة 8821')
-                        : invoicePaymentMethod === "فيزا"
-                        ? (language === 'en' ? 'e.g. Card Ref 4920' : 'مثال: مرجع بطاقة 4920')
-                        : (language === 'en' ? 'e.g. Tx #1042' : 'مثال: رقم العملية 1042')
-                    }
-                  />
-                </div>
-              )}
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="submit"
-                  disabled={isPayingInvoice || !invoicePaymentAmount || parseFloat(invoicePaymentAmount) <= 0}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-xl transition-all shadow-sm disabled:opacity-50"
-                >
-                  {isPayingInvoice ? (language === 'en' ? 'Processing...' : 'جاري التسديد...') : (language === 'en' ? 'Confirm Payment' : 'تأكيد التسديد')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPayingInvoice(null)}
-                  className="px-5 py-3 rounded-xl border border-slate-200 text-ink-soft hover:bg-slate-50 font-bold"
-                >
-                  {language === 'en' ? 'Cancel' : 'إلغاء'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </>
+    </div>
   );
 }

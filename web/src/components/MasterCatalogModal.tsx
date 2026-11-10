@@ -109,10 +109,12 @@ export default function MasterCatalogModal({
     return (masterDrugsData as MasterDrug[]).filter((d) => Boolean(d.isControlled)).length;
   }, []);
 
-  // Stock lookup map for O(1) matching
+  // Stock lookup map for O(1) matching scoped to currentBranchId when selected
   const stockLookup = useMemo(() => {
     const map = new Map<string, any>();
+    const branchFilter = currentBranchId && currentBranchId !== "all" ? String(currentBranchId) : "";
     for (const item of inventory) {
+      if (branchFilter && item.branch_id && String(item.branch_id) !== branchFilter) continue;
       if (item.batch_number || item.id) {
         if (item.barcode) {
           map.set(item.barcode.trim(), item);
@@ -124,7 +126,7 @@ export default function MasterCatalogModal({
       }
     }
     return map;
-  }, [inventory]);
+  }, [inventory, currentBranchId]);
 
   const getInStockItem = (drug: MasterDrug) => {
     if (!drug) return null;
@@ -251,19 +253,22 @@ export default function MasterCatalogModal({
 
       if (quickDrug.hasSubUnit && !quickDrug.hasSubUnit2) {
         const p1q = quickDrug.sub1Count || 1;
+        const p1Pr = parseFloat(quickForm.sub1Price) || Number((sell / p1q).toFixed(2));
         totalQty = totalQty * p1q;
         units = JSON.stringify([
-          { name: quickDrug.defaultUnit || "علبة", count: p1q },
-          { name: quickDrug.sub1Name || "شريط", count: 1 },
+          { name: quickDrug.defaultUnit || "علبة", count: p1q, price: sell },
+          { name: quickDrug.sub1Name || "شريط", count: 1, price: p1Pr },
         ]);
       } else if (quickDrug.hasSubUnit && quickDrug.hasSubUnit2) {
         const p1q = quickDrug.sub1Count || 1;
         const p2q = quickDrug.sub2Count || 1;
+        const p1Pr = parseFloat(quickForm.sub1Price) || Number((sell / p1q).toFixed(2));
+        const p2Pr = parseFloat(quickForm.sub2Price) || Number((p1Pr / p2q).toFixed(2));
         totalQty = totalQty * p1q * p2q;
         units = JSON.stringify([
-          { name: quickDrug.defaultUnit || "علبة", count: p1q * p2q },
-          { name: quickDrug.sub1Name || "شريط", count: p2q },
-          { name: quickDrug.sub2Name || "حبة", count: 1 },
+          { name: quickDrug.defaultUnit || "علبة", count: p1q * p2q, price: sell },
+          { name: quickDrug.sub1Name || "شريط", count: p2q, price: p1Pr },
+          { name: quickDrug.sub2Name || "حبة", count: 1, price: p2Pr },
         ]);
       }
 
@@ -299,6 +304,7 @@ export default function MasterCatalogModal({
       });
 
       if (res.status === 401) {
+        toast.error(language === "en" ? "Session expired; please sign in again" : "انتهت الجلسة؛ يرجى إعادة تسجيل الدخول");
         return;
       }
 

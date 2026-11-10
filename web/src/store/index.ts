@@ -33,6 +33,8 @@ interface User {
   pharmacy_id: string;
   subscriptionType: string;
   branch: string;
+  branch_id?: string;
+  branchName?: string;
   controlledMedsAccess?: boolean;
   isReadOnly?: boolean;
   isActive?: boolean;
