@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import toast from "react-hot-toast";
+import ConfirmModal from "@/components/ConfirmModal";
 import { deleteCustomer, useCustomerStatement } from "@/lib/customers/api";
 import {
   formatPaymentMethod,
@@ -47,6 +48,8 @@ export default function CustomerStatementModal({
   const isEn = lang === "en";
   const [tab, setTab] = useState<StatementTab>("ledger");
   const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const { statement, isLoading, error, mutate } = useCustomerStatement(pharmacyId, customerId, lang);
 
@@ -99,21 +102,26 @@ export default function CustomerStatementModal({
     window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!customer) return;
-    const confirmMsg = isEn
-      ? `Delete customer "${customer.name}" permanently?`
-      : `هل أنت متأكد من حذف العميل "${customer.name}" نهائياً؟`;
-    if (!window.confirm(confirmMsg)) return;
+    setDeleteError("");
+    setDeleteConfirmOpen(true);
+  };
 
+  const executeDelete = async () => {
+    if (!customer || deleting) return;
+    setDeleteError("");
     setDeleting(true);
     try {
       await deleteCustomer(pharmacyId, customer.id, lang);
       toast.success(isEn ? "Customer deleted" : "تم حذف العميل بنجاح");
+      setDeleteConfirmOpen(false);
       onDeleted?.();
       onClose?.();
     } catch (err: any) {
-      toast.error(err?.message || (isEn ? "Cannot delete customer" : "تعذر حذف العميل"));
+      const msg = err?.message || (isEn ? "Cannot delete customer" : "تعذر حذف العميل");
+      setDeleteError(msg);
+      toast.error(msg);
     } finally {
       setDeleting(false);
     }
@@ -637,15 +645,69 @@ export default function CustomerStatementModal({
     </div>
   );
 
+  const confirmModalEl = customer ? (
+    <ConfirmModal
+      isOpen={deleteConfirmOpen}
+      title={isEn ? "Confirm Deletion" : "تأكيد الحذف"}
+      message={
+        <>
+          <span>
+            {isEn ? "Are you sure you want to permanently delete customer " : "هل أنت متأكد من حذف العميل "}
+            <span className="font-black text-primary">{customer.name}</span>
+            {isEn ? "? This action cannot be undone." : " نهائياً؟ هذا الإجراء لا يمكن التراجع عنه."}
+          </span>
+          {(Math.abs(curBal) > 0.005 || transactions.length > 0) && (
+            <span className="block mt-3 text-[12px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              {Math.abs(curBal) > 0.005
+                ? isEn
+                  ? `Note: Customer has an unsettled balance (${Math.abs(curBal).toFixed(2)} ₪); settle it before deletion.`
+                  : `ملاحظة: يوجد رصيد غير مُصفّى على هذا الحساب (${Math.abs(curBal).toFixed(2)} ₪)؛ يجب تسويته أولاً قبل الحذف.`
+                : isEn
+                  ? "Note: System protects customers with recorded invoices or financial transactions."
+                  : "ملاحظة: يمنع النظام الحذف تلقائياً لوجود فواتير أو حركات مالية مرتبطة بهذا الحساب."}
+            </span>
+          )}
+        </>
+      }
+      onConfirm={executeDelete}
+      onCancel={() => {
+        if (deleting) return;
+        setDeleteConfirmOpen(false);
+        setDeleteError("");
+      }}
+      confirmText={
+        deleting
+          ? isEn
+            ? "Deleting..."
+            : "جارٍ الحذف..."
+          : isEn
+            ? "Yes, Delete Customer"
+            : "نعم، احذف العميل"
+      }
+      cancelText={isEn ? "Cancel" : "تراجع"}
+      isDestructive={true}
+      isLoading={deleting}
+      errorMessage={deleteError}
+    />
+  ) : null;
+
   if (inline) {
-    return bodyContent;
+    return (
+      <>
+        {bodyContent}
+        {confirmModalEl}
+      </>
+    );
   }
 
   return (
-    <div className="fixed inset-0 bg-ink/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 md:p-6">
-      <div className="bg-bg rounded-[32px] w-full max-w-5xl max-h-[92vh] overflow-y-auto p-4 md:p-6 shadow-2xl border border-mint-line">
-        {bodyContent}
+    <>
+      <div className="fixed inset-0 bg-ink/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 md:p-6">
+        <div className="bg-bg rounded-[32px] w-full max-w-5xl max-h-[92vh] overflow-y-auto p-4 md:p-6 shadow-2xl border border-mint-line">
+          {bodyContent}
+        </div>
       </div>
-    </div>
+      {confirmModalEl}
+    </>
   );
 }
