@@ -267,6 +267,12 @@ export function matchesCustomerBranch(customer: any, selectedBranchId: string, b
   return String(resolvedCustBranch) === String(targetId);
 }
 
+export function filterCustomersByBranch<T = any>(customers: T[] = [], selectedBranchId: string = "all", branches: any[] = []): T[] {
+  const list = Array.isArray(customers) ? customers : [];
+  if (!selectedBranchId || selectedBranchId === "all") return list;
+  return list.filter((c) => matchesCustomerBranch(c, selectedBranchId, branches));
+}
+
 export function normalizeVoucherPaymentMethod(methodRaw: unknown): VoucherPaymentMethodCode {
   const raw = String(methodRaw || "").trim();
   const m = raw.toLowerCase();
