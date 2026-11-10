@@ -45,7 +45,13 @@ export function getWebAuthHeaders(extra: Record<string, string> = {}): Record<st
   const headers: Record<string, string> = { ...extra };
   if (typeof window !== "undefined") {
     try {
-      const token = localStorage.getItem("roshetta_token");
+      let token = localStorage.getItem("roshetta_token");
+      if (!token) {
+        const persisted = localStorage.getItem("roshetta-web-storage");
+        if (persisted) {
+          token = JSON.parse(persisted)?.state?.token || null;
+        }
+      }
       if (token && !headers.Authorization) {
         headers.Authorization = `Bearer ${token}`;
       }

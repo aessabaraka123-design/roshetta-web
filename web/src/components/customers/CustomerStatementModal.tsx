@@ -13,6 +13,7 @@ import {
   type CustomerTransactionRecord,
 } from "@/lib/customers/domain";
 import { printCustomerStatement, printCustomerVoucher } from "@/lib/customers/print";
+import { translateErrorMessage } from "@/lib/errorTranslations";
 
 interface CustomerStatementModalProps {
   customerId: string | null;
@@ -47,11 +48,12 @@ export default function CustomerStatementModal({
   const [tab, setTab] = useState<StatementTab>("ledger");
   const [deleting, setDeleting] = useState(false);
 
-  const { statement, isLoading, mutate } = useCustomerStatement(pharmacyId, customerId, lang);
+  const { statement, isLoading, error, mutate } = useCustomerStatement(pharmacyId, customerId, lang);
 
   if (!customerId) return null;
 
   const customer = statement?.customer;
+  const errorText = error ? translateErrorMessage(error?.code || error?.message || "", lang) : "";
   const kpis = statement?.kpis || {
     currentBalance: round2(customer?.debt || 0),
     isStoreCredit: round2(customer?.debt || 0) < -0.005,
@@ -156,7 +158,18 @@ export default function CustomerStatementModal({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white rounded-3xl p-5 border border-mint-line shadow-sm">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-[22px] font-black text-ink">{customer?.name || "..."}</h2>
+            <h2 className="text-[22px] font-black text-ink">
+              {customer?.name ||
+                (isLoading
+                  ? isEn
+                    ? "Loading customer..."
+                    : "جاري تحميل بيانات العميل..."
+                  : error
+                    ? isEn
+                      ? "Unable to load customer"
+                      : "تعذر تحميل ملف العميل"
+                    : "...")}
+            </h2>
             {branchLabel && (
               <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-ink-soft">
                 🏪 {branchLabel}
@@ -248,8 +261,26 @@ export default function CustomerStatementModal({
               )}
             </>
           )}
+          {!customer && !inline && onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3 py-2.5 rounded-xl bg-slate-100 text-ink-soft text-[13px] font-bold hover:bg-slate-200"
+            >
+              ✕
+            </button>
+          )}
         </div>
       </div>
+
+      {statement?.fallbackLegacy && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[12px] font-bold text-amber-800">
+          ⚠️{" "}
+          {isEn
+            ? "Compatibility mode active: the live backend is still on the previous release. Update the backend server to unlock full sequential voucher logs & manual debit entries."
+            : "تم عرض كشف الحساب بوضع التوافق مع نسخة الخادم السابقة — يرجى رفع حزمة تحديث الخادم وتفعيله لإظهار أرقام السندات التسلسلية والقيود اليدوية بالكامل."}
+        </div>
+      )}
 
       {/* KPI Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
@@ -335,6 +366,20 @@ export default function CustomerStatementModal({
         {isLoading && !statement ? (
           <div className="py-12 text-center text-ink-soft font-bold">
             {isEn ? "Loading customer statement..." : "جاري تحميل كشف الحساب..."}
+          </div>
+        ) : error && !statement ? (
+          <div className="py-10 text-center space-y-3">
+            <div className="text-coral font-black text-[15px]">
+              ⚠️ {isEn ? "Could not load customer statement" : "تعذر تحميل كشف حساب العميل"}
+            </div>
+            {errorText && <p className="text-[13px] text-ink-soft font-semibold">{errorText}</p>}
+            <button
+              type="button"
+              onClick={() => mutate()}
+              className="px-4 py-2 rounded-xl bg-primary text-white text-[13px] font-bold hover:bg-primary/90"
+            >
+              🔄 {isEn ? "Retry" : "إعادة المحاولة"}
+            </button>
           </div>
         ) : tab === "ledger" ? (
           transactions.length === 0 ? (
