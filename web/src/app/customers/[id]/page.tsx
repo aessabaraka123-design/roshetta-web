@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR, { mutate as globalMutate } from "swr";
 import AppBar from "@/components/AppBar";
@@ -61,7 +61,10 @@ export default function CustomerProfilePage() {
     );
   };
 
-  if (!user) return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted || !user) return null;
 
   return (
     <main className="w-full pb-24">
