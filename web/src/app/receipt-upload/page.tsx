@@ -7,6 +7,7 @@ import { useStore } from "@/store";
 import RoshettaLogo from "@/components/RoshettaLogo";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import { resolveWhatsappContact } from "@/lib/subscription";
 
 export default function ReceiptUpload() {
   const router = useRouter();
@@ -575,15 +576,20 @@ export default function ReceiptUpload() {
                     ? "Need help with payment?"
                     : "تواجه صعوبة أو استفسار؟"}
                 </span>
-                <a
-                  href={`https://wa.me/${adminSettings?.whatsappNumber || "972590000000"}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1"
-                >
-                  <span>💬</span>
-                  <span>{language === "en" ? "WhatsApp Support" : "تواصل معنا"}</span>
-                </a>
+                {(() => {
+                  const receiptWhatsapp = resolveWhatsappContact(adminSettings);
+                  return (
+                    <a
+                      href={receiptWhatsapp ? `https://wa.me/${receiptWhatsapp}` : "/owner-support"}
+                      target={receiptWhatsapp ? "_blank" : undefined}
+                      rel={receiptWhatsapp ? "noopener noreferrer" : undefined}
+                      className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1"
+                    >
+                      <span>💬</span>
+                      <span>{language === "en" ? "WhatsApp Support" : "تواصل معنا"}</span>
+                    </a>
+                  );
+                })()}
               </div>
             </div>
           </aside>

@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { DEFAULT_STAFF_ROLES, getRoleDisplayName, normalizeRoleForBackend } from "@/data/roles";
 import RoshettaLogo from "@/components/RoshettaLogo";
+import { resolveWhatsappContact } from "@/lib/subscription";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -35,6 +36,8 @@ export default function PharmacyManager() {
   const [activeTab, setActiveTab] = useState<
     "branches" | "staff" | "reports" | "settings" | "subscription"
   >("branches");
+  const { data: adminSettingsData } = useSWR(`${API_BASE_URL}/api/admin/settings`, fetcher);
+  const supportWhatsapp = resolveWhatsappContact(adminSettingsData);
   const [search, setSearch] = useState("");
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
@@ -1357,9 +1360,9 @@ export default function PharmacyManager() {
                       <span>{language === "en" ? "Renew Subscription" : "تجديد الاشتراك الآن"}</span>
                     </a>
                     <a
-                      href="https://wa.me/972598658304"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      href={supportWhatsapp ? `https://wa.me/${supportWhatsapp}` : "/owner-support"}
+                      target={supportWhatsapp ? "_blank" : undefined}
+                      rel={supportWhatsapp ? "noopener noreferrer" : undefined}
                       className="bg-white/10 hover:bg-white/20 border border-white/30 text-white text-center px-6 py-2.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 text-[13px]"
                     >
                       <span>💬</span>

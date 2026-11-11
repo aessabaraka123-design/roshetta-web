@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import useSWR from "swr";
 import { API_BASE_URL } from "@/lib/config";
 import Link from "next/link";
+import { resolveWhatsappContact } from "@/lib/subscription";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -89,6 +90,11 @@ export default function MySubscription() {
   // SWR: Fetch available plans from DB
   const { data: plansData, isLoading: isPlansLoading } = useSWR(
     `${API_BASE_URL}/api/subscription-plans`,
+    fetcher
+  );
+
+  const { data: adminSettingsData } = useSWR(
+    `${API_BASE_URL}/api/admin/settings`,
     fetcher
   );
 
@@ -192,7 +198,8 @@ export default function MySubscription() {
     ];
   }
 
-  const whatsappNumber = subStatus?.whatsapp || "972590000000";
+  const whatsappNumber = resolveWhatsappContact(adminSettingsData, subStatus);
+  const supportHref = whatsappNumber ? `https://wa.me/${whatsappNumber}` : "/owner-support";
 
   return (
     <>
@@ -256,9 +263,9 @@ export default function MySubscription() {
                     {language === "en" ? "Renew Now" : "تجديد الآن"}
                   </button>
                   <a
-                    href={`https://wa.me/${whatsappNumber}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={supportHref}
+                    target={whatsappNumber ? "_blank" : undefined}
+                    rel={whatsappNumber ? "noopener noreferrer" : undefined}
                     className="flex-1 sm:flex-none px-3 py-2 bg-white hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs rounded-xl transition text-center"
                   >
                     {language === "en" ? "Support" : "الدعم الفني"}
@@ -493,9 +500,9 @@ export default function MySubscription() {
                 </div>
               </div>
               <a
-                href={`https://wa.me/${whatsappNumber}`}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={supportHref}
+                target={whatsappNumber ? "_blank" : undefined}
+                rel={whatsappNumber ? "noopener noreferrer" : undefined}
                 className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition text-center flex items-center justify-center gap-2 shrink-0"
               >
                 <span>{language === "en" ? "Contact WhatsApp Support" : "تواصل عبر واتساب"}</span>

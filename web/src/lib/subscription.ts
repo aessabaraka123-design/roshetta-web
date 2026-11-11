@@ -94,7 +94,31 @@ export interface SubscriptionNoticeState {
   whatsapp: string;
 }
 
-export function getSubscriptionNoticeState(user: any, subStatusData?: any): SubscriptionNoticeState {
+export function resolveWhatsappContact(adminSettings?: any, subStatusData?: any): string {
+  const settings = adminSettings?.settings || adminSettings || null;
+  const candidates = [
+    settings?.whatsappNumber,
+    settings?.devWhatsapp,
+    subStatusData?.whatsapp,
+  ];
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== "string") continue;
+    const stripped = candidate
+      .trim()
+      .replace(/^https?:\/\/(wa\.me|api\.whatsapp\.com\/send\?phone=)\/?/i, "");
+    const digits = stripped.replace(/[^0-9]/g, "");
+    if (digits.length >= 7) {
+      return digits;
+    }
+  }
+  return "";
+}
+
+export function getSubscriptionNoticeState(
+  user: any,
+  subStatusData?: any,
+  adminSettings?: any
+): SubscriptionNoticeState {
   const validSub = subStatusData?.success ? subStatusData : null;
   const planType = String(
     validSub?.subscriptionType ||
@@ -162,7 +186,7 @@ export function getSubscriptionNoticeState(user: any, subStatusData?: any): Subs
     isExpiringSoon,
     isReadOnly: rawReadOnly,
     isManager: isManagerRole(user?.role),
-    whatsapp: validSub?.whatsapp || "972590000000",
+    whatsapp: resolveWhatsappContact(adminSettings, validSub),
   };
 }
 

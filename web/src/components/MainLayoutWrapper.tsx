@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { rehydrateClientStore, useStore } from "@/store";
+import { API_BASE_URL } from "@/lib/config";
 import { useState, useEffect } from "react";
 import useSWR from "swr";
 import toast from "react-hot-toast";
@@ -62,6 +63,12 @@ export default function MainLayoutWrapper({
     mounted && user?.pharmacy_id ? getSubscriptionStatusEndpoint(user.pharmacy_id) : null,
     authFetchJson,
     { refreshInterval: user?.isReadOnly ? 10000 : 30000 }
+  );
+
+  const { data: adminSettingsData } = useSWR(
+    mounted ? `${API_BASE_URL}/api/admin/settings` : null,
+    authFetchJson,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
   );
 
   // Sync isReadOnly, isExpired, subscriptionExpiry, pharmacyName, subscriptionType, isActive between server and store
@@ -267,7 +274,11 @@ export default function MainLayoutWrapper({
     );
   }
 
-  const subState = getSubscriptionNoticeState(mounted ? user : null, subStatusData);
+  const subState = getSubscriptionNoticeState(
+    mounted ? user : null,
+    subStatusData,
+    adminSettingsData
+  );
   const {
     isReadOnly,
     isRejected,
@@ -281,13 +292,37 @@ export default function MainLayoutWrapper({
     daysLeft,
     whatsapp,
   } = subState;
+  const supportHref = whatsapp ? `https://wa.me/${whatsapp}` : "/owner-support";
+  const isSupportExternal = Boolean(whatsapp);
 
   const isExemptFromReadOnlyBlock =
     pathname === "/upgrade-plan" ||
     pathname === "/pricing" ||
     pathname === "/receipt-upload" ||
     pathname === "/my-subscription" ||
-    pathname === "/notifs";
+    pathname === "/notifs" ||
+    pathname === "/owner-support";
+
+  const renderSupportAction = (
+    label: string,
+    className: string,
+    style?: React.CSSProperties
+  ) =>
+    isSupportExternal ? (
+      <a
+        href={supportHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={className}
+        style={style}
+      >
+        {label}
+      </a>
+    ) : (
+      <Link href="/owner-support" className={className} style={style}>
+        {label}
+      </Link>
+    );
 
   const isEn = language === "en";
   const expiryFormatted = formatExpiryDate(expiryIso, isEn ? "en" : "ar");
@@ -336,22 +371,18 @@ export default function MainLayoutWrapper({
               >
                 📄 {isEn ? "Review Receipt" : "راجع إيصالك"}
               </Link>
-              <a
-                href={`https://wa.me/${whatsapp}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-green-500 text-white rounded-lg px-3 py-1 text-xs font-bold hover:bg-green-600 transition-colors shrink-0 flex items-center gap-1 shadow-sm"
-                style={{
+              {renderSupportAction(
+                `💬 ${isEn ? "WhatsApp Support" : "الدعم الفني عبر واتساب"}`,
+                "bg-green-500 text-white rounded-lg px-3 py-1 text-xs font-bold hover:bg-green-600 transition-colors shrink-0 flex items-center gap-1 shadow-sm",
+                {
                   background: "#22c55e",
                   borderRadius: "8px",
                   padding: "4px 12px",
                   fontSize: "12px",
                   fontWeight: "bold",
                   textDecoration: "none",
-                }}
-              >
-                💬 {isEn ? "WhatsApp Support" : "الدعم الفني عبر واتساب"}
-              </a>
+                }
+              )}
             </>
           ) : isPending ? (
             <>
@@ -378,22 +409,18 @@ export default function MainLayoutWrapper({
               >
                 📄 {isEn ? "Review Receipt" : "راجع إيصالك"}
               </Link>
-              <a
-                href={`https://wa.me/${whatsapp}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-amber-700/80 hover:bg-amber-700 text-white rounded-lg px-3 py-1 text-xs font-bold transition-colors shrink-0 flex items-center gap-1 shadow-sm"
-                style={{
+              {renderSupportAction(
+                `💬 ${isEn ? "Technical Support" : "الدعم الفني"}`,
+                "bg-amber-700/80 hover:bg-amber-700 text-white rounded-lg px-3 py-1 text-xs font-bold transition-colors shrink-0 flex items-center gap-1 shadow-sm",
+                {
                   background: "#B45309",
                   borderRadius: "8px",
                   padding: "4px 10px",
                   fontSize: "12px",
                   fontWeight: "bold",
                   textDecoration: "none",
-                }}
-              >
-                💬 {isEn ? "Technical Support" : "الدعم الفني"}
-              </a>
+                }
+              )}
             </>
           ) : (
             <>
@@ -441,22 +468,18 @@ export default function MainLayoutWrapper({
                   {isEn ? "Contact manager to renew" : "يرجى مراجعة إدارة الصيدلية للتجديد"}
                 </span>
               )}
-              <a
-                href={`https://wa.me/${whatsapp}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-emerald-600/90 hover:bg-emerald-600 text-white rounded-lg px-3 py-1 text-xs font-bold transition-colors shrink-0 flex items-center gap-1 shadow-sm"
-                style={{
+              {renderSupportAction(
+                `💬 ${isEn ? "Technical Support" : "الدعم الفني"}`,
+                "bg-emerald-600/90 hover:bg-emerald-600 text-white rounded-lg px-3 py-1 text-xs font-bold transition-colors shrink-0 flex items-center gap-1 shadow-sm",
+                {
                   background: "#059669",
                   borderRadius: "8px",
                   padding: "4px 10px",
                   fontSize: "12px",
                   fontWeight: "bold",
                   textDecoration: "none",
-                }}
-              >
-                💬 {isEn ? "Technical Support" : "الدعم الفني"}
-              </a>
+                }
+              )}
             </>
           )}
         </div>
@@ -544,15 +567,10 @@ export default function MainLayoutWrapper({
                       <span>📋</span>
                       <span>{isEn ? "My Subscription" : "تفاصيل الباقة"}</span>
                     </Link>
-                    <a
-                      href={`https://wa.me/${whatsapp}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="py-2.5 px-3 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[13px] hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1"
-                    >
-                      <span>💬</span>
-                      <span>{isEn ? "Support" : "الدعم الفني"}</span>
-                    </a>
+                    {renderSupportAction(
+                      `💬 ${isEn ? "Support" : "الدعم الفني"}`,
+                      "py-2.5 px-3 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[13px] hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1"
+                    )}
                   </div>
                 </div>
               ) : (
