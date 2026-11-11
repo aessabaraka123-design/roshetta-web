@@ -7,16 +7,6 @@ import { API_BASE_URL } from "@/lib/config";
 import { translateErrorMessage } from "@/lib/errorTranslations";
 import type { CanonicalCustomerCommand } from "@/lib/customers/domain";
 
-export type CustomerCommandAction =
-  | "ADD_PATIENT"
-  | "UPDATE_PATIENT"
-  | "DELETE_PATIENT"
-  | "PAY_DEBT"
-  | "ADD_CUSTOMER_DEBT"
-  | "CHECKOUT"
-  | "REFUND_FULL"
-  | "REFUND_PARTIAL";
-
 export interface DispatchResult<T = any> {
   success: boolean;
   queuedOffline?: boolean;
@@ -27,7 +17,6 @@ export interface DispatchResult<T = any> {
 
 export interface CustomerTransportDriver {
   dispatch<T = any>(pharmacyId: string, command: CanonicalCustomerCommand, lang?: "ar" | "en"): Promise<DispatchResult<T>>;
-  getPendingCommands(pharmacyId: string): CanonicalCustomerCommand[];
 }
 
 export class CustomerTransportError extends Error {
@@ -136,21 +125,9 @@ const OnlineCustomerDriver: CustomerTransportDriver = {
       command,
     };
   },
-
-  getPendingCommands(): CanonicalCustomerCommand[] {
-    return [];
-  },
 };
 
-let activeDriver: CustomerTransportDriver = OnlineCustomerDriver;
-
-export function setCustomerTransportDriver(driver: CustomerTransportDriver) {
-  activeDriver = driver;
-}
-
-export function getPendingCustomerCommands(pharmacyId: string): CanonicalCustomerCommand[] {
-  return pharmacyId ? activeDriver.getPendingCommands(pharmacyId) : [];
-}
+const activeDriver: CustomerTransportDriver = OnlineCustomerDriver;
 
 export function dispatchCustomerCommand<T = any>(
   pharmacyId: string,

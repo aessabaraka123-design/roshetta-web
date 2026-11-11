@@ -9,18 +9,6 @@ import { API_BASE_URL } from "@/lib/config";
 import { translateErrorMessage } from "@/lib/errorTranslations";
 import { CanonicalCommand } from "@/lib/purchases/domain";
 
-export type PurchaseCommandAction =
-  | "CREATE_PURCHASE"
-  | "UPDATE_OR_APPROVE_PURCHASE"
-  | "COMPLETE_PURCHASE"
-  | "PAY_PURCHASE_INVOICE"
-  | "DELETE_PURCHASE"
-  | "ADD_SUPPLIER"
-  | "UPDATE_SUPPLIER"
-  | "DELETE_SUPPLIER"
-  | "PAY_SUPPLIER"
-  | "ADD_INVENTORY";
-
 export interface DispatchResult<T = any> {
   success: boolean;
   queuedOffline?: boolean;
@@ -44,8 +32,6 @@ function resolveHttpEndpoint(pharmacyId: string, command: CanonicalCommand): { u
       return { url: `${base}/purchase-invoices`, method: "POST" };
     case "UPDATE_OR_APPROVE_PURCHASE":
       return { url: `${base}/purchase-invoices/${target}`, method: "PUT" };
-    case "COMPLETE_PURCHASE":
-      return { url: `${base}/purchase-invoices/${target}/complete`, method: "PUT" };
     case "PAY_PURCHASE_INVOICE":
       return { url: `${base}/purchase-invoices/${target}/pay`, method: "PUT" };
     case "DELETE_PURCHASE":
@@ -120,11 +106,6 @@ const OnlineCommandDriver: PurchaseTransportDriver = {
 };
 
 let activeDriver: PurchaseTransportDriver = OnlineCommandDriver;
-
-/** Allows plugging an IndexedDB Outbox driver cleanly in the future Web Offline milestone. */
-export function setPurchaseTransportDriver(driver: PurchaseTransportDriver) {
-  activeDriver = driver;
-}
 
 export function getPendingPurchaseCommands(pharmacyId: string): CanonicalCommand[] {
   return pharmacyId ? activeDriver.getPendingCommands(pharmacyId) : [];

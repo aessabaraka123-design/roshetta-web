@@ -86,7 +86,7 @@ export default function SocketProvider({
         mutate(
           (key) =>
             typeof key === "string" &&
-            (key.includes("/customers") || key.includes("/statement") || key.includes("/debt-payments")),
+            (key.includes("/customers") || key.includes("/statement")),
           undefined,
           { revalidate: true }
         );
@@ -101,14 +101,10 @@ export default function SocketProvider({
           (key) =>
             typeof key === "string" &&
             (key.includes("/purchases") ||
-              key.includes("/purchase-invoices") ||
               key.includes("/suppliers") ||
-              key.includes("/supplier-accounts") ||
               key.includes("/statement") ||
-              key.includes("/transactions") ||
               key.includes("/inventory") ||
-              key.includes("/expenses") ||
-              key.includes("/stats")),
+              key.includes("/expenses")),
           undefined,
           { revalidate: true }
         );

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { createCustomer, updateCustomer } from "@/lib/customers/api";
 import type { BranchRecord, CustomerRecord } from "@/lib/customers/domain";
+import { getActiveBranches } from "@/lib/customers/domain";
 
 interface CustomerFormModalProps {
   open: boolean;
@@ -42,9 +43,7 @@ export default function CustomerFormModal({
   const [openingType, setOpeningType] = useState<"debit" | "credit">("debit");
   const [submitting, setSubmitting] = useState(false);
 
-  const activeBranches = branches.filter(
-    (b) => !["مؤرشف", "archived", "deleted"].includes(String(b.status || ""))
-  );
+  const activeBranches = getActiveBranches(branches);
 
   useEffect(() => {
     if (!open) return;

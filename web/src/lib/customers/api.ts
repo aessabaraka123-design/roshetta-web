@@ -6,21 +6,12 @@
 import useSWR from "swr";
 import { API_BASE_URL } from "@/lib/config";
 import {
-  computeCustomerStatementKpis,
-  extractPaymentsMap,
-  formatPaymentMethod,
   generateClientId,
-  getSaleCreditAmount,
-  isCreditSaleRecord,
-  isPaidSaleRecord,
-  normalizeSalePaymentMethod,
   normalizeVoucherPaymentMethod,
   round2,
-  safeJson,
   type CanonicalCustomerCommand,
   type CustomerRecord,
   type CustomerStatementResult,
-  type CustomerTransactionRecord,
 } from "@/lib/customers/domain";
 import {
   dispatchCustomerCommand,
@@ -72,141 +63,7 @@ export function useCustomersList(pharmacyId?: string, branchId: string = "all") 
 
 export type CustomerStatementResponse = CustomerStatementResult & {
   success?: boolean;
-  fallbackLegacy?: boolean;
 };
-
-async function buildLegacyCustomerStatement(
-  pharmacyId: string,
-  customerId: string,
-  lang: "ar" | "en"
-): Promise<CustomerStatementResponse> {
-  const pid = encodeURIComponent(pharmacyId);
-  const cid = encodeURIComponent(customerId);
-  const base = `${API_BASE_URL}/api/pharmacies/${pid}`;
-
-  const [custRes, salesRes, paymentsRes] = await Promise.all([
-    authJsonFetcher(`${base}/customers`),
-    authJsonFetcher(`${base}/customers/${cid}/sales`).catch(() => ({ sales: [] })),
-    authJsonFetcher(`${base}/customers/${cid}/debt-payments`).catch(() => ({ payments: [] })),
-  ]);
-
-  const rawCustomers: any[] = Array.isArray(custRes?.customers) ? custRes.customers : [];
-  const found = rawCustomers.find((c) => String(c.id) === String(customerId));
-  if (!found) {
-    throw Object.assign(
-      new Error(lang === "en" ? "Customer not found" : "العميل غير موجود"),
-      { status: 404, code: "CUSTOMER_NOT_FOUND" }
-    );
-  }
-
-  const { family: _dropFamily, ...cleanCust } = found;
-  const rawSales: any[] = Array.isArray(salesRes?.sales) ? salesRes.sales : [];
-  const custSales = rawSales.map((s) => ({
-    ...s,
-    items: safeJson(s.items, []),
-    customer: safeJson(s.customer, null),
-    payments: extractPaymentsMap(s),
-    paymentMethod: normalizeSalePaymentMethod(s.paymentMethod || s.payment_method),
-  }));
-
-  const paidSales = custSales.filter((s) => isPaidSaleRecord(s));
-  const creditSales = custSales.filter((s) => isCreditSaleRecord(s));
-
-  const rawPayments: any[] = Array.isArray(paymentsRes?.payments) ? paymentsRes.payments : [];
-  const normalizedPayments = rawPayments.map((p) => {
-    const pm =
-      String(p.id || "").startsWith("RET-CR-") || p.paymentMethod === "credit_adjustment"
-        ? "credit_adjustment"
-        : normalizeSalePaymentMethod(p.paymentMethod || p.payment_method || "cash");
-    return {
-      ...p,
-      amount: round2(p.amount ?? p.total ?? 0),
-      total: round2(p.total ?? p.amount ?? 0),
-      paymentMethod: pm,
-    };
-  });
-
-  const creditTx: CustomerTransactionRecord[] = creditSales
-    .map((s) => {
-      const creditAmt = getSaleCreditAmount(s);
-      const pm = normalizeSalePaymentMethod(s.paymentMethod || "credit");
-      const pmInfo = formatPaymentMethod(pm, lang);
-      return {
-        id: `LEGACY-SALE-${s.id}`,
-        customer_id: String(customerId),
-        type: "credit_sale" as const,
-        voucher_number: "",
-        reference_id: String(s.id),
-        amount: creditAmt > 0 ? creditAmt : round2(s.total),
-        balance_before: 0,
-        balance_after: 0,
-        payment_method: pm,
-        paymentMethodLabel: pmInfo.label,
-        electronic_ref: String(s.electronicRef || ""),
-        branch_id: s.branch_id || null,
-        branch_name: s.branchName || "",
-        cashier_name: s.cashierName || "",
-        notes: lang === "en" ? `Credit Sale #${s.id}` : `فاتورة مبيعات آجل #${s.id}`,
-        date: s.date || "",
-      };
-    })
-    .filter((t) => t.amount > 0);
-
-  const payTx: CustomerTransactionRecord[] = normalizedPayments.map((p) => {
-    const isCreditAdj = String(p.id || "").startsWith("RET-CR-") || p.paymentMethod === "credit_adjustment";
-    const pmInfo = formatPaymentMethod(p.paymentMethod || "cash", lang);
-    return {
-      id: `LEGACY-PAY-${p.id}`,
-      customer_id: String(customerId),
-      type: isCreditAdj ? "credit_refund" : "payment",
-      voucher_number: String(p.voucher_number || ""),
-      reference_id: String(p.id),
-      amount: round2(p.amount),
-      balance_before: 0,
-      balance_after: 0,
-      payment_method: p.paymentMethod || "cash",
-      paymentMethodLabel: pmInfo.label,
-      electronic_ref: String(p.electronicRef || ""),
-      branch_id: p.branch_id || null,
-      branch_name: p.branchName || "",
-      cashier_name: p.cashierName || "",
-      notes:
-        p.notes ||
-        (isCreditAdj
-          ? lang === "en"
-            ? `Refund to Store Credit #${p.id}`
-            : `إيداع مرتجع لرصيد العميل #${p.id}`
-          : lang === "en"
-            ? "Payment Voucher"
-            : "سند قبض وسداد دين"),
-      date: p.date || "",
-    };
-  });
-
-  const combinedTx = [...creditTx, ...payTx].sort(
-    (a, b) => String(b.date || "").localeCompare(String(a.date || "")) || String(b.id).localeCompare(String(a.id))
-  );
-  let runningBalance = round2(Number(cleanCust.debt) || 0);
-  for (const tx of combinedTx) {
-    const delta = tx.type === "credit_sale" || tx.type === "manual_debit" ? tx.amount : -tx.amount;
-    tx.balance_after = runningBalance;
-    tx.balance_before = round2(runningBalance - delta);
-    runningBalance = tx.balance_before;
-  }
-
-  const kpis = computeCustomerStatementKpis(combinedTx, custSales, cleanCust);
-  return {
-    success: true,
-    fallbackLegacy: true,
-    customer: cleanCust as CustomerRecord,
-    kpis,
-    transactions: combinedTx,
-    sales: custSales,
-    paidSales,
-    creditSales,
-    payments: normalizedPayments,
-  };
-}
 
 export function useCustomerStatement(
   pharmacyId?: string,
@@ -221,21 +78,7 @@ export function useCustomerStatement(
 
   const swr = useSWR<CustomerStatementResponse>(
     url,
-    async (reqUrl: string) => {
-      try {
-        return await authJsonFetcher(reqUrl);
-      } catch (err: any) {
-        if (
-          pharmacyId &&
-          customerId &&
-          (err?.status === 404 || err?.status === 405 || err?.status === 501) &&
-          err?.code !== "CUSTOMER_NOT_FOUND"
-        ) {
-          return await buildLegacyCustomerStatement(pharmacyId, customerId, lang);
-        }
-        throw err;
-      }
-    },
+    authJsonFetcher,
     {
       onSuccess: (data) => {
         if (cacheKey && data?.customer) {

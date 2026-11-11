@@ -41,8 +41,6 @@ export default function More() {
     }
   }, [router]);
 
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-
   if (!mounted) return null;
 
   const settings = [

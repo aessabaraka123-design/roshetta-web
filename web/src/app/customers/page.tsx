@@ -11,6 +11,7 @@ import { API_BASE_URL } from "@/lib/config";
 import { useStore } from "@/store";
 import { authJsonFetcher, useCustomersList } from "@/lib/customers/api";
 import {
+  getActiveBranches,
   resolveBranchId,
   resolveBranchName,
   round2,
@@ -38,8 +39,7 @@ export default function CustomersPage() {
     authJsonFetcher
   );
   const activeBranches: BranchRecord[] = useMemo(() => {
-    const raw = branchesData?.branches || [];
-    return raw.filter((b: any) => !["مؤرشف", "archived", "deleted"].includes(String(b.status || "")));
+    return getActiveBranches(branchesData?.branches || []);
   }, [branchesData]);
 
   const userFixedBranchId = useMemo(() => {

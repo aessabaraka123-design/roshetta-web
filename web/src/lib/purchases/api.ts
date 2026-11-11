@@ -66,7 +66,7 @@ export async function revalidatePurchaseDomain(pharmacyId?: string, supplierId?:
     mutate(keys.suppliers),
     mutate(keys.inventory),
     mutate(keys.expenses),
-    mutate((k) => typeof k === "string" && (k.includes("/stats") || k.includes("/statement") || k.includes("/transactions"))),
+    mutate((k) => typeof k === "string" && k.includes("/statement")),
   ];
   if (supplierId) {
     tasks.push(mutate(keys.statement(supplierId)));

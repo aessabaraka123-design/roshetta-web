@@ -382,15 +382,6 @@ export default function CustomerStatementModal({
         )}
       </div>
 
-      {statement?.fallbackLegacy && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[12px] font-bold text-amber-800">
-          ⚠️{" "}
-          {isEn
-            ? "Compatibility mode active: the live backend is still on the previous release. Update the backend server to unlock full sequential voucher logs & manual debit entries."
-            : "تم عرض كشف الحساب بوضع التوافق مع نسخة الخادم السابقة — يرجى رفع حزمة تحديث الخادم وتفعيله لإظهار أرقام السندات التسلسلية والقيود اليدوية بالكامل."}
-        </div>
-      )}
-
       {/* Focused 3-Card Summary KPI Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-white rounded-2xl p-4 border border-mint-line shadow-xs">

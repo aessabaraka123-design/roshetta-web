@@ -7,7 +7,7 @@ import { useState, useEffect, useRef } from "react";
 import AppBar from "@/components/AppBar";
 import SearchBar from "@/components/SearchBar";
 import { Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
 import toast from "react-hot-toast";
 import { formatQty } from "@/utils/formatQty";
@@ -52,9 +52,6 @@ function POSContent() {
       }
     }
   }, [user, router]);
-
-  const searchParams = useSearchParams();
-  const editInvoiceId = searchParams?.get("edit");
 
   const { data, mutate } = useSWR(
     user
@@ -798,7 +795,7 @@ function POSContent() {
       <div className="w-full pb-10 print:hidden">
       {/* ===== TOP BAR ===== */}
       <AppBar
-        title={editInvoiceId ? (language === 'en' ? `Edit Invoice ${editInvoiceId}` : `تعديل الفاتورة ${editInvoiceId}`) : (language === 'en' ? "Cashier" : "الكاشير")}
+        title={language === 'en' ? "Cashier" : "الكاشير"}
         showLogo={false}
         showNotifs={false}
       >

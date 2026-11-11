@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import RoshettaLogo from "@/components/RoshettaLogo";
 import LocalBarcode from "@/components/LocalBarcode";
-import { formatPaymentMethod, isDebtPaymentRecord } from "@/lib/customers/domain";
+import { formatPaymentMethod, isDebtPaymentRecord, isRefundProxyRecord } from "@/lib/customers/domain";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -131,12 +131,7 @@ export default function SalesLog() {
     if (/^[A-Z0-9]{5}-DP-\d{4}/.test(s.id) || /^[A-Z0-9]{5}-\d{4}/.test(s.id)) {
       return s.id;
     }
-    if (
-      s.status === "debt_payment" ||
-      s.paymentMethod === "debt_payment" ||
-      s.paymentMethod === "تسديد دين" ||
-      (typeof s.id === "string" && (s.id.startsWith("DP-") || s.id.startsWith("DP ")))
-    ) {
+    if (isDebtPaymentRecord(s)) {
       const appChar = "R";
       const pharmChar = ((user?.pharmacy_id || "").replace(/[^A-Za-z0-9]/g, "")[0] || "P").toUpperCase();
       const safeBranch = s.branchName || s.branch || user?.branch || "الفرع الرئيسي";
@@ -150,13 +145,7 @@ export default function SalesLog() {
       const branchDps = allSales
         .filter((item: any) => {
           const itemBranch = item.branchName || item.branch || user?.branch || "الفرع الرئيسي";
-          return (
-            itemBranch === safeBranch &&
-            (item.status === "debt_payment" ||
-              item.paymentMethod === "debt_payment" ||
-              item.paymentMethod === "تسديد دين" ||
-              (typeof item.id === "string" && (item.id.startsWith("DP-") || item.id.startsWith("DP "))))
-          );
+          return itemBranch === safeBranch && isDebtPaymentRecord(item);
         })
         .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -168,7 +157,7 @@ export default function SalesLog() {
   };
 
   const rawSales = (data?.sales && Array.isArray(data.sales)) ? data.sales : cachedSales;
-  const nonProxySales = rawSales.filter((s: any) => s.status !== "refund_proxy");
+  const nonProxySales = rawSales.filter((s: any) => !isRefundProxyRecord(s));
   const sales = nonProxySales.map((s: any) => ({
     ...s,
     displayId: formatSaleId(s, nonProxySales),
@@ -521,7 +510,7 @@ export default function SalesLog() {
                         (sale.customer?.name && ["credit", "split"].includes(sale.paymentMethod) ? " (" + sale.customer.name + ")" : "")}
                   </span>
 
-                  {sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين" || (!sale.items || sale.items.length === 0) ? (
+                  {isDebtPaymentRecord(sale) || (!sale.items || sale.items.length === 0) ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
                       💳 {language === 'en' ? 'Debt Receipt' : 'سند سداد'}
                     </span>
@@ -550,7 +539,7 @@ export default function SalesLog() {
                     >
                       {language === 'en' ? 'View' : 'عرض'}
                     </button>
-                    {sale.status !== "refunded" && sale.status !== "debt_payment" && sale.paymentMethod !== "debt_payment" && sale.paymentMethod !== "تسديد دين" && (
+                    {sale.status !== "refunded" && !isDebtPaymentRecord(sale) && (
                       <button
                         onClick={() => handleRefund(sale.id)}
                         className="px-3 py-1 text-[12px] font-bold text-coral border border-coral-pale rounded-lg hover:bg-coral hover:text-white transition-all"
@@ -637,7 +626,7 @@ export default function SalesLog() {
                       </div>
                     </td>
                     <td className="py-4 px-5 text-start">
-                      {sale.status === "debt_payment" || sale.paymentMethod === "debt_payment" || sale.paymentMethod === "تسديد دين" || (!sale.items || sale.items.length === 0) ? (
+                      {isDebtPaymentRecord(sale) || (!sale.items || sale.items.length === 0) ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[12px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
                           💳 {language === 'en' ? 'Debt Receipt' : 'سند سداد'}
                         </span>
@@ -683,7 +672,7 @@ export default function SalesLog() {
                         >
                           {language === 'en' ? 'View' : 'عرض'}
                         </button>
-                        {sale.status !== "refunded" && sale.status !== "debt_payment" && sale.paymentMethod !== "debt_payment" && sale.paymentMethod !== "تسديد دين" && (
+                        {sale.status !== "refunded" && !isDebtPaymentRecord(sale) && (
                           <button
                             onClick={() => handleRefund(sale.id)}
                             className="px-3 py-1.5 text-[13px] font-bold text-coral border border-coral-pale rounded-lg hover:bg-coral hover:text-white transition-all"
@@ -757,12 +746,12 @@ export default function SalesLog() {
               <div className="flex justify-between text-[14px]">
                 <span className="text-ink-soft font-bold">{language === 'en' ? 'Transaction Type:' : 'نوع الحركة:'}</span>
                 <span className="text-ink font-semibold">
-                  {selectedInvoice.status === "debt_payment" || selectedInvoice.paymentMethod === "debt_payment" || selectedInvoice.paymentMethod === "تسديد دين"
+                  {isDebtPaymentRecord(selectedInvoice)
                     ? (language === 'en' ? "Debt Repayment Voucher" : "سند قبض / سداد دين")
                     : (language === 'en' ? "Sales Invoice" : "فاتورة مبيعات أدوية")}
                 </span>
               </div>
-              {selectedInvoice.status !== "debt_payment" && selectedInvoice.paymentMethod !== "debt_payment" && selectedInvoice.paymentMethod !== "تسديد دين" && (
+              {!isDebtPaymentRecord(selectedInvoice) && (
                 <div className="flex justify-between text-[14px]">
                   <span className="text-ink-soft font-bold">{language === 'en' ? 'Number of Items:' : 'عدد الأصناف:'}</span>
                   <span className="text-ink font-semibold">

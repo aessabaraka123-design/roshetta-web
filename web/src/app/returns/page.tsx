@@ -9,6 +9,8 @@ import useSWR, { mutate } from "swr";
 import toast from "react-hot-toast";
 import {
   computeRefundSettlement,
+  isDebtPaymentRecord,
+  isRefundProxyRecord,
   normalizeSalePaymentMethod,
   round2,
 } from "@/lib/customers/domain";
@@ -44,17 +46,6 @@ export default function Returns() {
 
   const allSales = salesData?.sales || [];
 
-  const isDebtPaymentRecord = (s: any) =>
-    s.status === "debt_payment" ||
-    s.type === "debt_payment" ||
-    String(s.id || "").startsWith("PAY") ||
-    String(s.id || "").startsWith("RET-CR") ||
-    s.paymentMethod === "debt_payment" ||
-    s.paymentMethod === "تسديد دين" ||
-    s.paymentMethod === "سداد دين" ||
-    s.paymentMethod === "سداد دَين" ||
-    s.paymentMethod === "سداد";
-
   const completedSales = useMemo(
     () =>
       allSales.filter(
@@ -62,7 +53,7 @@ export default function Returns() {
           s &&
           s.id &&
           s.status !== "refunded" &&
-          s.status !== "refund_proxy" &&
+          !isRefundProxyRecord(s) &&
           !String(s.id).startsWith("REF-") &&
           Number(s.total || 0) > 0 &&
           !isDebtPaymentRecord(s),
@@ -76,7 +67,7 @@ export default function Returns() {
           s &&
           s.id &&
           (s.status === "refunded" || s.isRefunded || s.is_refunded) &&
-          s.status !== "refund_proxy" &&
+          !isRefundProxyRecord(s) &&
           !isDebtPaymentRecord(s),
       ),
     [allSales],

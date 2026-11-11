@@ -148,24 +148,6 @@ export const ReturnsIcon = ({
   </svg>
 );
 
-export const PrescriptionIcon = ({
-  className = "w-6 h-6",
-}: {
-  className?: string;
-}) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M19 4h-3V2h-8v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-7 14V8h-2v10h2z" />
-  </svg>
-);
-
 export const CustomersIcon = ({
   className = "w-6 h-6",
 }: {

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { round2 } from "@/lib/purchases/domain";
+import { isCompletedStatus, round2 } from "@/lib/purchases/domain";
 
 interface Props {
   suppliers: any[];
@@ -19,7 +19,7 @@ export default function SupplierStatsHeader({ suppliers, purchases, lang }: Prop
   );
   const totalPaid = round2(
     purchases
-      .filter((p) => p.status === "completed" || p.status === "received")
+      .filter((p) => isCompletedStatus(p.status))
       .reduce((s, p) => s + (Number(p.paid_amount ?? p.paid) || 0), 0)
   );
 

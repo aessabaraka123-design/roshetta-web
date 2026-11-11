@@ -21,7 +21,7 @@ import {
   Legend,
 } from "recharts";
 
-import { exportToExcel, exportCorporateExcel, exportComprehensivePDF } from "@/utils/export";
+import { exportCorporateExcel, exportComprehensivePDF } from "@/utils/export";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
