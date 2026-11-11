@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { useStore } from "@/store";
+import { rehydrateClientStore, useStore } from "@/store";
 import toast from "react-hot-toast";
 import RoshettaLogo from "./RoshettaLogo";
 import { useTranslation } from "@/i18n";
@@ -30,6 +30,7 @@ export default function Sidebar() {
   const setMobileMenuOpen = useStore((state: any) => state.setMobileMenuOpen);
 
   useEffect(() => {
+    rehydrateClientStore();
     setMobileMenuOpen(false);
   }, [pathname, setMobileMenuOpen]);
 

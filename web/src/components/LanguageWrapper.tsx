@@ -1,6 +1,6 @@
 "use client";
 
-import { useStore } from "@/store";
+import { rehydrateClientStore, useStore } from "@/store";
 import { useEffect, useState } from "react";
 import { installToastLocalization } from "@/lib/errorTranslations";
 
@@ -10,17 +10,24 @@ export default function LanguageWrapper({ children }: { children: React.ReactNod
 
   useEffect(() => {
     installToastLocalization();
+    rehydrateClientStore();
     setMounted(true);
-    document.documentElement.dir = language === "en" ? "ltr" : "rtl";
-    document.documentElement.lang = language || "ar";
-  }, [language]);
+  }, []);
 
-  if (!mounted) {
-    return <div style={{ visibility: "hidden" }}>{children}</div>;
-  }
+  const activeLang = mounted ? (language || "ar") : "ar";
+
+  useEffect(() => {
+    if (!mounted) return;
+    document.documentElement.dir = activeLang === "en" ? "ltr" : "rtl";
+    document.documentElement.lang = activeLang;
+  }, [mounted, activeLang]);
 
   return (
-    <div dir={language === "en" ? "ltr" : "rtl"} className="w-full min-h-screen flex text-start">
+    <div
+      dir={activeLang === "en" ? "ltr" : "rtl"}
+      className="w-full min-h-screen flex text-start"
+      style={mounted ? undefined : { visibility: "hidden" }}
+    >
       {children}
     </div>
   );

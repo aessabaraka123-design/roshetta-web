@@ -15,6 +15,19 @@ export async function authFetchJson(url: string) {
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(url, { headers });
+  const contentType = res.headers.get("content-type") || "";
+  const isJson = contentType.includes("application/json");
+  if (!res.ok) {
+    if (isJson && res.status >= 400 && res.status < 500) {
+      return res.json();
+    }
+    const err: any = new Error(`Request failed with status ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  if (!isJson) {
+    throw new Error("Expected JSON response from server");
+  }
   return res.json();
 }
 

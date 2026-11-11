@@ -106,6 +106,8 @@ const getInitialToken = (): string | null => {
   return null;
 };
 
+let clientRehydrated = false;
+
 export const useStore = create<StoreState>()(
   persist(
     (set) => ({
@@ -122,8 +124,10 @@ export const useStore = create<StoreState>()(
       isMobileMenuOpen: false,
       setMobileMenuOpen: (open) => set({ isMobileMenuOpen: open }),
       toggleMobileMenu: () => set((state) => ({ isMobileMenuOpen: !state.isMobileMenuOpen })),
-      user: getInitialUser(),
-      token: getInitialToken(),
+      // Must start null on both SSR and the client's first hydration pass to prevent React #418;
+      // rehydrateClientStore() restores persisted storage immediately on mount.
+      user: null,
+      token: null,
       login: (user, token) => {
         if (typeof window !== "undefined") {
           try {
@@ -234,9 +238,24 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: "roshetta-web-storage",
+      skipHydration: true,
+      partialize: (state) => ({
+        language: state.language,
+        user: state.user,
+        token: state.token,
+        posCart: state.posCart,
+      }),
       storage: createJSONStorage(() => {
         if (typeof window !== "undefined") {
-          return window.localStorage;
+          return {
+            getItem: (name) => window.localStorage.getItem(name),
+            // Never overwrite persisted storage with unhydrated initial defaults before mount.
+            setItem: (name, value) => {
+              if (!clientRehydrated) return;
+              window.localStorage.setItem(name, value);
+            },
+            removeItem: (name) => window.localStorage.removeItem(name),
+          };
         }
         return {
           getItem: () => null,
@@ -259,3 +278,46 @@ export const useStore = create<StoreState>()(
     },
   ),
 );
+
+/**
+ * Restores persisted Zustand and legacy localStorage auth state after React hydration completes.
+ */
+export function rehydrateClientStore(): void {
+  if (typeof window === "undefined" || clientRehydrated) return;
+  clientRehydrated = true;
+
+  let persistedState: Partial<StoreState> = {};
+  try {
+    const raw = localStorage.getItem("roshetta-web-storage");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.state && typeof parsed.state === "object") {
+        persistedState = parsed.state;
+      }
+    }
+  } catch (e) {
+    console.error("Failed to read persisted store:", e);
+  }
+
+  const storedUser = persistedState.user || getInitialUser();
+  const storedToken = persistedState.token || getInitialToken();
+  const storedLang = persistedState.language === "en" || persistedState.language === "ar"
+    ? persistedState.language
+    : undefined;
+
+  const nextPatch: Partial<StoreState> = {};
+  if (storedLang) nextPatch.language = storedLang;
+  if (Array.isArray(persistedState.posCart)) nextPatch.posCart = persistedState.posCart;
+  if (storedUser) nextPatch.user = storedUser;
+  if (storedToken) nextPatch.token = storedToken;
+
+  if (Object.keys(nextPatch).length > 0) {
+    useStore.setState(nextPatch);
+  }
+
+  try {
+    useStore.persist.rehydrate();
+  } catch (e) {
+    console.error("Failed to rehydrate store:", e);
+  }
+}

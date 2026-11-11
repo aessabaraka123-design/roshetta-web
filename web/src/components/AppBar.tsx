@@ -40,9 +40,11 @@ export default function AppBar({
   const isRtl = language !== "en";
   const actualTitle = title || t.appbar.title;
 
+  const [mounted, setMounted] = useState(false);
   const [readIds, setReadIds] = useState<string[]>([]);
 
   useEffect(() => {
+    setMounted(true);
     try {
       const stored = localStorage.getItem("roshetta_read_notifs");
       if (stored) setReadIds(JSON.parse(stored));
@@ -50,20 +52,20 @@ export default function AppBar({
   }, []);
 
   const { data: subStatusData } = useSWR(
-    user?.pharmacy_id ? getSubscriptionStatusEndpoint(user.pharmacy_id) : null,
+    mounted && user?.pharmacy_id ? getSubscriptionStatusEndpoint(user.pharmacy_id) : null,
     authFetchJson,
     { refreshInterval: 30000 },
   );
 
-  const subState = getSubscriptionNoticeState(user, subStatusData);
+  const subState = getSubscriptionNoticeState(mounted ? user : null, subStatusData);
   const syntheticSubNotif = buildSubscriptionNotification(
-    user?.pharmacy_id,
+    mounted ? user?.pharmacy_id : null,
     subState,
     language === "en" ? "en" : "ar",
   );
 
   const { data: notifsData, mutate: mutateNotifs } = useSWR(
-    user && showNotifs
+    mounted && user && showNotifs
       ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/notifications`
       : null,
     authFetchJson,

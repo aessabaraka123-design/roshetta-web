@@ -65,7 +65,7 @@ export default function Dashboard() {
   const fetchedBranches = data?.branches || [];
   const rawAlerts = data?.alerts || [];
 
-  const subState = getSubscriptionNoticeState(user, subStatusData);
+  const subState = getSubscriptionNoticeState(mounted ? user : null, subStatusData);
   const langKey = language === "en" ? "en" : "ar";
   const subExpiryText = formatExpiryDate(subState.expiryIso, langKey);
   const subPlanLabel = getPlanLabel(subState.planType, langKey);
@@ -136,7 +136,7 @@ export default function Dashboard() {
     ...fetchedBranches.map((b: any) => ({ id: b.id, name: b.name })),
   ];
 
-  if (!user) return null;
+  if (!mounted || !user) return null;
 
   return (
     <main className="w-full pb-24 relative">

@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useStore } from "@/store";
+import { rehydrateClientStore, useStore } from "@/store";
 import { useState, useEffect } from "react";
 import useSWR from "swr";
 import toast from "react-hot-toast";
@@ -130,8 +130,9 @@ export default function MainLayoutWrapper({
     pathname === "/receipt-upload";
 
   useEffect(() => {
-    // 1. Proactively check stored session if store was not hydrated yet or token is expired
+    // 1. Rehydrate persisted store after hydration, then validate session/token
     if (typeof window !== "undefined") {
+      rehydrateClientStore();
       const storedUser = localStorage.getItem("roshetta_user");
       const storedToken = localStorage.getItem("roshetta_token");
 
@@ -266,7 +267,7 @@ export default function MainLayoutWrapper({
     );
   }
 
-  const subState = getSubscriptionNoticeState(user, subStatusData);
+  const subState = getSubscriptionNoticeState(mounted ? user : null, subStatusData);
   const {
     isReadOnly,
     isRejected,
@@ -303,7 +304,7 @@ export default function MainLayoutWrapper({
 
   return (
     <div className="flex-1 w-full min-h-screen flex flex-col relative">
-      {isReadOnly && (
+      {mounted && isReadOnly && (
         <div
           className="text-white text-center py-2.5 px-4 font-bold text-sm shadow-md sticky top-0 z-[9990] flex items-center justify-center gap-2 sm:gap-3 flex-wrap transition-colors duration-500"
           style={{
@@ -461,7 +462,7 @@ export default function MainLayoutWrapper({
         </div>
       )}
 
-      {!isReadOnly && isExpiringSoon && !soonBannerDismissed && daysLeft !== null && (
+      {mounted && !isReadOnly && isExpiringSoon && !soonBannerDismissed && daysLeft !== null && (
         <div className="bg-amber-500 text-white text-center py-2 px-4 font-bold text-xs sm:text-sm shadow-sm sticky top-0 z-[9980] flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
           <span>
             ⏳{" "}
@@ -578,7 +579,7 @@ export default function MainLayoutWrapper({
 
       <main
         className={`p-3 sm:p-5 md:p-8 flex-1 w-full max-w-7xl mx-auto transition-all duration-300 ${
-          isReadOnly && !isExemptFromReadOnlyBlock
+          mounted && isReadOnly && !isExemptFromReadOnlyBlock
             ? "pointer-events-none opacity-75 select-none"
             : ""
         }`}
