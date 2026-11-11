@@ -8,8 +8,13 @@ import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
 import { useTranslation } from "@/i18n";
 import useSWR from "swr";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import {
+  authFetchJson,
+  formatExpiryDate,
+  getPlanLabel,
+  getSubscriptionNoticeState,
+  getSubscriptionStatusEndpoint,
+} from "@/lib/subscription";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -35,11 +40,17 @@ export default function Dashboard() {
   const isManager = user?.role === "manager";
   const queryBranch = isManager ? activeBranch : user?.branch || "all";
 
+  const { data: subStatusData } = useSWR(
+    mounted && user?.pharmacy_id ? getSubscriptionStatusEndpoint(user.pharmacy_id) : null,
+    authFetchJson,
+    { refreshInterval: 30000 },
+  );
+
   const { data, isLoading } = useSWR(
-    user
+    mounted && user
       ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard?branch=${queryBranch}`
       : null,
-    fetcher,
+    authFetchJson,
   );
   const stats = data?.stats || {
     salesToday: 0,
@@ -54,8 +65,13 @@ export default function Dashboard() {
   const fetchedBranches = data?.branches || [];
   const rawAlerts = data?.alerts || [];
 
+  const subState = getSubscriptionNoticeState(user, subStatusData);
+  const langKey = language === "en" ? "en" : "ar";
+  const subExpiryText = formatExpiryDate(subState.expiryIso, langKey);
+  const subPlanLabel = getPlanLabel(subState.planType, langKey);
+
   const alertsData = useMemo(() => {
-    return rawAlerts
+    const processed = rawAlerts
       .map((alert: any) => {
         if (!alert) return null;
         if (alert.type === "expiring") {
@@ -83,7 +99,37 @@ export default function Dashboard() {
         return alert;
       })
       .filter(Boolean);
-  }, [rawAlerts, language]);
+
+    if (subState.isExpired) {
+      return [
+        {
+          id: "sub-expired-alert",
+          type: "subscription_expired",
+          title: language === "en" ? "Subscription Expired" : "انتهى اشتراك الصيدلية",
+          branchName: subPlanLabel,
+          message: language === "en" ? "Expired — Renew" : "منتهي — تجديد",
+        },
+        ...processed,
+      ];
+    }
+    if (subState.isExpiringSoon && subState.daysLeft !== null) {
+      return [
+        {
+          id: "sub-expiring-alert",
+          type: "subscription_expiring",
+          title: language === "en" ? "Subscription Expiring Soon" : "قرب انتهاء الاشتراك",
+          branchName: subPlanLabel,
+          message:
+            language === "en"
+              ? `${subState.daysLeft}d left`
+              : `باقي ${subState.daysLeft} أيام`,
+        },
+        ...processed,
+      ];
+    }
+
+    return processed;
+  }, [rawAlerts, language, subState.isExpired, subState.isExpiringSoon, subState.daysLeft, subPlanLabel]);
 
   const branches = [
     { id: "all", name: language === "en" ? "All Branches" : "كل الفروع" },
@@ -97,6 +143,96 @@ export default function Dashboard() {
       <div className="absolute top-[-50px] right-[-50px] w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
 
       <AppBar />
+
+      {(subState.isExpired || subState.isExpiringSoon) && (
+        <div
+          className={`mx-1 sm:mx-4 md:mx-6 mb-5 rounded-[24px] p-4 sm:p-5 border-2 shadow-md pointer-events-auto relative z-20 ${
+            subState.isExpired
+              ? "border-coral/35 bg-gradient-to-l from-rose-50 via-white to-coral-pale/30"
+              : "border-amber-300 bg-gradient-to-l from-amber-50 via-white to-amber-50/40"
+          }`}
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div
+                className={`w-12 h-12 rounded-2xl shrink-0 flex items-center justify-center text-2xl shadow-xs ${
+                  subState.isExpired ? "bg-coral/15 text-coral" : "bg-amber-100 text-amber-700"
+                }`}
+              >
+                {subState.isExpired ? "⚠️" : "⏳"}
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-[16px] sm:text-[18px] font-black text-ink">
+                    {subState.isExpired
+                      ? language === "en"
+                        ? "Subscription Expired"
+                        : "إشعار انتهاء الاشتراك"
+                      : language === "en"
+                        ? "Subscription Expiring Soon"
+                        : "تنبيه: اشتراكك على وشك الانتهاء"}
+                  </h2>
+                  <span
+                    className={`text-[11px] font-black px-2.5 py-0.5 rounded-full ${
+                      subState.isExpired
+                        ? "bg-coral text-white"
+                        : "bg-amber-500 text-white"
+                    }`}
+                  >
+                    {subPlanLabel}
+                  </span>
+                </div>
+                <p className="text-[13px] sm:text-[14px] text-ink-soft font-medium leading-relaxed">
+                  {subState.isExpired
+                    ? language === "en"
+                      ? `Your subscription${subExpiryText ? ` expired on ${subExpiryText}` : " has expired"}. The account is in read-only mode; renew now if you wish to continue with full features.`
+                      : `انتهت صلاحية اشتراك هذا الحساب${subExpiryText ? ` بتاريخ ${subExpiryText}` : ""} وهو الآن في وضع القراءة فقط. لو رغبت في تجديد الاشتراك واستئناف البيع والمشتريات اضغط على تجديد الاشتراك.`
+                    : language === "en"
+                      ? `Your subscription expires in ${subState.daysLeft} day(s)${subExpiryText ? ` (${subExpiryText})` : ""}. Renew early to keep uninterrupted access.`
+                      : `يتبقى ${subState.daysLeft} أيام على انتهاء صلاحية اشتراكك${subExpiryText ? ` (${subExpiryText})` : ""}. يمكنك التجديد مبكراً لتفادي توقف العمليات.`}
+                </p>
+              </div>
+            </div>
+
+            {subState.isManager ? (
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                <Link
+                  href="/upgrade-plan"
+                  className={`px-5 py-2.5 rounded-xl text-white font-black text-[13px] sm:text-[14px] shadow-md hover:opacity-95 hover:scale-[1.02] transition-all inline-flex items-center gap-1.5 ${
+                    subState.isExpired
+                      ? "bg-gradient-to-l from-coral to-rose-600 shadow-coral/25"
+                      : "bg-amber-600 shadow-amber-500/20"
+                  }`}
+                >
+                  <span>⚡</span>
+                  <span>
+                    {subState.isExpired
+                      ? language === "en"
+                        ? "Renew Subscription"
+                        : "تجديد الاشتراك الآن"
+                      : language === "en"
+                        ? "Renew Early"
+                        : "تجديد مبكر"}
+                  </span>
+                </Link>
+                <Link
+                  href="/my-subscription"
+                  className="px-4 py-2.5 rounded-xl bg-white border border-mint-line text-ink font-bold text-[13px] hover:border-primary/40 transition-colors inline-flex items-center gap-1.5"
+                >
+                  <span>📋</span>
+                  <span>{language === "en" ? "Subscription Details" : "حالة الباقة"}</span>
+                </Link>
+              </div>
+            ) : (
+              <div className="px-3.5 py-2 rounded-xl bg-white/80 border border-coral/20 text-coral text-[12px] font-bold shrink-0">
+                {language === "en"
+                  ? "Contact pharmacy manager to renew"
+                  : "يرجى مراجعة إدارة الصيدلية لتجديد الاشتراك"}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mb-4 sm:mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 px-1 sm:px-4 md:px-6">
         <div>
@@ -266,13 +402,24 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-10">
           {alertsData.length > 0 ? (
-            alertsData.map((alert: any, idx: number) => (
+            alertsData.map((alert: any, idx: number) => {
+              const isSubAlert =
+                alert.type === "subscription_expired" ||
+                alert.type === "subscription_expiring";
+              const isCritical =
+                alert.type === "outOfStock" ||
+                alert.type === "expiring" ||
+                alert.type === "subscription_expired";
+
+              return (
               <div
-                key={idx}
-                className="bg-white rounded-3xl p-5 shadow-sm border border-mint-line flex items-center justify-between hover:shadow-md transition-shadow relative overflow-hidden group"
+                key={alert.id || idx}
+                className={`bg-white rounded-3xl p-5 shadow-sm border border-mint-line flex items-center justify-between hover:shadow-md transition-shadow relative overflow-hidden group ${
+                  isSubAlert ? "pointer-events-auto" : ""
+                }`}
               >
                 <div
-                  className={`absolute top-0 right-0 w-1 h-full ${alert.type === "outOfStock" || alert.type === "expiring" ? "bg-coral" : "bg-amber"}`}
+                  className={`absolute top-0 right-0 w-1 h-full ${isCritical ? "bg-coral" : "bg-amber"}`}
                 ></div>
                 <div className="flex-1 flex flex-col items-start text-start">
                   <h3
@@ -282,10 +429,32 @@ export default function Dashboard() {
                     {alert.title}
                   </h3>
                   <p className="text-[13px] font-semibold text-ink-soft">
-                    {language === "en" ? "Branch" : "فرع"} {alert.branchName}
+                    {isSubAlert
+                      ? alert.branchName
+                      : `${language === "en" ? "Branch" : "فرع"} ${alert.branchName}`}
                   </p>
-                  <div className="mt-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 w-full justify-start">
-                    {alert.type === "outOfStock" ||
+                  <div
+                    className={`mt-3 ${
+                      isSubAlert ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                    } transition-opacity flex gap-2 w-full justify-start`}
+                  >
+                    {isSubAlert ? (
+                      subState.isManager ? (
+                        <Link
+                          href="/upgrade-plan"
+                          className="text-[12px] font-black bg-coral text-white px-3.5 py-1.5 rounded-lg hover:opacity-90 transition-opacity inline-flex items-center gap-1 shadow-xs"
+                        >
+                          ⚡ {language === "en" ? "Renew Subscription" : "تجديد الاشتراك"}
+                        </Link>
+                      ) : (
+                        <Link
+                          href="/my-subscription"
+                          className="text-[12px] font-bold bg-bg border border-mint-line text-ink px-3 py-1.5 rounded-lg"
+                        >
+                          📋 {language === "en" ? "Subscription Status" : "حالة الاشتراك"}
+                        </Link>
+                      )
+                    ) : alert.type === "outOfStock" ||
                     alert.type === "lowStock" ? (
                       <Link
                         href="/purchases"
@@ -337,18 +506,17 @@ export default function Dashboard() {
                 <div className="flex flex-col items-end gap-2 self-start mt-1">
                   <div
                     className={`text-[14px] font-black px-3 py-1 rounded-full ${
-                      alert.type === "outOfStock"
+                      isCritical
                         ? "text-coral bg-coral-pale"
-                        : alert.type === "expiring"
-                          ? "text-coral bg-coral-pale"
-                          : "text-[#B9791C] bg-amber-pale"
+                        : "text-[#B9791C] bg-amber-pale"
                     }`}
                   >
                     {alert.message}
                   </div>
                 </div>
               </div>
-            ))
+              );
+            })
           ) : (
             <div className="col-span-1 lg:col-span-2 bg-teal-pale/50 rounded-3xl p-8 border border-teal/20 text-center flex flex-col items-center justify-center">
               <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm text-teal">

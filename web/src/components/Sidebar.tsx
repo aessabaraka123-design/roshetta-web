@@ -70,6 +70,7 @@ export default function Sidebar() {
       items: [
         { name: t.sidebar.staff_branches, href: "/branches", icon: ManagerIcon },
         { name: t.sidebar.security_backup, href: "/admin", icon: AdminIcon },
+        { name: language === "en" ? "Subscription & Renewal" : "الاشتراك والتجديد", href: "/my-subscription", icon: ReportsIcon },
         { name: t.sidebar.print_settings, href: "/more", icon: MoreIcon },
       ],
     },

@@ -1,6 +1,5 @@
 "use client";
 
-import { API_BASE_URL } from "@/lib/config";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/store";
@@ -8,6 +7,14 @@ import { useState, useEffect } from "react";
 import useSWR from "swr";
 import toast from "react-hot-toast";
 import "@/lib/errorTranslations";
+import {
+  authFetchJson,
+  formatExpiryDate,
+  getPlanLabel,
+  getSubscriptionNoticeState,
+  getSubscriptionStatusEndpoint,
+  resolveEffectiveExpiryMs,
+} from "@/lib/subscription";
 
 function isJwtExpired(token: string): boolean {
   if (!token || typeof token !== "string") return false;
@@ -34,33 +41,64 @@ export default function MainLayoutWrapper({
   const user = useStore((state: any) => state.user);
   const language = useStore((state: any) => state.language);
   const [mounted, setMounted] = useState(false);
+  const [expiredModalDismissed, setExpiredModalDismissed] = useState(true);
+  const [soonBannerDismissed, setSoonBannerDismissed] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const fetcher = (url: string) => fetch(url).then((res) => res.json());
+  useEffect(() => {
+    if (!mounted || !user?.pharmacy_id || typeof window === "undefined") return;
+    try {
+      const dismissed = sessionStorage.getItem(`roshetta_sub_expired_dismissed_${user.pharmacy_id}`);
+      setExpiredModalDismissed(dismissed === "1");
+    } catch (_) {
+      setExpiredModalDismissed(false);
+    }
+  }, [mounted, user?.pharmacy_id]);
+
   const { data: subStatusData } = useSWR(
-    user?.pharmacy_id
-      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/subscription-status`
-      : null,
-    fetcher,
+    mounted && user?.pharmacy_id ? getSubscriptionStatusEndpoint(user.pharmacy_id) : null,
+    authFetchJson,
     { refreshInterval: user?.isReadOnly ? 10000 : 30000 }
   );
 
-  // Sync isReadOnly, pharmacyName, subscriptionType, isActive between server check and client store
+  // Sync isReadOnly, isExpired, subscriptionExpiry, pharmacyName, subscriptionType, isActive between server and store
   useEffect(() => {
     if (subStatusData && subStatusData.success && user) {
       let hasChanges = false;
       const updatedUser = { ...user };
+      const effectiveExpiryMs = resolveEffectiveExpiryMs(subStatusData);
+      const effectiveExpiryIso =
+        subStatusData.subscriptionExpiry ||
+        subStatusData.pharmacy?.subscriptionExpiry ||
+        (Number.isFinite(effectiveExpiryMs) ? new Date(effectiveExpiryMs).toISOString() : null);
+      const subType = subStatusData.subscriptionType || user.subscriptionType;
+      const isDateExpired =
+        subType !== "lifetime" &&
+        Number.isFinite(effectiveExpiryMs) &&
+        effectiveExpiryMs <= Date.now();
 
-      // STRICT SECURITY: If request is pending admin approval, or server reports read-only, force read-only mode!
-      const shouldBeReadOnly = subStatusData.status === "pending" || subStatusData.isReadOnly === true;
+      const shouldBeReadOnly =
+        subStatusData.status === "pending" ||
+        subStatusData.isReadOnly === true ||
+        subStatusData.isExpired === true ||
+        isDateExpired;
+
       if (shouldBeReadOnly && !user.isReadOnly) {
         updatedUser.isReadOnly = true;
         hasChanges = true;
-      } else if (!shouldBeReadOnly && subStatusData.isReadOnly === false && user.isReadOnly) {
+      } else if (!shouldBeReadOnly && subStatusData.isReadOnly === false && !isDateExpired && user.isReadOnly) {
         updatedUser.isReadOnly = false;
+        hasChanges = true;
+      }
+      if (effectiveExpiryIso && effectiveExpiryIso !== user.subscriptionExpiry) {
+        updatedUser.subscriptionExpiry = effectiveExpiryIso;
+        hasChanges = true;
+      }
+      if (isDateExpired !== Boolean(user.isExpired)) {
+        updatedUser.isExpired = isDateExpired;
         hasChanges = true;
       }
       if (subStatusData.pharmacyName && subStatusData.pharmacyName !== user.pharmacyName) {
@@ -228,24 +266,46 @@ export default function MainLayoutWrapper({
     );
   }
 
-  const isReadOnly = Boolean(user?.isReadOnly || subStatusData?.isReadOnly || subStatusData?.isExpired);
-  const isRejected = isReadOnly && subStatusData?.status === "rejected";
-  const isPending = isReadOnly && subStatusData?.status === "pending";
-  const isExpired = isReadOnly && !isRejected && !isPending;
+  const subState = getSubscriptionNoticeState(user, subStatusData);
+  const {
+    isReadOnly,
+    isRejected,
+    isPending,
+    isExpired,
+    isExpiringSoon,
+    isManager,
+    activePlan,
+    planType,
+    expiryIso,
+    daysLeft,
+    whatsapp,
+  } = subState;
 
   const isExemptFromReadOnlyBlock =
     pathname === "/upgrade-plan" ||
     pathname === "/pricing" ||
     pathname === "/receipt-upload" ||
-    pathname === "/my-subscription";
+    pathname === "/my-subscription" ||
+    pathname === "/notifs";
 
-  const activePlan = subStatusData?.plan_type || user?.subscriptionType || "monthly";
+  const isEn = language === "en";
+  const expiryFormatted = formatExpiryDate(expiryIso, isEn ? "en" : "ar");
+  const planLabel = getPlanLabel(planType, isEn ? "en" : "ar");
+
+  const dismissExpiredModal = () => {
+    setExpiredModalDismissed(true);
+    if (user?.pharmacy_id && typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem(`roshetta_sub_expired_dismissed_${user.pharmacy_id}`, "1");
+      } catch (_) {}
+    }
+  };
 
   return (
     <div className="flex-1 w-full min-h-screen flex flex-col relative">
       {isReadOnly && (
         <div
-          className="text-white text-center py-2.5 px-4 font-bold text-sm shadow-md sticky top-0 z-[9999] flex items-center justify-center gap-2 sm:gap-3 flex-wrap transition-colors duration-500"
+          className="text-white text-center py-2.5 px-4 font-bold text-sm shadow-md sticky top-0 z-[9990] flex items-center justify-center gap-2 sm:gap-3 flex-wrap transition-colors duration-500"
           style={{
             backgroundColor: isRejected ? "#B91C1C" : isPending ? "#D97706" : "#DC2626",
           }}
@@ -255,7 +315,7 @@ export default function MainLayoutWrapper({
               <span className="flex items-center gap-1.5">
                 <span>❌</span>
                 <span>
-                  {language === "en"
+                  {isEn
                     ? "Payment receipt rejected. Please review your receipt or contact technical support."
                     : "تم رفض إيصال الدفع، يرجى مراجعة إيصالك أو التواصل مع الدعم الفني."}
                 </span>
@@ -273,10 +333,10 @@ export default function MainLayoutWrapper({
                   textDecoration: "none",
                 }}
               >
-                📄 {language === "en" ? "Review Receipt" : "راجع إيصالك"}
+                📄 {isEn ? "Review Receipt" : "راجع إيصالك"}
               </Link>
               <a
-                href={`https://wa.me/${subStatusData?.whatsapp || "972590000000"}`}
+                href={`https://wa.me/${whatsapp}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-green-500 text-white rounded-lg px-3 py-1 text-xs font-bold hover:bg-green-600 transition-colors shrink-0 flex items-center gap-1 shadow-sm"
@@ -289,7 +349,7 @@ export default function MainLayoutWrapper({
                   textDecoration: "none",
                 }}
               >
-                💬 {language === "en" ? "WhatsApp Support" : "الدعم الفني عبر واتساب"}
+                💬 {isEn ? "WhatsApp Support" : "الدعم الفني عبر واتساب"}
               </a>
             </>
           ) : isPending ? (
@@ -297,7 +357,7 @@ export default function MainLayoutWrapper({
               <span className="flex items-center gap-1.5">
                 <span>⏳</span>
                 <span>
-                  {language === "en"
+                  {isEn
                     ? "App in Read-Only mode. Awaiting admin approval on your subscription."
                     : "التطبيق في وضع القراءة فقط. بانتظار موافقة المسؤول على تأكيد الاشتراك."}
                 </span>
@@ -315,10 +375,10 @@ export default function MainLayoutWrapper({
                   textDecoration: "none",
                 }}
               >
-                📄 {language === "en" ? "Review Receipt" : "راجع إيصالك"}
+                📄 {isEn ? "Review Receipt" : "راجع إيصالك"}
               </Link>
               <a
-                href={`https://wa.me/${subStatusData?.whatsapp || "972590000000"}`}
+                href={`https://wa.me/${whatsapp}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-amber-700/80 hover:bg-amber-700 text-white rounded-lg px-3 py-1 text-xs font-bold transition-colors shrink-0 flex items-center gap-1 shadow-sm"
@@ -331,7 +391,7 @@ export default function MainLayoutWrapper({
                   textDecoration: "none",
                 }}
               >
-                💬 {language === "en" ? "Technical Support" : "الدعم الفني"}
+                💬 {isEn ? "Technical Support" : "الدعم الفني"}
               </a>
             </>
           ) : (
@@ -339,34 +399,49 @@ export default function MainLayoutWrapper({
               <span className="flex items-center gap-1.5">
                 <span>⚠️</span>
                 <span>
-                  {language === "en"
-                    ? "Your subscription has expired. You are currently in read-only mode."
-                    : "انتهى اشتراكك، أنت الآن في وضع القراءة فقط."}
+                  {isEn
+                    ? `Your subscription has expired${expiryFormatted ? ` (${expiryFormatted})` : ""}. You are in read-only mode.`
+                    : `انتهى اشتراك الصيدلية${expiryFormatted ? ` (${expiryFormatted})` : ""}، أنت الآن في وضع القراءة فقط.`}
                 </span>
               </span>
-              {Boolean(user && ["manager", "owner", "admin", "superadmin", "مدير", "مالك"].includes((user.role || "").toLowerCase().trim())) ? (
-                <Link
-                  href="/upgrade-plan"
-                  className="bg-white text-red-600 rounded-lg px-3.5 py-1.5 text-xs font-black hover:bg-red-50 hover:scale-105 active:scale-95 transition-all shrink-0 shadow-sm flex items-center gap-1.5"
-                  style={{
-                    color: "#DC2626",
-                    background: "white",
-                    borderRadius: "8px",
-                    padding: "5px 14px",
-                    fontSize: "12px",
-                    fontWeight: "800",
-                    textDecoration: "none",
-                  }}
-                >
-                  ⚡ {language === "en" ? "Upgrade & Renew" : "ترقية وتجديد الاشتراك"}
-                </Link>
+              {isManager ? (
+                <>
+                  <Link
+                    href="/upgrade-plan"
+                    className="bg-white text-red-600 rounded-lg px-3.5 py-1.5 text-xs font-black hover:bg-red-50 hover:scale-105 active:scale-95 transition-all shrink-0 shadow-sm flex items-center gap-1.5"
+                    style={{
+                      color: "#DC2626",
+                      background: "white",
+                      borderRadius: "8px",
+                      padding: "5px 14px",
+                      fontSize: "12px",
+                      fontWeight: "800",
+                      textDecoration: "none",
+                    }}
+                  >
+                    ⚡ {isEn ? "Renew Subscription" : "تجديد الاشتراك الآن"}
+                  </Link>
+                  <Link
+                    href="/my-subscription"
+                    className="bg-red-800/70 hover:bg-red-800 text-white rounded-lg px-3 py-1 text-xs font-bold transition-colors shrink-0 flex items-center gap-1 shadow-sm"
+                    style={{
+                      borderRadius: "8px",
+                      padding: "4px 10px",
+                      fontSize: "12px",
+                      fontWeight: "bold",
+                      textDecoration: "none",
+                    }}
+                  >
+                    📋 {isEn ? "My Plan" : "تفاصيل الباقة"}
+                  </Link>
+                </>
               ) : (
                 <span className="text-xs bg-red-700/60 text-white px-2.5 py-1 rounded-md font-bold">
-                  {language === "en" ? "Contact manager to renew" : "يرجى مراجعة إدارة الصيدلية للتجديد"}
+                  {isEn ? "Contact manager to renew" : "يرجى مراجعة إدارة الصيدلية للتجديد"}
                 </span>
               )}
               <a
-                href={`https://wa.me/${subStatusData?.whatsapp || "972590000000"}`}
+                href={`https://wa.me/${whatsapp}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-emerald-600/90 hover:bg-emerald-600 text-white rounded-lg px-3 py-1 text-xs font-bold transition-colors shrink-0 flex items-center gap-1 shadow-sm"
@@ -379,16 +454,132 @@ export default function MainLayoutWrapper({
                   textDecoration: "none",
                 }}
               >
-                💬 {language === "en" ? "Technical Support" : "الدعم الفني"}
+                💬 {isEn ? "Technical Support" : "الدعم الفني"}
               </a>
             </>
           )}
         </div>
       )}
+
+      {!isReadOnly && isExpiringSoon && !soonBannerDismissed && daysLeft !== null && (
+        <div className="bg-amber-500 text-white text-center py-2 px-4 font-bold text-xs sm:text-sm shadow-sm sticky top-0 z-[9980] flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
+          <span>
+            ⏳{" "}
+            {isEn
+              ? `Your subscription (${planLabel}) expires in ${daysLeft} day(s)${expiryFormatted ? ` on ${expiryFormatted}` : ""}.`
+              : `تنبيه: اشتراكك (${planLabel}) سينتهي خلال ${daysLeft} ${daysLeft <= 10 ? "أيام" : "يوماً"}${expiryFormatted ? ` (${expiryFormatted})` : ""}.`}
+          </span>
+          {isManager && (
+            <Link
+              href="/upgrade-plan"
+              className="bg-white text-amber-800 rounded-lg px-3 py-1 text-xs font-black hover:bg-amber-50 transition-colors shrink-0 shadow-xs"
+            >
+              🔄 {isEn ? "Renew Early" : "تجديد الاشتراك مبكراً"}
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => setSoonBannerDismissed(true)}
+            className="text-white/80 hover:text-white px-2 py-0.5 text-xs font-bold"
+            aria-label={isEn ? "Dismiss" : "إخفاء"}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {mounted && isExpired && !isExemptFromReadOnlyBlock && !expiredModalDismissed && (
+        <div
+          className="fixed inset-0 z-[9998] bg-ink/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={dismissExpiredModal}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-coral/25 animate-fadeIn"
+            dir={isEn ? "ltr" : "rtl"}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 rounded-full bg-coral/10 text-coral flex items-center justify-center mx-auto mb-4 text-3xl">
+                ⚠️
+              </div>
+              <h2 className="text-[22px] font-black text-ink mb-2">
+                {isEn ? "Subscription Expired" : "إشعار انتهاء الاشتراك"}
+              </h2>
+              <p className="text-[14px] text-ink-soft leading-relaxed mb-4">
+                {isEn
+                  ? `Your pharmacy subscription (${planLabel})${expiryFormatted ? ` expired on ${expiryFormatted}` : " has expired"}. The account is currently in read-only mode.`
+                  : `انتهت صلاحية اشتراك الصيدلية (${planLabel})${expiryFormatted ? ` بتاريخ ${expiryFormatted}` : ""}. يعمل الحساب حالياً بوضع القراءة فقط.`}
+              </p>
+
+              <div className="bg-bg border border-mint-line rounded-2xl p-3.5 text-start mb-5 space-y-1.5 text-[13px]">
+                <div className="flex items-center justify-between">
+                  <span className="text-ink-soft font-semibold">{isEn ? "Plan:" : "الباقة:"}</span>
+                  <span className="font-black text-ink">{planLabel}</span>
+                </div>
+                {expiryFormatted && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-ink-soft font-semibold">{isEn ? "Expired On:" : "تاريخ الانتهاء:"}</span>
+                    <span className="font-bold text-coral">{expiryFormatted}</span>
+                  </div>
+                )}
+              </div>
+
+              {isManager ? (
+                <div className="space-y-2.5">
+                  <Link
+                    href="/upgrade-plan"
+                    onClick={dismissExpiredModal}
+                    className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-l from-coral to-rose-600 text-white font-black text-[15px] shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>⚡</span>
+                    <span>{isEn ? "Renew Subscription Now" : "تجديد الاشتراك الآن"}</span>
+                  </Link>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      href="/my-subscription"
+                      onClick={dismissExpiredModal}
+                      className="py-2.5 px-3 rounded-xl bg-primary-pale text-primary font-bold text-[13px] hover:bg-primary/15 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <span>📋</span>
+                      <span>{isEn ? "My Subscription" : "تفاصيل الباقة"}</span>
+                    </Link>
+                    <a
+                      href={`https://wa.me/${whatsapp}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2.5 px-3 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[13px] hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <span>💬</span>
+                      <span>{isEn ? "Support" : "الدعم الفني"}</span>
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[13px] font-bold">
+                  {isEn
+                    ? "Please contact the pharmacy manager/owner to renew the subscription."
+                    : "يرجى مراجعة مدير أو مالك الصيدلية لتجديد الاشتراك."}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-mint-line bg-bg/60">
+              <button
+                type="button"
+                onClick={dismissExpiredModal}
+                className="w-full py-3.5 text-[14px] font-bold text-ink-soft hover:text-ink hover:bg-black/5 transition-colors"
+              >
+                {isEn ? "Later (Browse in Read-Only Mode)" : "لاحقاً (المتابعة بوضع القراءة فقط)"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main
         className={`p-3 sm:p-5 md:p-8 flex-1 w-full max-w-7xl mx-auto transition-all duration-300 ${
           isReadOnly && !isExemptFromReadOnlyBlock
-            ? "pointer-events-none opacity-60 grayscale-[30%] select-none"
+            ? "pointer-events-none opacity-75 select-none"
             : ""
         }`}
       >

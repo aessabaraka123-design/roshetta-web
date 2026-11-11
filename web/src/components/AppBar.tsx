@@ -7,8 +7,12 @@ import Link from "next/link";
 import useSWR from "swr";
 import { useStore } from "@/store";
 import { useTranslation } from "@/i18n";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import {
+  authFetchJson,
+  buildSubscriptionNotification,
+  getSubscriptionNoticeState,
+  getSubscriptionStatusEndpoint,
+} from "@/lib/subscription";
 
 export default function AppBar({
   title,
@@ -45,17 +49,40 @@ export default function AppBar({
     } catch (e) {}
   }, []);
 
+  const { data: subStatusData } = useSWR(
+    user?.pharmacy_id ? getSubscriptionStatusEndpoint(user.pharmacy_id) : null,
+    authFetchJson,
+    { refreshInterval: 30000 },
+  );
+
+  const subState = getSubscriptionNoticeState(user, subStatusData);
+  const syntheticSubNotif = buildSubscriptionNotification(
+    user?.pharmacy_id,
+    subState,
+    language === "en" ? "en" : "ar",
+  );
+
   const { data: notifsData, mutate: mutateNotifs } = useSWR(
     user && showNotifs
       ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/notifications`
       : null,
-    fetcher,
+    authFetchJson,
     { refreshInterval: 30000 },
   );
 
-  const notifications = (notifsData?.notifications || []).map((n: any) => ({
+  const serverNotifs = notifsData?.notifications || [];
+  const mergedRawNotifs = (() => {
+    if (!syntheticSubNotif) return serverNotifs;
+    const filtered = serverNotifs.filter((n: any) => n.id !== syntheticSubNotif.id);
+    return [syntheticSubNotif, ...filtered];
+  })();
+
+  const notifications = mergedRawNotifs.map((n: any) => ({
     ...n,
-    is_read: n.is_read || readIds.includes(n.id),
+    is_read:
+      n.type === "subscription_expired"
+        ? false
+        : Boolean(n.is_read || readIds.includes(n.id)),
   }));
 
   const unreadCount = notifications.filter((n: any) => !n.is_read).length;
@@ -68,7 +95,7 @@ export default function AppBar({
         { method: "PUT" }
       );
     } catch (e) {}
-    const allIds = (notifsData?.notifications || []).map((n: any) => n.id);
+    const allIds = mergedRawNotifs.map((n: any) => n.id);
     const newRead = Array.from(new Set([...readIds, ...allIds]));
     setReadIds(newRead);
     try {
@@ -79,6 +106,10 @@ export default function AppBar({
 
   const getNotifDetails = (type: string) => {
     switch (type) {
+      case "subscription_expired":
+        return { icon: "⚠️", border: "border-r-coral", bg: "bg-rose-100 text-coral" };
+      case "subscription_expiring":
+        return { icon: "⏳", border: "border-r-amber-500", bg: "bg-amber-100 text-amber-700" };
       case "low_stock":
         return { icon: "📦", border: "border-r-amber-500", bg: "bg-amber-500/10 text-amber-700" };
       case "expiring":
@@ -116,7 +147,7 @@ export default function AppBar({
   }, []);
 
   return (
-    <div className="flex items-center justify-between mt-2 sm:mt-3 mb-4 sm:mb-5 w-full px-1 sm:px-0">
+    <div className="flex items-center justify-between mt-2 sm:mt-3 mb-4 sm:mb-5 w-full px-1 sm:px-0 relative z-30 pointer-events-auto">
       <div className="flex items-center gap-2 text-primary">
         {/* Hamburger (3-lines) button for mobile */}
         <button
@@ -210,6 +241,15 @@ export default function AppBar({
                               <p className="text-[12px] text-ink-soft line-clamp-2 mt-0.5 font-normal leading-relaxed">
                                 {notif.body}
                               </p>
+                            )}
+                            {(notif.type === "subscription_expired" || notif.type === "subscription_expiring") && subState.isManager && (
+                              <Link
+                                href="/upgrade-plan"
+                                onClick={() => setShowNotifsMenu(false)}
+                                className="inline-flex items-center gap-1 mt-2 px-2.5 py-1 rounded-lg bg-coral text-white text-[11px] font-black hover:opacity-90 transition-opacity"
+                              >
+                                ⚡ {language === "en" ? "Renew Subscription" : "تجديد الاشتراك الآن"}
+                              </Link>
                             )}
                           </div>
                         </div>

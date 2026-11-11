@@ -4,9 +4,14 @@ import { API_BASE_URL } from "@/lib/config";
 import AppBar from "@/components/AppBar";
 import { useStore } from "@/store";
 import useSWR from "swr";
+import Link from "next/link";
 import { useEffect, useState } from "react";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import {
+  authFetchJson,
+  buildSubscriptionNotification,
+  getSubscriptionNoticeState,
+  getSubscriptionStatusEndpoint,
+} from "@/lib/subscription";
 
 export default function Notifications() {
   const language = useStore((state: any) => state.language);
@@ -23,18 +28,39 @@ export default function Notifications() {
     } catch (e) {}
   }, []);
 
+  const { data: subStatusData } = useSWR(
+    user && isClient ? getSubscriptionStatusEndpoint(user.pharmacy_id) : null,
+    authFetchJson,
+    { refreshInterval: 30000 }
+  );
+
+  const subState = getSubscriptionNoticeState(user, subStatusData);
+  const syntheticSubNotif = buildSubscriptionNotification(
+    user?.pharmacy_id,
+    subState,
+    language === "en" ? "en" : "ar"
+  );
+
   const { data: notifsData, mutate } = useSWR(
     user && isClient
       ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/notifications`
       : null,
-    fetcher,
+    authFetchJson,
     { refreshInterval: 30000 }
   );
 
-  const rawNotifications = notifsData?.notifications || [];
+  const serverNotifications = notifsData?.notifications || [];
+  const rawNotifications = (() => {
+    if (!syntheticSubNotif) return serverNotifications;
+    const filtered = serverNotifications.filter((n: any) => n.id !== syntheticSubNotif.id);
+    return [syntheticSubNotif, ...filtered];
+  })();
   const notifications = rawNotifications.map((n: any) => ({
     ...n,
-    is_read: n.is_read || readIds.includes(n.id),
+    is_read:
+      n.type === "subscription_expired"
+        ? false
+        : Boolean(n.is_read || readIds.includes(n.id)),
   }));
 
   const unreadCount = notifications.filter((n: any) => !n.is_read).length;
@@ -71,11 +97,13 @@ export default function Notifications() {
 
   const getColorClasses = (type: string) => {
     switch (type) {
+      case "subscription_expired":
       case "expiring":
       case "error":
       case "alert":
       case "coral":
         return "border-r-coral bg-coral-pale/40 text-coral";
+      case "subscription_expiring":
       case "low_stock":
       case "warning":
       case "amber":
@@ -101,6 +129,10 @@ export default function Notifications() {
 
   const getIcon = (type: string) => {
     switch (type) {
+      case "subscription_expired":
+        return "⚠️";
+      case "subscription_expiring":
+        return "⏳";
       case "low_stock":
         return "📦";
       case "expiring":
@@ -133,6 +165,9 @@ export default function Notifications() {
 
   const getTypeLabel = (type: string) => {
     switch (type) {
+      case "subscription_expired":
+      case "subscription_expiring":
+        return language === "en" ? "Subscription" : "اشتراك الصيدلية";
       case "low_stock":
         return language === "en" ? "Low Stock" : "نقص في المخزون";
       case "expiring":
@@ -264,6 +299,24 @@ export default function Notifications() {
                   <p className="text-[13px] text-ink-soft mt-1 leading-relaxed">
                     {n.body}
                   </p>
+                )}
+                {(n.type === "subscription_expired" || n.type === "subscription_expiring") && subState.isManager && (
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    <Link
+                      href="/upgrade-plan"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-coral text-white text-[12px] font-black shadow-xs hover:opacity-90 transition-opacity"
+                    >
+                      ⚡ {language === "en" ? "Renew Subscription Now" : "تجديد الاشتراك الآن"}
+                    </Link>
+                    <Link
+                      href="/my-subscription"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-bg border border-mint-line text-ink text-[12px] font-bold hover:border-primary/40 transition-colors"
+                    >
+                      📋 {language === "en" ? "View Plan" : "تفاصيل الباقة"}
+                    </Link>
+                  </div>
                 )}
                 <div className="flex items-center justify-between text-[11px] text-[#A6B8AE] mt-2 font-mono">
                   <span>{formatTime(n.created_at)}</span>

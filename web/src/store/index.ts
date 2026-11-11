@@ -32,11 +32,14 @@ interface User {
   pharmacyName: string;
   pharmacy_id: string;
   subscriptionType: string;
+  subscriptionExpiry?: string | null;
+  createdAt?: string | null;
   branch: string;
   branch_id?: string;
   branchName?: string;
   controlledMedsAccess?: boolean;
   isReadOnly?: boolean;
+  isExpired?: boolean;
   isActive?: boolean;
   username?: string;
   cashierName?: string;
