@@ -1111,13 +1111,20 @@ export function computeInventoryKpis(items: any[] = [], opts: { now?: Date | str
 export function validateInventoryInput(payload: Record<string, any> = {}) {
   const name = String(payload.name || "").trim();
   if (!name) return { ok: false as const, code: "NAME_REQUIRED", message: "اسم الصنف مطلوب" };
-  const price = Number(payload.price ?? payload.price_sell ?? 0);
+  const rawPrice =
+    payload.price !== undefined && payload.price !== null && String(payload.price).trim() !== ""
+      ? payload.price
+      : payload.price_sell;
+  if (rawPrice === undefined || rawPrice === null || String(rawPrice).trim() === "") {
+    return { ok: false as const, code: "PRICE_REQUIRED", message: "سعر البيع مطلوب ويجب أن يكون أكبر من صفر" };
+  }
+  const price = Number(rawPrice);
   const cost = Number(payload.cost ?? payload.price_buy ?? 0);
   const qty = Number(payload.qty ?? 0);
   const minQty = payload.minQty !== undefined && payload.minQty !== null && payload.minQty !== ""
     ? Number(payload.minQty)
     : (payload.reorder_level !== undefined && payload.reorder_level !== null && payload.reorder_level !== "" ? Number(payload.reorder_level) : DEFAULT_MIN_QTY_BOXES);
-  if (!Number.isFinite(price) || price < 0) return { ok: false as const, code: "INVALID_PRICE", message: "سعر البيع غير صالح" };
+  if (!Number.isFinite(price) || price <= 0) return { ok: false as const, code: "INVALID_PRICE", message: "سعر البيع يجب أن يكون أكبر من صفر" };
   if (!Number.isFinite(cost) || cost < 0) return { ok: false as const, code: "INVALID_COST", message: "سعر التكلفة غير صالح" };
   if (!Number.isFinite(qty) || qty < 0) return { ok: false as const, code: "INVALID_QTY", message: "الكمية غير صالحة" };
   if (!Number.isFinite(minQty) || minQty < 0) return { ok: false as const, code: "INVALID_MIN_QTY", message: "الحد الأدنى غير صالح" };

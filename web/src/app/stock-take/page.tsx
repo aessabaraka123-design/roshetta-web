@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import AppBar from "@/components/AppBar";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import SearchBar from "@/components/SearchBar";
 import { WasteAdjustmentModal } from "@/components/inventory/InventoryActionModals";
 import { ConflictResolutionModal, type ConflictStrategy } from "@/components/stock-take/ConflictResolutionModal";
@@ -122,6 +123,8 @@ export default function StockTakePage() {
   const [conflictLineMap, setConflictLineMap] = useState<Record<string, any>>({});
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [confirmCancelSessionId, setConfirmCancelSessionId] = useState<string | null>(null);
+  const [pendingZeroVarianceLines, setPendingZeroVarianceLines] = useState<any[] | null>(null);
 
   const scanInputRef = useRef<HTMLInputElement>(null);
 
@@ -446,43 +449,49 @@ export default function StockTakePage() {
     }
   };
 
-  const handlePostSession = async (overrideLines?: any[]) => {
-    if (!canManage || !pharmacyId) return;
+  const executePostSession = async (overrideLines?: any[]) => {
+    if (!canManage || !pharmacyId || !activeSession) return;
     const payloadItems = buildPayloadLines(overrideLines);
+    setSubmitting(true);
+    try {
+      await postStockTakeSession(
+        pharmacyId,
+        activeSession.id,
+        { items: payloadItems },
+        language
+      );
+      removeStockTakeLocalSnapshot(pharmacyId, `draft_${activeSession.id}`);
+      setActiveSessionId("");
+      setDraftLoadedKey("");
+      await Promise.all([mutateInv(), mutateAdj(), mutateSessions()]);
+      toast.success(isEn ? "Stock take session posted" : "تم اعتماد وترحيل جلسة الجرد بنجاح");
+      setTab("sessions");
+    } catch (err: any) {
+      if (err instanceof StockTakeTransportError && err.status === 409 && err.conflicts?.length) {
+        const map: Record<string, any> = {};
+        for (const l of overrideLines || computedLines) map[String(l.id)] = l;
+        setConflictLineMap(map);
+        setConflicts(err.conflicts);
+        return;
+      }
+      toast.error(err?.message || (isEn ? "Failed to post session" : "فشل ترحيل الجلسة"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePostSession = async (overrideLines?: any[], skipZeroCheck = false) => {
+    if (!canManage || !pharmacyId) return;
     const countedChanged = (overrideLines || computedLines).filter(
       (l) => l.counted || l.deltaBaseQty !== 0
     );
 
     if (activeSession) {
-      if (countedChanged.length === 0 && !window.confirm(isEn ? "No variances detected. Close & post session as 100% matched?" : "لا توجد فروقات مسجلة. هل تريد اعتماد الجلسة كمطابقة 100%؟")) {
+      if (countedChanged.length === 0 && !skipZeroCheck) {
+        setPendingZeroVarianceLines(overrideLines || computedLines);
         return;
       }
-      setSubmitting(true);
-      try {
-        await postStockTakeSession(
-          pharmacyId,
-          activeSession.id,
-          { items: payloadItems },
-          language
-        );
-        removeStockTakeLocalSnapshot(pharmacyId, `draft_${activeSession.id}`);
-        setActiveSessionId("");
-        setDraftLoadedKey("");
-        await Promise.all([mutateInv(), mutateAdj(), mutateSessions()]);
-        toast.success(isEn ? "Stock take session posted" : "تم اعتماد وترحيل جلسة الجرد بنجاح");
-        setTab("sessions");
-      } catch (err: any) {
-        if (err instanceof StockTakeTransportError && err.status === 409 && err.conflicts?.length) {
-          const map: Record<string, any> = {};
-          for (const l of overrideLines || computedLines) map[String(l.id)] = l;
-          setConflictLineMap(map);
-          setConflicts(err.conflicts);
-          return;
-        }
-        toast.error(err?.message || (isEn ? "Failed to post session" : "فشل ترحيل الجلسة"));
-      } finally {
-        setSubmitting(false);
-      }
+      await executePostSession(overrideLines);
       return;
     }
 
@@ -608,19 +617,28 @@ export default function StockTakePage() {
     }
   };
 
-  const handleCancelSession = async (sessionId: string) => {
+  const handleCancelSession = (sessionId: string) => {
     if (!pharmacyId) return;
-    if (!window.confirm(isEn ? "Cancel this draft session?" : "هل أنت متأكد من إلغاء هذه الجلسة؟")) return;
+    setConfirmCancelSessionId(sessionId);
+  };
+
+  const confirmCancelSession = async () => {
+    if (!pharmacyId || !confirmCancelSessionId) return;
+    const sessionId = confirmCancelSessionId;
+    setSubmitting(true);
     try {
       await cancelStockTakeSession(pharmacyId, sessionId, language);
       if (String(activeSessionId) === String(sessionId)) {
         setActiveSessionId("");
         setDraftLoadedKey("");
       }
+      setConfirmCancelSessionId(null);
       await mutateSessions();
       toast.success(isEn ? "Session cancelled" : "تم إلغاء الجلسة");
     } catch (err: any) {
       toast.error(err?.message || "Failed to cancel session");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1521,6 +1539,38 @@ export default function StockTakePage() {
         userRole={user?.role}
         language={language}
         onClose={() => setWasteItem(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(confirmCancelSessionId)}
+        title={isEn ? "Cancel Stock Take Session" : "تأكيد إلغاء جلسة الجرد"}
+        message={isEn ? "Cancel this open draft session?" : "هل أنت متأكد من إلغاء مسودة جلسة الجرد هذه؟"}
+        confirmLabel={isEn ? "Cancel Session" : "تأكيد الإلغاء"}
+        cancelLabel={isEn ? "Back" : "تراجع"}
+        tone="danger"
+        loading={submitting}
+        onConfirm={confirmCancelSession}
+        onClose={() => setConfirmCancelSessionId(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingZeroVarianceLines)}
+        title={isEn ? "Confirm 100% Match" : "اعتماد الجلسة بدون فروقات"}
+        message={
+          isEn
+            ? "No variances detected. Close & post session as 100% matched?"
+            : "لا توجد فروقات مسجلة. هل تريد اعتماد الجلسة وترحيلها كمطابقة 100%؟"
+        }
+        confirmLabel={isEn ? "Post Session" : "اعتماد وترحيل"}
+        cancelLabel={isEn ? "Cancel" : "إلغاء"}
+        tone="primary"
+        loading={submitting}
+        onConfirm={async () => {
+          const lines = pendingZeroVarianceLines;
+          setPendingZeroVarianceLines(null);
+          if (lines) await executePostSession(lines);
+        }}
+        onClose={() => setPendingZeroVarianceLines(null)}
       />
     </div>
   );

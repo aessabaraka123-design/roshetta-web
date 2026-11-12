@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import AppBar from "@/components/AppBar";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import SearchBar from "@/components/SearchBar";
 import { SplitBatchModal } from "@/components/inventory/InventoryActionModals";
 import {
@@ -42,6 +43,8 @@ export default function BatchesPage() {
   const [search, setSearch] = useState("");
   const [pickItemForBatch, setPickItemForBatch] = useState<InventoryItemRecord | null>(null);
   const [pickerModalOpen, setPickerModalOpen] = useState(false);
+  const [deleteBatchTarget, setDeleteBatchTarget] = useState<any | null>(null);
+  const [deletingBatch, setDeletingBatch] = useState(false);
 
   const canEdit = canManageInventory(user?.role);
   const showCosts = canViewCosts(user?.role);
@@ -81,18 +84,23 @@ export default function BatchesPage() {
     });
   }, [batches, statusFilter, search]);
 
-  const handleDeleteBatch = async (batch: any) => {
+  const handleDeleteBatch = (batch: any) => {
     if (!user?.pharmacy_id) return;
-    const msg = isEn
-      ? `Remove batch ${batch.batch_number || batch.id} (${formatQtyWithUnits({ qty: batch.qty, units: batch.units }, batch.units, language)})?`
-      : `هل تريد حذف التشغيلة ${batch.batch_number || batch.id} وخصم كميتها من الرصيد؟`;
-    if (!window.confirm(msg)) return;
+    setDeleteBatchTarget(batch);
+  };
+
+  const confirmDeleteBatch = async () => {
+    if (!user?.pharmacy_id || !deleteBatchTarget) return;
+    setDeletingBatch(true);
     try {
-      await deleteBatchItem(user.pharmacy_id, batch.id, language);
+      await deleteBatchItem(user.pharmacy_id, deleteBatchTarget.id, language);
       toast.success(isEn ? "Batch removed cleanly" : "تم حذف الدفعة وتحديث الرصيد بنجاح");
+      setDeleteBatchTarget(null);
       mutate();
     } catch (err: any) {
       toast.error(err?.message || (isEn ? "Failed removing batch" : "تعذر حذف الدفعة"));
+    } finally {
+      setDeletingBatch(false);
     }
   };
 
@@ -285,6 +293,24 @@ export default function BatchesPage() {
           setPickItemForBatch(null);
           mutate();
         }}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(deleteBatchTarget)}
+        title={isEn ? "Confirm Batch Removal" : "تأكيد حذف التشغيلة"}
+        message={
+          deleteBatchTarget
+            ? isEn
+              ? `Remove batch ${deleteBatchTarget.batch_number || deleteBatchTarget.id} (${formatQtyWithUnits({ qty: deleteBatchTarget.qty, units: deleteBatchTarget.units }, deleteBatchTarget.units, language)}) and deduct its stock?`
+              : `هل تريد حذف التشغيلة ${deleteBatchTarget.batch_number || deleteBatchTarget.id} وخصم كميتها (${formatQtyWithUnits({ qty: deleteBatchTarget.qty, units: deleteBatchTarget.units }, deleteBatchTarget.units, language)}) من الرصيد؟`
+            : ""
+        }
+        confirmLabel={isEn ? "Remove Batch" : "حذف الدفعة"}
+        cancelLabel={isEn ? "Cancel" : "إلغاء"}
+        tone="danger"
+        loading={deletingBatch}
+        onConfirm={confirmDeleteBatch}
+        onClose={() => setDeleteBatchTarget(null)}
       />
     </main>
   );

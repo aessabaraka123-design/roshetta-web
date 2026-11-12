@@ -79,6 +79,7 @@ export default function InventoryFormModal({
   const [manufacturer, setManufacturer] = useState("");
   const [isControlled, setIsControlled] = useState(false);
   const [price, setPrice] = useState("");
+  const [priceError, setPriceError] = useState("");
   const [cost, setCost] = useState("");
   const [minQty, setMinQty] = useState("5");
   const [batchNumber, setBatchNumber] = useState("");
@@ -115,7 +116,8 @@ export default function InventoryFormModal({
       setCategory(editingItem.category || (isEn ? "General Medicines" : "أدوية عامة"));
       setManufacturer(editingItem.manufacturer || "");
       setIsControlled([true, 1, "1"].includes(editingItem.isControlled as any));
-      setPrice(editingItem.price !== undefined ? String(editingItem.price) : "");
+      setPrice(editingItem.price !== undefined && Number(editingItem.price) > 0 ? String(editingItem.price) : "");
+      setPriceError("");
       setCost(editingItem.cost !== undefined ? String(editingItem.cost) : "");
       setMinQty(editingItem.minQty !== undefined && editingItem.minQty !== null ? String(editingItem.minQty) : "5");
       setBatchNumber(editingItem.batch_number || "");
@@ -177,7 +179,8 @@ export default function InventoryFormModal({
     setCategory(draft.category || (isEn ? "General Medicines" : "أدوية عامة"));
     setManufacturer(draft.manufacturer || "");
     setIsControlled(Boolean(draft.isControlled));
-    setPrice(draft.price !== undefined ? String(draft.price) : "");
+    setPrice(draft.price !== undefined && Number(draft.price) > 0 ? String(draft.price) : "");
+    setPriceError("");
     setCost(draft.cost !== undefined ? String(draft.cost) : "");
     setMinQty(draft.minQty !== undefined ? String(draft.minQty) : "5");
     setBatchNumber("");
@@ -264,13 +267,14 @@ export default function InventoryFormModal({
 
   const handleSubmit = async (keepOpen = false) => {
     const expiryIso = normalizeExpiryIso(expiryMonth);
+    const cleanPrice = String(price).trim();
     const validation = validateInventoryInput({
       name,
       scientificName,
       barcode,
       category,
       manufacturer,
-      price: Number(price || 0),
+      price: cleanPrice === "" ? "" : Number(cleanPrice),
       cost: showCosts ? Number(cost || 0) : Number(editingItem?.cost || 0),
       qty: computedBaseQty,
       minQty: Number(minQty === "" ? 5 : minQty),
@@ -281,9 +285,15 @@ export default function InventoryFormModal({
     });
 
     if (!validation.ok) {
+      if (validation.code === "PRICE_REQUIRED" || validation.code === "INVALID_PRICE") {
+        setPriceError(validation.message);
+      } else {
+        setPriceError("");
+      }
       toast.error(validation.message);
       return;
     }
+    setPriceError("");
 
     setSubmitting(true);
     try {
@@ -419,12 +429,20 @@ export default function InventoryFormModal({
           <input
             type="number"
             step="0.01"
-            min="0"
+            min="0.01"
+            required
             value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            onChange={(e) => {
+              setPrice(e.target.value);
+              if (priceError) setPriceError("");
+            }}
             placeholder="0.00"
-            className="w-full bg-white border border-mint-line rounded-xl px-3 py-2 text-[14px] font-mono font-bold text-ink outline-none focus:border-primary"
+            aria-invalid={Boolean(priceError)}
+            className={`w-full bg-white border rounded-xl px-3 py-2 text-[14px] font-mono font-bold text-ink outline-none focus:border-primary ${priceError ? "border-coral ring-2 ring-coral/20" : "border-mint-line"}`}
           />
+          {priceError && (
+            <p className="text-[11px] font-bold text-coral mt-1">{priceError}</p>
+          )}
         </div>
         {showCosts && (
           <div>

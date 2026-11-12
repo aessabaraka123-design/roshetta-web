@@ -66,6 +66,12 @@ export function SplitBatchModal({
       toast.error(isEn ? "Quantity must be positive" : "يجب إدخال كمية أكبر من صفر");
       return;
     }
+    const cleanBatchPrice = String(price).trim();
+    const resolvedPrice = cleanBatchPrice === "" ? Number(item.price || 0) : Number(cleanBatchPrice);
+    if (!Number.isFinite(resolvedPrice) || resolvedPrice <= 0) {
+      toast.error(isEn ? "Sell price must be greater than 0" : "سعر البيع يجب أن يكون أكبر من صفر");
+      return;
+    }
     setSubmitting(true);
     try {
       await splitOrAddBatchItem(
@@ -74,7 +80,7 @@ export function SplitBatchModal({
         {
           addedBaseQty,
           cost: showCosts ? Number(cost || item.cost || 0) : Number(item.cost || 0),
-          price: Number(price || item.price || 0),
+          price: resolvedPrice,
           batch_number: batchNumber.trim(),
           expiry: normalizeExpiryIso(expiryMonth),
         },

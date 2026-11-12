@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import AppBar from "@/components/AppBar";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import SearchBar from "@/components/SearchBar";
 import MasterCatalogModal, { MASTER_DRUGS_COUNT } from "@/components/MasterCatalogModal";
 import InventoryFormModal from "@/components/inventory/InventoryFormModal";
@@ -65,6 +66,8 @@ export default function InventoryPage() {
   const [movementsItem, setMovementsItem] = useState<InventoryItemRecord | null>(null);
   const [barcodeItem, setBarcodeItem] = useState<InventoryItemRecord | null>(null);
   const [controlledOpen, setControlledOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<InventoryItemRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -116,22 +119,27 @@ export default function InventoryPage() {
       .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
   }, [branchScopedItems, filterTab, search]);
 
-  const handleDeleteOrArchive = async (item: InventoryItemRecord) => {
+  const handleDeleteOrArchive = (item: InventoryItemRecord) => {
     if (!user?.pharmacy_id) return;
-    const msg = isEn
-      ? `Delete or archive "${item.name}"? (Items linked to sales/purchases are safely archived.)`
-      : `هل تريد حذف أو أرشفة الصنف "${item.name}"؟ (الأصناف المرتبطة بفواتير ستُنقل للأرشيف مع تصفير الرصيد)`;
-    if (!window.confirm(msg)) return;
+    setDeleteTarget(item);
+  };
+
+  const confirmDeleteOrArchive = async () => {
+    if (!user?.pharmacy_id || !deleteTarget) return;
+    setDeleting(true);
     try {
-      const res = await deleteOrArchiveInventoryItem(user.pharmacy_id, item.id, false, language);
+      const res = await deleteOrArchiveInventoryItem(user.pharmacy_id, deleteTarget.id, false, language);
       toast.success(
         res.data?.archived
           ? (isEn ? "Item moved to archive cleanly" : "تمت أرشفة الصنف مع حفظ سجلاته السابقة")
           : (isEn ? "Item permanently deleted" : "تم حذف الصنف نهائياً")
       );
+      setDeleteTarget(null);
       mutate();
     } catch (err: any) {
       toast.error(err?.message || (isEn ? "Action failed" : "تعذر تنفيذ العملية"));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -442,6 +450,9 @@ export default function InventoryPage() {
                                   {isEn ? "Waste" : "تالف"}
                                 </button>
                                 <button
+                                  type="button"
+                                  data-testid="inventory-delete-btn"
+                                  title={isEn ? "Delete or Archive" : "حذف أو أرشفة"}
                                   onClick={() => handleDeleteOrArchive(item)}
                                   className="px-2.5 py-1.5 rounded-lg bg-coral-pale text-coral text-[11px] font-black hover:bg-coral hover:text-white"
                                 >
@@ -532,6 +543,24 @@ export default function InventoryPage() {
         branches={activeBranches}
         currentBranchId={branchFilter}
         onItemAdded={() => mutate()}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        title={isEn ? "Confirm Delete or Archive" : "تأكيد الحذف أو الأرشفة"}
+        message={
+          deleteTarget
+            ? isEn
+              ? `Delete or archive "${deleteTarget.name}"? (Items linked to sales/purchases are safely archived with zeroed balance.)`
+              : `هل تريد حذف أو أرشفة الصنف "${deleteTarget.name}"؟ (الأصناف المرتبطة بفواتير ستُنقل للأرشيف بأمان مع تصفير الرصيد)`
+            : ""
+        }
+        confirmLabel={isEn ? "Confirm Delete / Archive" : "تأكيد الحذف / الأرشفة"}
+        cancelLabel={isEn ? "Cancel" : "إلغاء"}
+        tone="danger"
+        loading={deleting}
+        onConfirm={confirmDeleteOrArchive}
+        onClose={() => setDeleteTarget(null)}
       />
     </main>
   );
