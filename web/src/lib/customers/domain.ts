@@ -926,12 +926,14 @@ export function projectCustomerStatement({
 
   const hasPendingCreate =
     !baseStatement &&
-    relevantCmds.some(
-      (cmd) =>
+    relevantCmds.some((cmd) => {
+      const cid = String(cmd?.payload?.id || cmd?.targetId || "");
+      return (
         ["ADD_PATIENT", "ADD_CUSTOMER"].includes(String(cmd?.action || "").toUpperCase()) &&
-        String(cmd?.payload?.id || cmd?.targetId || "") === String(customerId) &&
-        !baseRows.some((r: any) => cmd.eventId && r.eventId === cmd.eventId)
-    );
+        cid === String(customerId) &&
+        !baseRows.some((r: any) => (cmd.eventId && r.eventId === cmd.eventId) || (cid && String(r.reference_id) === cid))
+      );
+    });
 
   let working: { customers: any[]; sales: any[]; customerTransactions: any[] } = {
     customers: hasPendingCreate ? [] : [{ ...baseCust }],
@@ -940,10 +942,18 @@ export function projectCustomerStatement({
   };
 
   for (const cmd of relevantCmds) {
+    const act = String(cmd?.action || "").toUpperCase();
+    const refundSaleId = ["REFUND_PARTIAL", "REFUND_FULL"].includes(act)
+      ? String(cmd?.targetId || cmd?.payload?.saleId || "")
+      : "";
     const alreadySynced = baseRows.some(
       (r: any) =>
         (cmd.eventId && r.eventId === cmd.eventId) ||
-        (cmd.payload?.id && String(r.reference_id) === String(cmd.payload.id))
+        (cmd.payload?.id && String(r.reference_id) === String(cmd.payload.id)) ||
+        (refundSaleId &&
+          (String(r.reference_id) === refundSaleId ||
+            String(r.sale_id || "") === refundSaleId ||
+            (r.type === "credit_refund" && String(r.notes || "").includes(`#${refundSaleId}`))))
     );
     if (!alreadySynced) {
       working = applyCustomerCommandOptimistically(working, cmd);
