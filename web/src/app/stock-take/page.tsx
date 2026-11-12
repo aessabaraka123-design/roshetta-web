@@ -176,11 +176,11 @@ export default function StockTakePage() {
         {tab === "count" ? (
           <>
             <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm flex flex-wrap gap-3 items-center justify-between">
-              <div className="flex-1 min-w-[240px]">
+              <div className="flex-1 min-w-[240px] [&>div]:mb-0">
                 <SearchBar value={search} onChange={setSearch} placeholder={isEn ? "Scan barcode or search item name..." : "امسح الباركود أو ابحث باسم الصنف للجرد..."} />
               </div>
               {showCosts && changedPayload.length > 0 && (
-                <div className="px-4 py-2 rounded-xl bg-amber-pale text-ink text-[12px] font-black">
+                <div className="px-4 py-2.5 rounded-xl bg-amber-pale text-ink text-[13.5px] font-bold">
                   {isEn ? "Est. Shortage Loss:" : "قيمة عجز الجرد:"}{" "}
                   {changedPayload.reduce((s, r) => s + r.lossValue, 0).toFixed(2)} ₪
                 </div>
@@ -189,16 +189,16 @@ export default function StockTakePage() {
 
             <div className="bg-white rounded-[24px] border border-mint-line shadow-sm overflow-x-auto">
               {isLoading ? (
-                <div className="p-12 text-center font-bold text-ink-soft">{isEn ? "Loading..." : "جاري التحميل..."}</div>
+                <div className="p-12 text-center font-bold text-[15px] text-ink-soft">{isEn ? "Loading..." : "جاري التحميل..."}</div>
               ) : (
-                <table className="w-full text-[13px] border-collapse">
+                <table className="w-full text-[14px] border-collapse">
                   <thead>
-                    <tr className="bg-bg/80 text-ink-soft text-[12px] font-black border-b border-mint-line">
-                      <th className="p-3.5 text-start">{isEn ? "Item" : "الصنف"}</th>
-                      <th className="p-3.5 text-center">{isEn ? "Expected Stock" : "الرصيد الدفتري"}</th>
-                      <th className="p-3.5 text-center">{isEn ? "Actual Count (Boxes / Loose)" : "العد الفعلي (علب / شريط / حبة)"}</th>
-                      <th className="p-3.5 text-center">{isEn ? "Variance" : "الفرق"}</th>
-                      <th className="p-3.5 text-end">{isEn ? "Quick Waste" : "إتلاف مباشر"}</th>
+                    <tr className="bg-bg/80 text-ink-soft text-[13.5px] font-bold border-b border-mint-line">
+                      <th className="p-4 text-start">{isEn ? "Item" : "الصنف"}</th>
+                      <th className="p-4 text-center">{isEn ? "Expected Stock" : "الرصيد الدفتري"}</th>
+                      <th className="p-4 text-center">{isEn ? "Actual Count (Boxes / Loose)" : "العد الفعلي (علب / شريط / حبة)"}</th>
+                      <th className="p-4 text-center">{isEn ? "Variance" : "الفرق"}</th>
+                      <th className="p-4 text-end">{isEn ? "Quick Waste" : "إتلاف مباشر"}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -210,52 +210,52 @@ export default function StockTakePage() {
 
                       return (
                         <tr key={item.id} className={`border-b border-mint-line ${delta !== 0 ? "bg-amber-pale/30" : "hover:bg-primary-pale/20"}`}>
-                          <td className="p-3.5">
-                            <div className="font-black text-ink">{item.name}</div>
-                            {item.barcode && <div className="text-[11px] font-mono text-ink-soft">#{item.barcode}</div>}
+                          <td className="p-4">
+                            <div className="font-bold text-ink text-[15.5px]">{item.name}</div>
+                            {item.barcode && <div className="text-[12.5px] font-mono text-ink-soft mt-0.5">#{item.barcode}</div>}
                           </td>
-                          <td className="p-3.5 text-center font-bold text-ink-soft">
+                          <td className="p-4 text-center font-bold text-[14px] text-ink-soft">
                             {formatQtyWithUnits(item, units, language)}
                           </td>
-                          <td className="p-3.5">
-                            <div className="flex items-center justify-center gap-2">
+                          <td className="p-4">
+                            <div className="flex items-center justify-center gap-2.5">
                               <div>
-                                <span className="block text-[10px] font-bold text-ink-soft text-center">{units[0]?.name || "علبة"}</span>
+                                <span className="block text-[12px] font-bold text-ink-soft text-center mb-1">{units[0]?.name || "علبة"}</span>
                                 <input
                                   type="number"
                                   min="0"
                                   value={draft.boxes}
                                   onChange={(e) => updateDraft(item, { boxes: Math.max(0, Number(e.target.value) || 0) })}
-                                  className="w-20 bg-white border border-mint-line rounded-xl px-2 py-1.5 text-center font-mono font-bold"
+                                  className="w-22 bg-white border border-mint-line rounded-xl px-2.5 py-2 text-center font-mono text-[15px] font-bold"
                                 />
                               </div>
                               {units.length >= 3 && (
                                 <div>
-                                  <span className="block text-[10px] font-bold text-ink-soft text-center">{units[1]?.name}</span>
+                                  <span className="block text-[12px] font-bold text-ink-soft text-center mb-1">{units[1]?.name}</span>
                                   <input
                                     type="number"
                                     min="0"
                                     value={draft.strips}
                                     onChange={(e) => updateDraft(item, { strips: Math.max(0, Number(e.target.value) || 0) })}
-                                    className="w-16 bg-white border border-mint-line rounded-xl px-2 py-1.5 text-center font-mono font-bold"
+                                    className="w-18 bg-white border border-mint-line rounded-xl px-2.5 py-2 text-center font-mono text-[15px] font-bold"
                                   />
                                 </div>
                               )}
                               {units.length >= 2 && (
                                 <div>
-                                  <span className="block text-[10px] font-bold text-ink-soft text-center">{units[units.length - 1]?.name}</span>
+                                  <span className="block text-[12px] font-bold text-ink-soft text-center mb-1">{units[units.length - 1]?.name}</span>
                                   <input
                                     type="number"
                                     min="0"
                                     value={draft.pills}
                                     onChange={(e) => updateDraft(item, { pills: Math.max(0, Number(e.target.value) || 0) })}
-                                    className="w-16 bg-white border border-mint-line rounded-xl px-2 py-1.5 text-center font-mono font-bold"
+                                    className="w-18 bg-white border border-mint-line rounded-xl px-2.5 py-2 text-center font-mono text-[15px] font-bold"
                                   />
                                 </div>
                               )}
                             </div>
                           </td>
-                          <td className="p-3.5 text-center font-mono font-black">
+                          <td className="p-4 text-center font-mono font-bold text-[15px]">
                             {delta === 0 ? (
                               <span className="text-ink-soft">—</span>
                             ) : delta < 0 ? (
@@ -264,8 +264,8 @@ export default function StockTakePage() {
                               <span className="text-emerald-700">+{delta}</span>
                             )}
                           </td>
-                          <td className="p-3.5 text-end">
-                            <button onClick={() => setWasteItem(item)} className="px-3 py-1.5 rounded-lg bg-coral-pale text-coral text-[11px] font-black">
+                          <td className="p-4 text-end">
+                            <button onClick={() => setWasteItem(item)} className="px-3.5 py-2 rounded-xl bg-coral-pale text-coral text-[13px] font-bold">
                               {isEn ? "Record Waste" : "خصم تالف"}
                             </button>
                           </td>
@@ -280,28 +280,28 @@ export default function StockTakePage() {
         ) : (
           <div className="bg-white rounded-[24px] border border-mint-line shadow-sm overflow-x-auto">
             {adjustments.length === 0 ? (
-              <div className="p-12 text-center font-bold text-ink-soft">{isEn ? "No adjustments recorded yet." : "لا توجد تسويات أو توالف مسجلة حتى الآن."}</div>
+              <div className="p-12 text-center font-bold text-[15px] text-ink-soft">{isEn ? "No adjustments recorded yet." : "لا توجد تسويات أو توالف مسجلة حتى الآن."}</div>
             ) : (
-              <table className="w-full text-[13px] border-collapse">
+              <table className="w-full text-[14px] border-collapse">
                 <thead>
-                  <tr className="bg-bg/80 text-ink-soft text-[12px] font-black border-b border-mint-line">
-                    <th className="p-3.5 text-start">{isEn ? "Date" : "التاريخ"}</th>
-                    <th className="p-3.5 text-start">{isEn ? "Drug" : "الصنف"}</th>
-                    <th className="p-3.5 text-start">{isEn ? "Reason" : "السبب"}</th>
-                    <th className="p-3.5 text-center">{isEn ? "Qty" : "الكمية (بالوحدة الصغرى)"}</th>
-                    {showCosts && <th className="p-3.5 text-center">{isEn ? "Loss Value" : "قيمة الخسارة"}</th>}
-                    <th className="p-3.5 text-start">{isEn ? "By" : "بواسطة"}</th>
+                  <tr className="bg-bg/80 text-ink-soft text-[13.5px] font-bold border-b border-mint-line">
+                    <th className="p-4 text-start">{isEn ? "Date" : "التاريخ"}</th>
+                    <th className="p-4 text-start">{isEn ? "Drug" : "الصنف"}</th>
+                    <th className="p-4 text-start">{isEn ? "Reason" : "السبب"}</th>
+                    <th className="p-4 text-center">{isEn ? "Qty" : "الكمية (بالوحدة الصغرى)"}</th>
+                    {showCosts && <th className="p-4 text-center">{isEn ? "Loss Value" : "قيمة الخسارة"}</th>}
+                    <th className="p-4 text-start">{isEn ? "By" : "بواسطة"}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {adjustments.map((adj: any) => (
                     <tr key={adj.id} className="border-b border-mint-line">
-                      <td className="p-3.5 font-mono text-[11px] text-ink-soft">{String(adj.created_at || "").slice(0, 16).replace("T", " ")}</td>
-                      <td className="p-3.5 font-black text-ink">{adj.drug_name}</td>
-                      <td className="p-3.5 font-bold text-coral">{adj.reason}</td>
-                      <td className="p-3.5 text-center font-mono font-bold">{Math.abs(Number(adj.qty || 0))}</td>
-                      {showCosts && <td className="p-3.5 text-center font-mono font-black text-coral">{Number(adj.loss_value || 0).toFixed(2)} ₪</td>}
-                      <td className="p-3.5 text-[12px] text-ink">{adj.recorded_by || "System"}</td>
+                      <td className="p-4 font-mono text-[13px] text-ink-soft">{String(adj.created_at || "").slice(0, 16).replace("T", " ")}</td>
+                      <td className="p-4 font-bold text-[15px] text-ink">{adj.drug_name}</td>
+                      <td className="p-4 font-bold text-[13.5px] text-coral">{adj.reason}</td>
+                      <td className="p-4 text-center font-mono font-bold text-[14px]">{Math.abs(Number(adj.qty || 0))}</td>
+                      {showCosts && <td className="p-4 text-center font-mono font-bold text-[14.5px] text-coral">{Number(adj.loss_value || 0).toFixed(2)} ₪</td>}
+                      <td className="p-4 text-[13.5px] text-ink">{adj.recorded_by || "System"}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -171,19 +171,19 @@ export default function InventoryPage() {
               <>
                 <Link
                   href="/add-item"
-                  className="px-4 py-2.5 rounded-2xl bg-primary text-white font-black text-[13px] shadow-md hover:bg-primary-light transition-colors"
+                  className="px-4 py-2.5 rounded-2xl bg-primary text-white font-bold text-[14px] shadow-md hover:bg-primary-light transition-colors"
                 >
                   + {isEn ? "Add Item" : "إضافة صنف جديد"}
                 </Link>
                 <button
                   onClick={() => setCatalogOpen(true)}
-                  className="px-4 py-2.5 rounded-2xl bg-white border border-mint-line text-primary font-black text-[13px] hover:bg-primary-pale transition-colors"
+                  className="px-4 py-2.5 rounded-2xl bg-white border border-mint-line text-primary font-bold text-[14px] hover:bg-primary-pale transition-colors"
                 >
                   📚 {isEn ? `Drug Catalog (${MASTER_DRUGS_COUNT})` : `الكتالوج (${MASTER_DRUGS_COUNT})`}
                 </button>
                 <Link
                   href="/stock-take"
-                  className="px-4 py-2.5 rounded-2xl bg-white border border-mint-line text-ink font-black text-[13px] hover:bg-primary-pale transition-colors"
+                  className="px-4 py-2.5 rounded-2xl bg-white border border-mint-line text-ink font-bold text-[14px] hover:bg-primary-pale transition-colors"
                 >
                   📋 {isEn ? "Stock Take & Waste" : "الجرد والتوالف"}
                 </Link>
@@ -191,13 +191,13 @@ export default function InventoryPage() {
             )}
             <Link
               href="/batches"
-              className="px-4 py-2.5 rounded-2xl bg-white border border-mint-line text-ink font-black text-[13px] hover:bg-primary-pale transition-colors"
+              className="px-4 py-2.5 rounded-2xl bg-white border border-mint-line text-ink font-bold text-[14px] hover:bg-primary-pale transition-colors"
             >
               ⏱ {isEn ? "FEFO Batches" : "الدفعات والصلاحيات"}
             </Link>
             <button
               onClick={() => setControlledOpen(true)}
-              className="px-4 py-2.5 rounded-2xl bg-amber-pale border border-amber text-ink font-black text-[13px] hover:bg-amber/30 transition-colors"
+              className="px-4 py-2.5 rounded-2xl bg-amber-pale border border-amber text-ink font-bold text-[14px] hover:bg-amber/30 transition-colors"
             >
               🛡 {isEn ? "Controlled Log" : "دفتر الأدوية المراقبة"}
             </button>
@@ -213,43 +213,43 @@ export default function InventoryPage() {
                 language,
               })
             }
-            className="px-4 py-2.5 rounded-2xl bg-emerald-600 text-white font-black text-[13px] shadow-sm hover:bg-emerald-700 transition-colors"
+            className="px-4 py-2.5 rounded-2xl bg-emerald-600 text-white font-bold text-[14px] shadow-sm hover:bg-emerald-700 transition-colors"
           >
             ⬇ {isEn ? "Export Excel Valuation" : "تصدير Excel وتقييم المخزون"}
           </button>
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
           <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm">
-            <div className="text-[11px] font-bold text-ink-soft">{isEn ? "Active SKUs" : "الأصناف الفعالة"}</div>
-            <div className="text-[22px] font-black text-primary mt-0.5">{kpis.totalSkus}</div>
-            <div className="text-[11px] text-ink-soft font-bold">{kpis.totalBoxesTotal} {isEn ? "Total Boxes" : "علبة متوفرة"}</div>
+            <div className="text-[13px] font-bold text-ink-soft">{isEn ? "Active SKUs" : "الأصناف الفعالة"}</div>
+            <div className="text-[24px] font-bold text-primary mt-1">{kpis.totalSkus}</div>
+            <div className="text-[12.5px] text-ink-soft font-semibold mt-0.5">{kpis.totalBoxesTotal} {isEn ? "Total Boxes" : "علبة متوفرة"}</div>
           </div>
           <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm">
-            <div className="text-[11px] font-bold text-ink-soft">{isEn ? "Low / Out of Stock" : "نواقص / نافد"}</div>
-            <div className="text-[22px] font-black text-coral mt-0.5">
-              {kpis.lowStockCount} <span className="text-[13px] font-bold text-ink-soft">/ {kpis.outOfStockCount}</span>
+            <div className="text-[13px] font-bold text-ink-soft">{isEn ? "Low / Out of Stock" : "نواقص / نافد"}</div>
+            <div className="text-[24px] font-bold text-coral mt-1">
+              {kpis.lowStockCount} <span className="text-[14px] font-bold text-ink-soft">/ {kpis.outOfStockCount}</span>
             </div>
-            <div className="text-[11px] text-ink-soft font-bold">{isEn ? "Alert in Boxes" : "تنبيه بالحد الأدنى للعلب"}</div>
+            <div className="text-[12.5px] text-ink-soft font-semibold mt-0.5">{isEn ? "Alert in Boxes" : "تنبيه بالحد الأدنى للعلب"}</div>
           </div>
           <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm">
-            <div className="text-[11px] font-bold text-ink-soft">{isEn ? "Expiring (<=60d) / Expired" : "قريب الانتهاء / منتهي"}</div>
-            <div className="text-[22px] font-black text-amber mt-0.5">
-              {kpis.expiringWarningCount} <span className="text-[13px] font-bold text-coral">/ {kpis.expiredCount}</span>
+            <div className="text-[13px] font-bold text-ink-soft">{isEn ? "Expiring (<=60d) / Expired" : "قريب الانتهاء / منتهي"}</div>
+            <div className="text-[24px] font-bold text-amber mt-1">
+              {kpis.expiringWarningCount} <span className="text-[14px] font-bold text-coral">/ {kpis.expiredCount}</span>
             </div>
-            <div className="text-[11px] text-ink-soft font-bold">{kpis.expiringCriticalCount} {isEn ? "Critical (<=30d)" : "حرج (<=30 يوم)"}</div>
+            <div className="text-[12.5px] text-ink-soft font-semibold mt-0.5">{kpis.expiringCriticalCount} {isEn ? "Critical (<=30d)" : "حرج (<=30 يوم)"}</div>
           </div>
           <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm">
-            <div className="text-[11px] font-bold text-ink-soft">{isEn ? "Retail Value" : "القيمة البيعية للمخزون"}</div>
-            <div className="text-[20px] font-black text-primary font-mono mt-0.5">{kpis.totalRetailValue.toFixed(2)} ₪</div>
-            <div className="text-[11px] text-ink-soft font-bold">{isEn ? "Active FEFO Stock" : "مخزون قابل للبيع"}</div>
+            <div className="text-[13px] font-bold text-ink-soft">{isEn ? "Retail Value" : "القيمة البيعية للمخزون"}</div>
+            <div className="text-[22px] font-bold text-primary font-mono mt-1">{kpis.totalRetailValue.toFixed(2)} ₪</div>
+            <div className="text-[12.5px] text-ink-soft font-semibold mt-0.5">{isEn ? "Active FEFO Stock" : "مخزون قابل للبيع"}</div>
           </div>
           {showCosts && (
             <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm">
-              <div className="text-[11px] font-bold text-ink-soft">{isEn ? "Cost Value & Margin" : "قيمة التكلفة والربح المتوقع"}</div>
-              <div className="text-[20px] font-black text-emerald-700 font-mono mt-0.5">{kpis.totalCostValue.toFixed(2)} ₪</div>
-              <div className="text-[11px] font-bold text-emerald-700">+{kpis.potentialProfit.toFixed(2)} ₪</div>
+              <div className="text-[13px] font-bold text-ink-soft">{isEn ? "Cost Value & Margin" : "قيمة التكلفة والربح المتوقع"}</div>
+              <div className="text-[22px] font-bold text-emerald-700 font-mono mt-1">{kpis.totalCostValue.toFixed(2)} ₪</div>
+              <div className="text-[12.5px] font-bold text-emerald-700 mt-0.5">+{kpis.potentialProfit.toFixed(2)} ₪</div>
             </div>
           )}
         </div>
@@ -257,7 +257,7 @@ export default function InventoryPage() {
         {/* Search + Branch Filter */}
         <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm space-y-3">
           <div className="flex flex-wrap gap-3 items-center">
-            <div className="flex-1 min-w-[240px]">
+            <div className="flex-1 min-w-[240px] [&>div]:mb-0">
               <SearchBar
                 value={search}
                 onChange={setSearch}
@@ -268,7 +268,7 @@ export default function InventoryPage() {
               <select
                 value={branchFilter}
                 onChange={(e) => setBranchFilter(e.target.value)}
-                className="bg-bg/70 border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold text-ink outline-none"
+                className="bg-bg/70 border border-mint-line rounded-xl px-4 py-3 text-[14px] font-bold text-ink outline-none"
               >
                 <option value="all">{isEn ? "All Branches" : "كافة الفروع"}</option>
                 {activeBranches.map((b) => (
@@ -278,14 +278,14 @@ export default function InventoryPage() {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             {filterTabs.map((tab) => {
               const active = filterTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setFilterTab(tab.id)}
-                  className={`px-3.5 py-1.5 rounded-xl text-[12px] font-black transition-all flex items-center gap-1.5 ${
+                  className={`px-4 py-2 rounded-xl text-[13px] font-bold transition-all flex items-center gap-2 ${
                     active
                       ? "bg-primary text-white shadow-sm"
                       : "bg-bg/70 text-ink-soft hover:bg-primary-pale hover:text-primary"
@@ -293,7 +293,7 @@ export default function InventoryPage() {
                 >
                   <span>{tab.label}</span>
                   {tab.count !== undefined && (
-                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${active ? "bg-white/20 text-white" : "bg-white text-ink"}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[12px] font-bold ${active ? "bg-white/20 text-white" : "bg-white text-ink"}`}>
                       {tab.count}
                     </span>
                   )}
@@ -306,22 +306,22 @@ export default function InventoryPage() {
         {/* Inventory Table */}
         <div className="bg-white rounded-[24px] border border-mint-line shadow-sm overflow-hidden">
           {isLoading ? (
-            <div className="p-12 text-center font-bold text-ink-soft">{isEn ? "Loading inventory..." : "جاري تحميل المخزون..."}</div>
+            <div className="p-12 text-center font-bold text-[15px] text-ink-soft">{isEn ? "Loading inventory..." : "جاري تحميل المخزون..."}</div>
           ) : filteredItems.length === 0 ? (
-            <div className="p-12 text-center font-bold text-ink-soft">
+            <div className="p-12 text-center font-bold text-[15px] text-ink-soft">
               {isEn ? "No matching items found." : "لا توجد أصناف مطابقة للفلتر أو البحث الحالي."}
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-[13px] border-collapse">
+              <table className="w-full text-[14px] border-collapse">
                 <thead>
-                  <tr className="bg-bg/80 text-ink-soft text-[12px] font-black border-b border-mint-line">
-                    <th className="p-3.5 text-start">{isEn ? "Medicine" : "الصنف الدوائي"}</th>
-                    <th className="p-3.5 text-center">{isEn ? "Stock" : "الرصيد (FEFO)"}</th>
-                    <th className="p-3.5 text-center">{isEn ? "Sell / Cost" : showCosts ? "السعر / التكلفة" : "سعر البيع"}</th>
-                    <th className="p-3.5 text-center">{isEn ? "Nearest Expiry" : "أقرب صلاحية"}</th>
-                    <th className="p-3.5 text-center">{isEn ? "Branch" : "الفرع"}</th>
-                    <th className="p-3.5 text-end">{isEn ? "Actions" : "الإجراءات"}</th>
+                  <tr className="bg-bg/80 text-ink-soft text-[13.5px] font-bold border-b border-mint-line">
+                    <th className="p-4 text-start">{isEn ? "Medicine" : "الصنف الدوائي"}</th>
+                    <th className="p-4 text-center">{isEn ? "Stock" : "الرصيد (FEFO)"}</th>
+                    <th className="p-4 text-center">{isEn ? "Sell / Cost" : showCosts ? "السعر / التكلفة" : "سعر البيع"}</th>
+                    <th className="p-4 text-center">{isEn ? "Nearest Expiry" : "أقرب صلاحية"}</th>
+                    <th className="p-4 text-center">{isEn ? "Branch" : "الفرع"}</th>
+                    <th className="p-4 text-end">{isEn ? "Actions" : "الإجراءات"}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -340,29 +340,29 @@ export default function InventoryPage() {
 
                     return (
                       <tr key={item.id} className="border-b border-mint-line hover:bg-primary-pale/30 transition-colors">
-                        <td className="p-3.5">
+                        <td className="p-4">
                           <div className="flex items-center gap-2">
-                            <span className="font-black text-ink text-[14px]">{primary || item.name}</span>
+                            <span className="font-bold text-ink text-[16px] leading-snug">{primary || item.name}</span>
                             {[true, 1, "1"].includes(item.isControlled as any) && (
-                              <span className="px-2 py-0.5 rounded-full bg-amber-pale text-amber text-[10px] font-black">
+                              <span className="px-2.5 py-0.5 rounded-full bg-amber-pale text-amber text-[12px] font-bold">
                                 {isEn ? "Controlled" : "مراقب"}
                               </span>
                             )}
                           </div>
                           {(secondary || item.scientificName) && (
-                            <div className="text-[11px] text-ink-soft font-medium">
+                            <div className="text-[13px] text-ink-soft font-medium mt-0.5 leading-snug">
                               {secondary} {secondary && item.scientificName ? "·" : ""} {item.scientificName}
                             </div>
                           )}
-                          <div className="text-[11px] text-ink-soft font-mono mt-0.5 flex gap-2">
+                          <div className="text-[12.5px] text-ink-soft font-mono mt-1 flex gap-2 flex-wrap">
                             {item.barcode && <span>#{item.barcode}</span>}
-                            {item.category && <span className="font-sans">· {item.category}</span>}
+                            {item.category && <span className="font-sans font-medium">· {item.category}</span>}
                           </div>
                         </td>
 
-                        <td className="p-3.5 text-center">
+                        <td className="p-4 text-center">
                           <div
-                            className={`inline-block px-3 py-1 rounded-xl font-black text-[12px] ${
+                            className={`inline-block px-3.5 py-1.5 rounded-xl font-bold text-[13.5px] ${
                               st.isOutOfStock
                                 ? "bg-coral-pale text-coral"
                                 : st.isLowStock
@@ -372,49 +372,49 @@ export default function InventoryPage() {
                           >
                             {formatQtyWithUnits(item, item.units, language)}
                           </div>
-                          <div className="text-[10px] text-ink-soft font-bold mt-1">
+                          <div className="text-[12px] text-ink-soft font-semibold mt-1.5">
                             {isEn ? `Min: ${st.minQtyBoxes} Box` : `حد التنبيه: ${st.minQtyBoxes} علبة`}
                             {st.batchCount > 1 ? ` · ${st.batchCount} ${isEn ? "batches" : "دفعات"}` : ""}
                           </div>
                         </td>
 
-                        <td className="p-3.5 text-center font-mono">
-                          <div className="font-black text-primary text-[14px]">{Number(item.price || 0).toFixed(2)} ₪</div>
+                        <td className="p-4 text-center font-mono">
+                          <div className="font-bold text-primary text-[16px]">{Number(item.price || 0).toFixed(2)} ₪</div>
                           {showCosts && (
-                            <div className="text-[11px] text-ink-soft font-bold">
+                            <div className="text-[13px] text-ink-soft font-semibold mt-0.5">
                               {isEn ? "Cost:" : "تكلفة:"} {Number(item.cost || 0).toFixed(2)} ₪
                             </div>
                           )}
                         </td>
 
-                        <td className="p-3.5 text-center">
+                        <td className="p-4 text-center">
                           {st.nearestExpiry ? (
-                            <span className={`inline-block px-2.5 py-1 rounded-lg font-mono text-[11px] font-black ${expiryBadge}`}>
+                            <span className={`inline-block px-3 py-1 rounded-lg font-mono text-[13px] font-bold ${expiryBadge}`}>
                               {st.nearestExpiry}
                               {expSt.daysLeft !== null && expSt.daysLeft <= 60 ? ` (${expSt.daysLeft}d)` : ""}
                             </span>
                           ) : (
-                            <span className="text-ink-soft text-[11px]">—</span>
+                            <span className="text-ink-soft text-[14px]">—</span>
                           )}
                         </td>
 
-                        <td className="p-3.5 text-center text-[12px] font-bold text-ink-soft">
+                        <td className="p-4 text-center text-[13.5px] font-bold text-ink">
                           {resolveBranchName(branches, item.branch_id, item.branchName, language)}
                         </td>
 
-                        <td className="p-3.5 text-end">
-                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                        <td className="p-4 text-end">
+                          <div className="flex items-center justify-end gap-2 flex-wrap">
                             <button
                               onClick={() => setMovementsItem(item)}
                               title={isEn ? "Stock Card Ledger" : "كارت الصنف"}
-                              className="px-2.5 py-1.5 rounded-lg bg-bg text-primary text-[11px] font-black hover:bg-primary hover:text-white transition-colors"
+                              className="px-3 py-2 rounded-xl bg-bg text-primary text-[13px] font-bold hover:bg-primary hover:text-white transition-colors"
                             >
                               📒 {isEn ? "Card" : "كارت"}
                             </button>
                             <button
                               onClick={() => setBarcodeItem(item)}
                               title={isEn ? "Print Barcode Labels" : "طباعة باركود"}
-                              className="px-2.5 py-1.5 rounded-lg bg-bg text-ink text-[11px] font-bold hover:bg-mint-line"
+                              className="px-3 py-2 rounded-xl bg-bg text-ink text-[13px] font-bold hover:bg-mint-line"
                             >
                               🏷
                             </button>
@@ -425,25 +425,25 @@ export default function InventoryPage() {
                                     setEditingItem(item);
                                     setFormModalOpen(true);
                                   }}
-                                  className="px-2.5 py-1.5 rounded-lg bg-primary-pale text-primary text-[11px] font-black hover:bg-primary hover:text-white"
+                                  className="px-3 py-2 rounded-xl bg-primary-pale text-primary text-[13px] font-bold hover:bg-primary hover:text-white"
                                 >
                                   ✏ {isEn ? "Edit" : "تعديل"}
                                 </button>
                                 <button
                                   onClick={() => setSplitItem(item)}
-                                  className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-black hover:bg-emerald-600 hover:text-white"
+                                  className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-[13px] font-bold hover:bg-emerald-600 hover:text-white"
                                 >
                                   + {isEn ? "Batch" : "دفعة"}
                                 </button>
                                 <button
                                   onClick={() => setWasteItem(item)}
-                                  className="px-2.5 py-1.5 rounded-lg bg-amber-pale/70 text-ink text-[11px] font-black hover:bg-amber hover:text-white"
+                                  className="px-3 py-2 rounded-xl bg-amber-pale/70 text-ink text-[13px] font-bold hover:bg-amber hover:text-white"
                                 >
                                   {isEn ? "Waste" : "تالف"}
                                 </button>
                                 <button
                                   onClick={() => handleDeleteOrArchive(item)}
-                                  className="px-2.5 py-1.5 rounded-lg bg-coral-pale text-coral text-[11px] font-black hover:bg-coral hover:text-white"
+                                  className="px-3 py-2 rounded-xl bg-coral-pale text-coral text-[13px] font-bold hover:bg-coral hover:text-white"
                                 >
                                   🗑
                                 </button>
@@ -452,7 +452,7 @@ export default function InventoryPage() {
                             {canEdit && filterTab === "archived" && (
                               <button
                                 onClick={() => handleRestore(item)}
-                                className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-black"
+                                className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-[13px] font-bold"
                               >
                                 ↩ {isEn ? "Restore" : "استعادة"}
                               </button>

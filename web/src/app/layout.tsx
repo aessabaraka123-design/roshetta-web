@@ -8,13 +8,13 @@ import SocketProvider from "@/components/SocketProvider";
 import "./globals.css";
 
 const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
-  variable: "--font-sans",
+  variable: "--font-ibm-plex-sans-arabic",
   subsets: ["arabic"],
   weight: ["400", "500", "600", "700"],
 });
 
 const ibmPlexMono = IBM_Plex_Mono({
-  variable: "--font-mono",
+  variable: "--font-ibm-plex-mono",
   subsets: ["latin"],
   weight: ["500", "600", "700"],
 });

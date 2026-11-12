@@ -331,7 +331,7 @@ export default function InventoryFormModal({
       {/* Identity & Classification */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-[12px] font-bold text-ink-soft mb-1">
+          <label className="block text-[13.5px] font-bold text-ink-soft mb-1.5">
             {isEn ? "Trade Name *" : "الاسم التجاري *"}
           </label>
           <input
@@ -339,11 +339,11 @@ export default function InventoryFormModal({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={isEn ? "e.g., Amoxicillin 500mg" : "مثال: أموكسيسيلين 500 ملغ"}
-            className="w-full bg-bg/60 border border-mint-line rounded-xl px-3.5 py-2.5 text-[14px] font-bold text-ink outline-none focus:border-primary"
+            className="w-full bg-bg/60 border border-mint-line rounded-xl px-4 py-3 text-[15px] font-bold text-ink outline-none focus:border-primary"
           />
         </div>
         <div>
-          <label className="block text-[12px] font-bold text-ink-soft mb-1">
+          <label className="block text-[13.5px] font-bold text-ink-soft mb-1.5">
             {isEn ? "Scientific / Generic Name" : "الاسم العلمي / المادة الفعالة"}
           </label>
           <input
@@ -351,11 +351,11 @@ export default function InventoryFormModal({
             value={scientificName}
             onChange={(e) => setScientificName(e.target.value)}
             placeholder="e.g., Paracetamol"
-            className="w-full bg-bg/60 border border-mint-line rounded-xl px-3.5 py-2.5 text-[14px] font-medium text-ink outline-none focus:border-primary"
+            className="w-full bg-bg/60 border border-mint-line rounded-xl px-4 py-3 text-[15px] font-medium text-ink outline-none focus:border-primary"
           />
         </div>
         <div>
-          <label className="block text-[12px] font-bold text-ink-soft mb-1">
+          <label className="block text-[13.5px] font-bold text-ink-soft mb-1.5">
             {isEn ? "Barcode (Primary / Box)" : "الباركود (للعلبة الكبرى)"}
           </label>
           <div className="flex gap-2">
@@ -364,12 +364,12 @@ export default function InventoryFormModal({
               value={barcode}
               onChange={(e) => setBarcode(e.target.value)}
               placeholder="629..."
-              className="flex-1 bg-bg/60 border border-mint-line rounded-xl px-3.5 py-2.5 text-[14px] font-mono text-ink outline-none focus:border-primary"
+              className="flex-1 bg-bg/60 border border-mint-line rounded-xl px-4 py-3 text-[15px] font-mono text-ink outline-none focus:border-primary"
             />
             <button
               type="button"
               onClick={generateBarcode}
-              className="px-3 py-2 rounded-xl bg-primary-pale text-primary font-bold text-[12px] hover:bg-primary hover:text-white transition-colors"
+              className="px-4 py-2.5 rounded-xl bg-primary-pale text-primary font-bold text-[13.5px] hover:bg-primary hover:text-white transition-colors"
             >
               {isEn ? "Generate" : "توليد"}
             </button>
@@ -377,13 +377,13 @@ export default function InventoryFormModal({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-[12px] font-bold text-ink-soft mb-1">
+            <label className="block text-[13.5px] font-bold text-ink-soft mb-1.5">
               {isEn ? "Category" : "التصنيف الدوائي"}
             </label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-bg/60 border border-mint-line rounded-xl px-3 py-2.5 text-[13px] font-bold text-ink outline-none focus:border-primary"
+              className="w-full bg-bg/60 border border-mint-line rounded-xl px-3.5 py-3 text-[14px] font-bold text-ink outline-none focus:border-primary"
             >
               {categories.map((cat) => (
                 <option key={cat.code} value={cat.label}>
@@ -396,7 +396,7 @@ export default function InventoryFormModal({
             </select>
           </div>
           <div>
-            <label className="block text-[12px] font-bold text-ink-soft mb-1">
+            <label className="block text-[13.5px] font-bold text-ink-soft mb-1.5">
               {isEn ? "Manufacturer" : "الشركة المصنعة"}
             </label>
             <input
@@ -404,7 +404,7 @@ export default function InventoryFormModal({
               value={manufacturer}
               onChange={(e) => setManufacturer(e.target.value)}
               placeholder={isEn ? "Company" : "اسم الشركة"}
-              className="w-full bg-bg/60 border border-mint-line rounded-xl px-3 py-2.5 text-[13px] text-ink outline-none focus:border-primary"
+              className="w-full bg-bg/60 border border-mint-line rounded-xl px-3.5 py-3 text-[14px] text-ink outline-none focus:border-primary"
             />
           </div>
         </div>
@@ -413,7 +413,7 @@ export default function InventoryFormModal({
       {/* Pricing, Threshold & Expiry */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-primary-pale/50 p-4 rounded-2xl border border-mint-line">
         <div>
-          <label className="block text-[12px] font-bold text-ink-soft mb-1">
+          <label className="block text-[13.5px] font-bold text-ink-soft mb-1.5">
             {isEn ? "Box Sell Price *" : "سعر البيع (للعلبة) *"}
           </label>
           <input
@@ -423,12 +423,12 @@ export default function InventoryFormModal({
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             placeholder="0.00"
-            className="w-full bg-white border border-mint-line rounded-xl px-3 py-2 text-[14px] font-mono font-bold text-ink outline-none focus:border-primary"
+            className="w-full bg-white border border-mint-line rounded-xl px-3.5 py-2.5 text-[15px] font-mono font-bold text-ink outline-none focus:border-primary"
           />
         </div>
         {showCosts && (
           <div>
-            <label className="block text-[12px] font-bold text-ink-soft mb-1">
+            <label className="block text-[13.5px] font-bold text-ink-soft mb-1.5">
               {isEn ? "Box Cost" : "سعر التكلفة (للعلبة)"}
             </label>
             <input
@@ -438,12 +438,12 @@ export default function InventoryFormModal({
               value={cost}
               onChange={(e) => setCost(e.target.value)}
               placeholder="0.00"
-              className="w-full bg-white border border-mint-line rounded-xl px-3 py-2 text-[14px] font-mono font-bold text-ink outline-none focus:border-primary"
+              className="w-full bg-white border border-mint-line rounded-xl px-3.5 py-2.5 text-[15px] font-mono font-bold text-ink outline-none focus:border-primary"
             />
           </div>
         )}
         <div>
-          <label className="block text-[12px] font-bold text-ink-soft mb-1">
+          <label className="block text-[13.5px] font-bold text-ink-soft mb-1.5">
             {isEn ? "Min Alert (Boxes)" : "الحد الأدنى (بالعلبة)"}
           </label>
           <input
@@ -451,18 +451,18 @@ export default function InventoryFormModal({
             min="0"
             value={minQty}
             onChange={(e) => setMinQty(e.target.value)}
-            className="w-full bg-white border border-mint-line rounded-xl px-3 py-2 text-[14px] font-mono font-bold text-ink outline-none focus:border-primary"
+            className="w-full bg-white border border-mint-line rounded-xl px-3.5 py-2.5 text-[15px] font-mono font-bold text-ink outline-none focus:border-primary"
           />
         </div>
         <div>
-          <label className="block text-[12px] font-bold text-ink-soft mb-1">
+          <label className="block text-[13.5px] font-bold text-ink-soft mb-1.5">
             {isEn ? "Expiry (Month/Year)" : "تاريخ الانتهاء (شهر/سنة)"}
           </label>
           <input
             type="month"
             value={expiryMonth}
             onChange={(e) => setExpiryMonth(e.target.value)}
-            className="w-full bg-white border border-mint-line rounded-xl px-3 py-2 text-[13px] font-mono font-bold text-ink outline-none focus:border-primary"
+            className="w-full bg-white border border-mint-line rounded-xl px-3.5 py-2.5 text-[14px] font-mono font-bold text-ink outline-none focus:border-primary"
           />
         </div>
       </div>
@@ -471,14 +471,14 @@ export default function InventoryFormModal({
       <div className="bg-white border border-mint-line rounded-2xl p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h4 className="text-[14px] font-black text-primary">
+            <h4 className="text-[15.5px] font-bold text-primary">
               {isEn ? "Multi-Unit Packaging & Barcodes" : "نظام الوحدات الفرعية والباركود"}
             </h4>
-            <p className="text-[11px] text-ink-soft">
+            <p className="text-[13px] text-ink-soft mt-0.5">
               {isEn ? "Sell by Box, Strip, or individual Pill cleanly" : "بيع بالعلبة أو الشريط أو الحبة بدقة حسابية كاملة"}
             </p>
           </div>
-          <label className="flex items-center gap-2 cursor-pointer text-[13px] font-bold text-ink">
+          <label className="flex items-center gap-2 cursor-pointer text-[14px] font-bold text-ink">
             <input
               type="checkbox"
               checked={hasSub1}
@@ -494,26 +494,26 @@ export default function InventoryFormModal({
         </div>
 
         {hasSub1 && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-mint-line">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-mint-line">
             <div>
-              <label className="block text-[11px] font-bold text-ink-soft mb-1">{isEn ? "Unit 2 Name" : "اسم الوحدة 2"}</label>
-              <input type="text" value={sub1Name} onChange={(e) => setSub1Name(e.target.value)} className="w-full bg-bg/60 border border-mint-line rounded-lg px-2.5 py-2 text-[13px] font-bold" />
+              <label className="block text-[12.5px] font-bold text-ink-soft mb-1">{isEn ? "Unit 2 Name" : "اسم الوحدة 2"}</label>
+              <input type="text" value={sub1Name} onChange={(e) => setSub1Name(e.target.value)} className="w-full bg-bg/60 border border-mint-line rounded-lg px-3 py-2 text-[14px] font-bold" />
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-ink-soft mb-1">{isEn ? "Count / Box" : "العدد بالعلبة"}</label>
-              <input type="number" min="2" value={sub1PerBox} onChange={(e) => setSub1PerBox(e.target.value)} placeholder="3" className="w-full bg-bg/60 border border-mint-line rounded-lg px-2.5 py-2 text-[13px] font-mono font-bold" />
+              <label className="block text-[12.5px] font-bold text-ink-soft mb-1">{isEn ? "Count / Box" : "العدد بالعلبة"}</label>
+              <input type="number" min="2" value={sub1PerBox} onChange={(e) => setSub1PerBox(e.target.value)} placeholder="3" className="w-full bg-bg/60 border border-mint-line rounded-lg px-3 py-2 text-[14px] font-mono font-bold" />
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-ink-soft mb-1">{isEn ? "Price (auto if empty)" : "سعر الوحدة 2"}</label>
-              <input type="number" step="0.01" value={sub1Price} onChange={(e) => setSub1Price(e.target.value)} placeholder="Auto" className="w-full bg-bg/60 border border-mint-line rounded-lg px-2.5 py-2 text-[13px] font-mono" />
+              <label className="block text-[12.5px] font-bold text-ink-soft mb-1">{isEn ? "Price (auto if empty)" : "سعر الوحدة 2"}</label>
+              <input type="number" step="0.01" value={sub1Price} onChange={(e) => setSub1Price(e.target.value)} placeholder="Auto" className="w-full bg-bg/60 border border-mint-line rounded-lg px-3 py-2 text-[14px] font-mono" />
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-ink-soft mb-1">{isEn ? "Unit 2 Barcode" : "باركود الوحدة 2"}</label>
-              <input type="text" value={sub1Barcode} onChange={(e) => setSub1Barcode(e.target.value)} placeholder="اختياري" className="w-full bg-bg/60 border border-mint-line rounded-lg px-2.5 py-2 text-[12px] font-mono" />
+              <label className="block text-[12.5px] font-bold text-ink-soft mb-1">{isEn ? "Unit 2 Barcode" : "باركود الوحدة 2"}</label>
+              <input type="text" value={sub1Barcode} onChange={(e) => setSub1Barcode(e.target.value)} placeholder="اختياري" className="w-full bg-bg/60 border border-mint-line rounded-lg px-3 py-2 text-[13.5px] font-mono" />
             </div>
 
             <div className="col-span-2 md:col-span-4 flex items-center justify-between pt-1">
-              <label className="flex items-center gap-2 cursor-pointer text-[12px] font-bold text-ink">
+              <label className="flex items-center gap-2 cursor-pointer text-[13.5px] font-bold text-ink">
                 <input
                   type="checkbox"
                   checked={hasSub2}
@@ -530,20 +530,20 @@ export default function InventoryFormModal({
             {hasSub2 && (
               <>
                 <div>
-                  <label className="block text-[11px] font-bold text-ink-soft mb-1">{isEn ? "Unit 3 Name" : "اسم الوحدة 3"}</label>
-                  <input type="text" value={sub2Name} onChange={(e) => setSub2Name(e.target.value)} className="w-full bg-bg/60 border border-mint-line rounded-lg px-2.5 py-2 text-[13px] font-bold" />
+                  <label className="block text-[12.5px] font-bold text-ink-soft mb-1">{isEn ? "Unit 3 Name" : "اسم الوحدة 3"}</label>
+                  <input type="text" value={sub2Name} onChange={(e) => setSub2Name(e.target.value)} className="w-full bg-bg/60 border border-mint-line rounded-lg px-3 py-2 text-[14px] font-bold" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-ink-soft mb-1">{isEn ? "Count / Strip" : "الحبات بالشريط"}</label>
-                  <input type="number" min="2" value={sub2PerSub1} onChange={(e) => setSub2PerSub1(e.target.value)} placeholder="10" className="w-full bg-bg/60 border border-mint-line rounded-lg px-2.5 py-2 text-[13px] font-mono font-bold" />
+                  <label className="block text-[12.5px] font-bold text-ink-soft mb-1">{isEn ? "Count / Strip" : "الحبات بالشريط"}</label>
+                  <input type="number" min="2" value={sub2PerSub1} onChange={(e) => setSub2PerSub1(e.target.value)} placeholder="10" className="w-full bg-bg/60 border border-mint-line rounded-lg px-3 py-2 text-[14px] font-mono font-bold" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-ink-soft mb-1">{isEn ? "Pill Price" : "سعر الحبة"}</label>
-                  <input type="number" step="0.01" value={sub2Price} onChange={(e) => setSub2Price(e.target.value)} placeholder="Auto" className="w-full bg-bg/60 border border-mint-line rounded-lg px-2.5 py-2 text-[13px] font-mono" />
+                  <label className="block text-[12.5px] font-bold text-ink-soft mb-1">{isEn ? "Pill Price" : "سعر الحبة"}</label>
+                  <input type="number" step="0.01" value={sub2Price} onChange={(e) => setSub2Price(e.target.value)} placeholder="Auto" className="w-full bg-bg/60 border border-mint-line rounded-lg px-3 py-2 text-[14px] font-mono" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-ink-soft mb-1">{isEn ? "Pill Barcode" : "باركود الحبة"}</label>
-                  <input type="text" value={sub2Barcode} onChange={(e) => setSub2Barcode(e.target.value)} placeholder="اختياري" className="w-full bg-bg/60 border border-mint-line rounded-lg px-2.5 py-2 text-[12px] font-mono" />
+                  <label className="block text-[12.5px] font-bold text-ink-soft mb-1">{isEn ? "Pill Barcode" : "باركود الحبة"}</label>
+                  <input type="text" value={sub2Barcode} onChange={(e) => setSub2Barcode(e.target.value)} placeholder="اختياري" className="w-full bg-bg/60 border border-mint-line rounded-lg px-3 py-2 text-[13.5px] font-mono" />
                 </div>
               </>
             )}
@@ -554,66 +554,66 @@ export default function InventoryFormModal({
       {/* Remainder-Safe Stock Quantities + Batch & Branch + Controlled */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-bg/50 p-4 rounded-2xl border border-mint-line">
         <div className={hasSub1 ? "md:col-span-2" : ""}>
-          <label className="block text-[12px] font-bold text-primary mb-1.5">
+          <label className="block text-[13.5px] font-bold text-primary mb-2">
             {isEn ? "Current Stock (Remainder-Safe)" : "الرصيد الحالي (يحافظ على الكسور المفردة)"}
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2.5">
             <div className="flex-1 min-w-[90px]">
-              <span className="block text-[10px] font-bold text-ink-soft mb-0.5">{boxName}</span>
+              <span className="block text-[12px] font-bold text-ink-soft mb-1">{boxName}</span>
               <input
                 type="number"
                 min="0"
                 step={hasSub1 ? "1" : "any"}
                 value={qtyBoxes}
                 onChange={(e) => setQtyBoxes(e.target.value)}
-                className="w-full bg-white border border-mint-line rounded-xl px-3 py-2 font-mono font-bold text-[14px]"
+                className="w-full bg-white border border-mint-line rounded-xl px-3 py-2.5 font-mono font-bold text-[15px]"
               />
             </div>
             {hasSub1 && hasSub2 && (
               <div className="flex-1 min-w-[90px]">
-                <span className="block text-[10px] font-bold text-ink-soft mb-0.5">{sub1Name}</span>
+                <span className="block text-[12px] font-bold text-ink-soft mb-1">{sub1Name}</span>
                 <input
                   type="number"
                   min="0"
                   value={qtyStrips}
                   onChange={(e) => setQtyStrips(e.target.value)}
-                  className="w-full bg-white border border-mint-line rounded-xl px-3 py-2 font-mono font-bold text-[14px]"
+                  className="w-full bg-white border border-mint-line rounded-xl px-3 py-2.5 font-mono font-bold text-[15px]"
                 />
               </div>
             )}
             {hasSub1 && (
               <div className="flex-1 min-w-[90px]">
-                <span className="block text-[10px] font-bold text-ink-soft mb-0.5">{hasSub2 ? sub2Name : sub1Name}</span>
+                <span className="block text-[12px] font-bold text-ink-soft mb-1">{hasSub2 ? sub2Name : sub1Name}</span>
                 <input
                   type="number"
                   min="0"
                   value={qtyPills}
                   onChange={(e) => setQtyPills(e.target.value)}
-                  className="w-full bg-white border border-mint-line rounded-xl px-3 py-2 font-mono font-bold text-[14px]"
+                  className="w-full bg-white border border-mint-line rounded-xl px-3 py-2.5 font-mono font-bold text-[15px]"
                 />
               </div>
             )}
           </div>
-          <p className="text-[11px] font-bold text-primary mt-1.5">
+          <p className="text-[13px] font-bold text-primary mt-2">
             {isEn ? "Total Computed:" : "الإجمالي المحسوب:"} {formatQtyWithUnits({ qty: computedBaseQty, units: builtUnits }, builtUnits, language)} ({computedBaseQty})
           </p>
         </div>
 
         <div className="space-y-3">
           <div>
-            <label className="block text-[12px] font-bold text-ink-soft mb-1">{isEn ? "Batch Number" : "رقم التشغيلة"}</label>
+            <label className="block text-[13.5px] font-bold text-ink-soft mb-1.5">{isEn ? "Batch Number" : "رقم التشغيلة"}</label>
             <input
               type="text"
               value={batchNumber}
               onChange={(e) => setBatchNumber(e.target.value)}
               placeholder="BATCH-01"
-              className="w-full bg-white border border-mint-line rounded-xl px-3 py-2 font-mono text-[13px]"
+              className="w-full bg-white border border-mint-line rounded-xl px-3.5 py-2.5 font-mono text-[14px]"
             />
           </div>
           <div>
-            <label className="block text-[12px] font-bold text-ink-soft mb-1">{isEn ? "Branch" : "الفرع"}</label>
+            <label className="block text-[13.5px] font-bold text-ink-soft mb-1.5">{isEn ? "Branch" : "الفرع"}</label>
             {isEdit ? (
-              <div className="px-3 py-2 bg-white/70 border border-mint-line rounded-xl text-[13px] font-bold text-ink-soft">
+              <div className="px-3.5 py-2.5 bg-white/70 border border-mint-line rounded-xl text-[14px] font-bold text-ink-soft">
                 {resolveBranchName(branches, editingItem?.branch_id, editingItem?.branchName, language)}
               </div>
             ) : (
@@ -621,7 +621,7 @@ export default function InventoryFormModal({
                 value={branchId}
                 onChange={(e) => setBranchId(e.target.value)}
                 disabled={Boolean(userBranch && userBranch !== "all" && !["manager", "owner"].includes(String(userRole || "").toLowerCase()))}
-                className="w-full bg-white border border-mint-line rounded-xl px-3 py-2 text-[13px] font-bold text-ink"
+                className="w-full bg-white border border-mint-line rounded-xl px-3.5 py-2.5 text-[14px] font-bold text-ink"
               >
                 {activeBranches.map((b) => (
                   <option key={b.id} value={b.id}>
@@ -636,7 +636,7 @@ export default function InventoryFormModal({
       </div>
 
       {/* Controlled Medication Toggle */}
-      <label className="flex items-center gap-3 p-3.5 rounded-2xl border border-amber bg-amber-pale/50 cursor-pointer">
+      <label className="flex items-center gap-3 p-4 rounded-2xl border border-amber bg-amber-pale/50 cursor-pointer">
         <input
           type="checkbox"
           checked={isControlled}
@@ -644,10 +644,10 @@ export default function InventoryFormModal({
           className="w-4 h-4 accent-coral rounded"
         />
         <div>
-          <div className="text-[13px] font-black text-ink">
+          <div className="text-[14.5px] font-bold text-ink">
             {isEn ? "Controlled / Restricted Medication (Narcotic Log)" : "دواء مراقب / خاضع للرقابة (يُقيّد في دفتر السموم)"}
           </div>
-          <div className="text-[11px] text-ink-soft">
+          <div className="text-[13px] text-ink-soft mt-0.5">
             {isEn ? "Dispensing requires authorized staff permission on server & POS." : "يُمنع صرفه في نقطة البيع إلا للموظفين المخولين من السيرفر."}
           </div>
         </div>
