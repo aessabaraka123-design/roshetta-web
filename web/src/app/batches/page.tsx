@@ -128,33 +128,33 @@ export default function BatchesPage() {
         </div>
 
         {/* Summary KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm">
-            <div className="text-[13px] font-bold text-ink-soft">{isEn ? "Active FEFO Batches" : "التشغيلات النشطة"}</div>
-            <div className="text-[24px] font-bold text-primary mt-1">{stats.total}</div>
+            <div className="text-[11px] font-bold text-ink-soft">{isEn ? "Active FEFO Batches" : "التشغيلات النشطة"}</div>
+            <div className="text-[22px] font-black text-primary mt-0.5">{stats.total}</div>
           </div>
           <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm">
-            <div className="text-[13px] font-bold text-ink-soft">{isEn ? "Expired" : "منتهية الصلاحية"}</div>
-            <div className="text-[24px] font-bold text-coral mt-1">{stats.expired}</div>
+            <div className="text-[11px] font-bold text-ink-soft">{isEn ? "Expired" : "منتهية الصلاحية"}</div>
+            <div className="text-[22px] font-black text-coral mt-0.5">{stats.expired}</div>
           </div>
           <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm">
-            <div className="text-[13px] font-bold text-ink-soft">{isEn ? "Critical (<=30d)" : "حرجة (<=30 يوم)"}</div>
-            <div className="text-[24px] font-bold text-coral mt-1">{stats.critical}</div>
+            <div className="text-[11px] font-bold text-ink-soft">{isEn ? "Critical (<=30d)" : "حرجة (<=30 يوم)"}</div>
+            <div className="text-[22px] font-black text-coral mt-0.5">{stats.critical}</div>
           </div>
           <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm">
-            <div className="text-[13px] font-bold text-ink-soft">{isEn ? "Warning (<=60d)" : "تحذير (<=60 يوم)"}</div>
-            <div className="text-[24px] font-bold text-amber mt-1">{stats.warning}</div>
+            <div className="text-[11px] font-bold text-ink-soft">{isEn ? "Warning (<=60d)" : "تحذير (<=60 يوم)"}</div>
+            <div className="text-[22px] font-black text-amber mt-0.5">{stats.warning}</div>
           </div>
         </div>
 
         {/* Filters */}
         <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm space-y-3">
           <div className="flex flex-wrap gap-3 items-center">
-            <div className="flex-1 min-w-[240px] [&>div]:mb-0">
+            <div className="flex-1 min-w-[240px]">
               <SearchBar value={search} onChange={setSearch} placeholder={isEn ? "Search drug or batch #..." : "ابحث باسم الدواء، الباركود، أو رقم التشغيلة..."} />
             </div>
             {activeBranches.length > 0 && (
-              <select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} className="bg-bg/70 border border-mint-line rounded-xl px-4 py-3 text-[14px] font-bold">
+              <select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} className="bg-bg/70 border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold">
                 <option value="all">{isEn ? "All Branches" : "كافة الفروع"}</option>
                 {activeBranches.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
@@ -162,7 +162,7 @@ export default function BatchesPage() {
               </select>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {([
               ["all", isEn ? "All" : "الكل"],
               ["expired", isEn ? "Expired" : "منتهي"],
@@ -173,7 +173,7 @@ export default function BatchesPage() {
               <button
                 key={id}
                 onClick={() => setStatusFilter(id)}
-                className={`px-4 py-2 rounded-xl text-[13px] font-bold ${
+                className={`px-3.5 py-1.5 rounded-xl text-[12px] font-black ${
                   statusFilter === id ? "bg-primary text-white" : "bg-bg text-ink-soft hover:bg-primary-pale"
                 }`}
               >
@@ -186,20 +186,20 @@ export default function BatchesPage() {
         {/* Batches Table */}
         <div className="bg-white rounded-[24px] border border-mint-line shadow-sm overflow-hidden">
           {isLoading ? (
-            <div className="p-12 text-center font-bold text-[15px] text-ink-soft">{isEn ? "Loading FEFO batches..." : "جاري تحميل التشغيلات..."}</div>
+            <div className="p-12 text-center font-bold text-ink-soft">{isEn ? "Loading FEFO batches..." : "جاري تحميل التشغيلات..."}</div>
           ) : filteredBatches.length === 0 ? (
-            <div className="p-12 text-center font-bold text-[15px] text-ink-soft">{isEn ? "No matching batches found." : "لا توجد تشغيلات مطابقة."}</div>
+            <div className="p-12 text-center font-bold text-ink-soft">{isEn ? "No matching batches found." : "لا توجد تشغيلات مطابقة."}</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-[14px] border-collapse">
+              <table className="w-full text-[13px] border-collapse">
                 <thead>
-                  <tr className="bg-bg/80 text-ink-soft text-[13.5px] font-bold border-b border-mint-line">
-                    <th className="p-4 text-start">{isEn ? "Drug" : "الصنف الدوائي"}</th>
-                    <th className="p-4 text-center">{isEn ? "Batch #" : "التشغيلة"}</th>
-                    <th className="p-4 text-center">{isEn ? "Expiry (FEFO)" : "الصلاحية (FEFO)"}</th>
-                    <th className="p-4 text-center">{isEn ? "Remaining Stock" : "الرصيد المتاح"}</th>
-                    <th className="p-4 text-center">{isEn ? "Price" : showCosts ? "السعر / التكلفة" : "السعر"}</th>
-                    {canEdit && <th className="p-4 text-end">{isEn ? "Action" : "إجراء"}</th>}
+                  <tr className="bg-bg/80 text-ink-soft text-[12px] font-black border-b border-mint-line">
+                    <th className="p-3.5 text-start">{isEn ? "Drug" : "الصنف الدوائي"}</th>
+                    <th className="p-3.5 text-center">{isEn ? "Batch #" : "التشغيلة"}</th>
+                    <th className="p-3.5 text-center">{isEn ? "Expiry (FEFO)" : "الصلاحية (FEFO)"}</th>
+                    <th className="p-3.5 text-center">{isEn ? "Remaining Stock" : "الرصيد المتاح"}</th>
+                    <th className="p-3.5 text-center">{isEn ? "Price" : showCosts ? "السعر / التكلفة" : "السعر"}</th>
+                    {canEdit && <th className="p-3.5 text-end">{isEn ? "Action" : "إجراء"}</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -208,30 +208,30 @@ export default function BatchesPage() {
                     const tone = est.isExpired || est.isCritical ? "bg-coral-pale text-coral" : est.isExpiringSoon ? "bg-amber-pale text-amber" : "bg-emerald-50 text-emerald-700";
                     return (
                       <tr key={`${b.drug_id}-${b.id}`} className="border-b border-mint-line hover:bg-primary-pale/30">
-                        <td className="p-4">
-                          <div className="font-bold text-ink text-[15.5px]">{b.drug_name}</div>
-                          {b.scientificName && <div className="text-[13px] text-ink-soft mt-0.5">{b.scientificName}</div>}
+                        <td className="p-3.5">
+                          <div className="font-black text-ink">{b.drug_name}</div>
+                          {b.scientificName && <div className="text-[11px] text-ink-soft">{b.scientificName}</div>}
                         </td>
-                        <td className="p-4 text-center font-mono font-bold text-[13.5px] text-ink-soft">{b.batch_number || "—"}</td>
-                        <td className="p-4 text-center">
+                        <td className="p-3.5 text-center font-mono font-bold text-ink-soft">{b.batch_number || "—"}</td>
+                        <td className="p-3.5 text-center">
                           {b.expiry ? (
-                            <span className={`inline-block px-3 py-1 rounded-lg font-mono text-[13px] font-bold ${tone}`}>
+                            <span className={`inline-block px-2.5 py-1 rounded-lg font-mono text-[11px] font-black ${tone}`}>
                               {b.expiry} {est.daysLeft !== null ? `(${est.daysLeft}d)` : ""}
                             </span>
                           ) : (
-                            <span className="text-ink-soft text-[13px]">{isEn ? "No expiry" : "بدون تاريخ"}</span>
+                            <span className="text-ink-soft text-[11px]">{isEn ? "No expiry" : "بدون تاريخ"}</span>
                           )}
                         </td>
-                        <td className="p-4 text-center font-bold text-[14px] text-primary">
+                        <td className="p-3.5 text-center font-bold text-primary">
                           {formatQtyWithUnits({ qty: b.qty, units: b.units }, b.units, language)}
                         </td>
-                        <td className="p-4 text-center font-mono">
-                          <div className="font-bold text-primary text-[15.5px]">{Number(b.price || 0).toFixed(2)} ₪</div>
-                          {showCosts && <div className="text-[13px] text-ink-soft font-semibold mt-0.5">{Number(b.cost ?? b.purchase_price ?? 0).toFixed(2)} ₪</div>}
+                        <td className="p-3.5 text-center font-mono">
+                          <div className="font-black text-primary">{Number(b.price || 0).toFixed(2)} ₪</div>
+                          {showCosts && <div className="text-[11px] text-ink-soft">{Number(b.cost ?? b.purchase_price ?? 0).toFixed(2)} ₪</div>}
                         </td>
                         {canEdit && (
-                          <td className="p-4 text-end">
-                            <button onClick={() => handleDeleteBatch(b)} className="px-3.5 py-2 rounded-xl bg-coral-pale text-coral text-[13px] font-bold hover:bg-coral hover:text-white">
+                          <td className="p-3.5 text-end">
+                            <button onClick={() => handleDeleteBatch(b)} className="px-3 py-1.5 rounded-lg bg-coral-pale text-coral text-[11px] font-black hover:bg-coral hover:text-white">
                               🗑 {isEn ? "Remove" : "إزالة"}
                             </button>
                           </td>
