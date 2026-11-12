@@ -285,11 +285,19 @@ export default function Returns() {
         toast.success(successMsg);
         setSelectedInvoice(null);
         setSearchQuery("");
-        mutate(`${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales`);
-        mutate(`${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/inventory`);
-        mutate(`${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`);
-        mutate(`${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/customers`);
-        mutate(`${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/shifts/current`);
+        mutate(
+          (key) =>
+            typeof key === "string" &&
+            (key.includes("/sales") ||
+              key.includes("/inventory") ||
+              key.includes("/batches") ||
+              key.includes("/stock-movements") ||
+              key.includes("/dashboard") ||
+              key.includes("/customers") ||
+              key.includes("/shifts")),
+          undefined,
+          { revalidate: true }
+        );
       } else {
         toast.error(result.error || (language === "en" ? "Failed to refund" : "فشل في الاسترجاع"));
       }

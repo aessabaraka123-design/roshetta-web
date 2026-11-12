@@ -23,6 +23,11 @@ import {
   normalizeSalePaymentMethod,
   round2,
 } from "@/lib/customers/domain";
+import {
+  canDispenseControlled,
+  findUnitByBarcode,
+  normalizeSearchText,
+} from "@/lib/inventory/domain";
 import { getWebAuthHeaders } from "@/lib/customers/transport";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -195,10 +200,15 @@ function POSContent() {
 
   const filteredMeds = search.trim()
     ? (() => {
+        const qNorm = normalizeSearchText(search);
+        const trimmed = search.trim();
         const matched = branchMeds
           .filter(
             (m: Med) =>
-              m.name?.includes(search) || (m as any).barcode?.includes(search),
+              normalizeSearchText(m.name).includes(qNorm) ||
+              normalizeSearchText((m as any).scientificName).includes(qNorm) ||
+              String((m as any).barcode || "").includes(trimmed) ||
+              Boolean(findUnitByBarcode(m, trimmed)),
           )
           .sort((a: any, b: any) => {
             const aIsOld = a.name?.includes("(القديم)");
@@ -208,10 +218,7 @@ function POSContent() {
             return 0;
           });
 
-        // FIFO barcode auto-selection: if exact barcode scan returns old+new twins:
-        // 1. Try finding (القديم) if it has unsold stock not yet booked in cart
-        const trimmed = search.trim();
-        const exactBarcode = branchMeds.some((m: any) => (m as any).barcode === trimmed);
+        const exactBarcode = branchMeds.some((m: any) => (m as any).barcode === trimmed || Boolean(findUnitByBarcode(m, trimmed)));
         if (exactBarcode) {
           const oldBatch = matched.find((m: any) => {
             if (!m.name?.includes("(القديم)")) return false;
@@ -220,7 +227,6 @@ function POSContent() {
           });
           if (oldBatch) return [oldBatch];
 
-          // 2. If (القديم) is depleted or fully in cart, auto-transition to (الجديد)
           const newBatch = matched.find((m: any) => {
             if (!m.name?.includes("(الجديد)")) return false;
             const inCart = getCartQtyForMed(m.id);
@@ -248,7 +254,7 @@ function POSContent() {
         const items =
           typeof prx.items === "string" ? JSON.parse(prx.items) : prx.items;
         items.forEach((item: any) => {
-          const med = meds.find((m: any) => m.id === item.id);
+          const med = meds.find((m: any) => (item.id && m.id === item.id) || (item.name && m.name === item.name));
           if (med) {
             const prescribedQty = item.qty || 1;
             for (let i = 0; i < prescribedQty; i++) {
@@ -287,7 +293,7 @@ function POSContent() {
 
     // 1. Controlled Meds Check
     if (med.isControlled) {
-      if (user?.role !== "manager" && !user?.controlledMedsAccess) {
+      if (!canDispenseControlled(user)) {
         toast.error(language === 'en' ? "Sorry, you don't have permission to sell controlled medicines!" : "عذراً، ليس لديك صلاحية لبيع الأدوية المراقبة (المخدرة)!");
         return;
       }
@@ -424,45 +430,40 @@ function POSContent() {
         const unitCount = Number(cartItem.unitCount || 1);
         const inCartForThisMed = getCartQtyForMed(cartItem.id);
 
+        if (cartItem.name?.includes("(القديم)") && inCartForThisMed + unitCount > medStock) {
+          const cleanBaseName = (cartItem.name || "")
+            .replace(/\s*\(القديم\)|\s*\(الجديد\)|\s*\(دفعة قديمة\)|\s*\(دفعة جديدة\)/g, "")
+            .trim();
+          const newSibling = branchMeds.find(
+            (m: any) =>
+              m.name?.includes("(الجديد)") &&
+              (m.barcode === cartItem.barcode || (m.name || "").replace(/\s*\(القديم\)|\s*\(الجديد\)/g, "").trim() === cleanBaseName)
+          );
+
+          if (newSibling) {
+            const newStock = Number(newSibling.qty || 0);
+            const newInCart = getCartQtyForMed(newSibling.id);
+            if (newStock > newInCart) {
+              toast(
+                language === 'en'
+                  ? `Old batch max reached (${medStock} max). Added 1 from new batch.`
+                  : `تم استنفاد رصيد الدفعة القديمة. تم التحويل للدفعة الجديدة تلقائياً.`,
+                { icon: '✨', duration: 4000 }
+              );
+              handleItemSelect(newSibling as Med);
+              return;
+            }
+          }
+        }
+
         if (inCartForThisMed + unitCount > medStock) {
-          const stockStr = formatQty(medStock, cartItem.units, language);
+          const stockStr = formatQty(medStock, (cartItem as any).units, language);
           toast.error(
             language === 'en'
               ? `Cannot exceed available stock (${stockStr})!`
               : `لا يمكن تجاوز الكمية المتوفرة بالمخزون (${stockStr})!`
           );
           return;
-        }
-
-        if (cartItem.name?.includes("(القديم)")) {
-          const oldStock = Number(cartItem.qty || 0);
-          const inCart = Number(cartItem.cartQty || 0) * Number(cartItem.unitCount || 1);
-
-          if (inCart >= oldStock) {
-            const cleanBaseName = (cartItem.name || "")
-              .replace(/\s*\(القديم\)|\s*\(الجديد\)|\s*\(دفعة قديمة\)|\s*\(دفعة جديدة\)/g, "")
-              .trim();
-            const newSibling = branchMeds.find(
-              (m: any) =>
-                m.name?.includes("(الجديد)") &&
-                (m.barcode === cartItem.barcode || (m.name || "").replace(/\s*\(القديم\)|\s*\(الجديد\)/g, "").trim() === cleanBaseName)
-            );
-
-            if (newSibling) {
-              const newStock = Number(newSibling.qty || 0);
-              const newInCart = getCartQtyForMed(newSibling.id);
-              if (newStock > newInCart) {
-                toast(
-                  language === 'en'
-                    ? `Old batch max reached (${oldStock} max). Added 1 from new batch.`
-                    : `تم استنفاد رصيد الدفعة القديمة (${oldStock} علبة). تم إضافة علبة من الدفعة الجديدة بالسعر الجديد.`,
-                  { icon: '✨', duration: 4000 }
-                );
-                handleItemSelect(newSibling as Med);
-                return;
-              }
-            }
-          }
         }
       }
     }
@@ -517,7 +518,7 @@ function POSContent() {
         return;
       }
       if (totalNeeded > medStock) {
-        const stockStr = formatQty(medStock, item.units, language);
+        const stockStr = formatQty(medStock, (item as any).units, language);
         toast.error(
           language === 'en'
             ? `Quantity for "${item.name}" exceeds available stock (${stockStr})!`

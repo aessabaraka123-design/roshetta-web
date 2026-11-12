@@ -388,9 +388,10 @@ export default function Prescriptions() {
                               {filtered.slice(0, 8).map((m: any) => (
                                 <div
                                   key={m.id}
-                                  onMouseDown={() => {
-                                    const newItems = [...newPrescription.items];
-                                    newItems[idx].name = m.name;
+                                    onMouseDown={() => {
+                                      const newItems = [...newPrescription.items];
+                                      (newItems[idx] as any).id = m.id;
+                                      newItems[idx].name = m.name;
                                     setNewPrescription({
                                       ...newPrescription,
                                       items: newItems,

@@ -7,13 +7,15 @@ import SearchBar from "@/components/SearchBar";
 
 import toast from "react-hot-toast";
 
-import useSWR from "swr";
+import useSWR, { mutate as globalMutate } from "swr";
 import { useStore } from "@/store";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import RoshettaLogo from "@/components/RoshettaLogo";
 import LocalBarcode from "@/components/LocalBarcode";
 import { formatPaymentMethod, isDebtPaymentRecord, isRefundProxyRecord } from "@/lib/customers/domain";
+import { getWebAuthHeaders } from "@/lib/customers/transport";
+import { newInventoryEventId } from "@/lib/inventory/transport";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -315,16 +317,20 @@ export default function SalesLog() {
     if (refunding) return;
     setRefunding(true);
     try {
+      const evId = newInventoryEventId();
       const res = await fetch(
         `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/sales/${id}/refund`,
         {
           method: "PUT",
+          headers: getWebAuthHeaders({ "Content-Type": "application/json", "Idempotency-Key": evId }),
+          body: JSON.stringify({ eventId: evId }),
         },
       );
       const result = await res.json();
       if (result.success) {
         toast.success(language === 'en' ? `Invoice ${id} refunded successfully` : `تم استرجاع الفاتورة ${id} بنجاح`);
         mutate();
+        globalMutate((k) => typeof k === "string" && (k.includes("/inventory") || k.includes("/batches") || k.includes("/stock-movements") || k.includes("/dashboard")), undefined, { revalidate: true });
         if (selectedInvoice && selectedInvoice.id === id) {
           setSelectedInvoice({ ...selectedInvoice, status: "refunded" });
         }

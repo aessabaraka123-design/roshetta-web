@@ -1,1441 +1,538 @@
 "use client";
 
-import { API_BASE_URL } from "@/lib/config";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import AppBar from "@/components/AppBar";
 import SearchBar from "@/components/SearchBar";
-import { useStore } from "@/store";
-import useSWR from "swr";
-import toast from "react-hot-toast";
-import { formatQty } from "@/utils/formatQty";
 import MasterCatalogModal, { MASTER_DRUGS_COUNT } from "@/components/MasterCatalogModal";
-import { normalizeSearchText } from "@/utils/textUtils";
-import { translateErrorMessage } from "@/lib/errorTranslations";
+import InventoryFormModal from "@/components/inventory/InventoryFormModal";
+import {
+  BarcodeLabelModal,
+  ControlledRegisterModal,
+  SplitBatchModal,
+  StockMovementsModal,
+  WasteAdjustmentModal,
+} from "@/components/inventory/InventoryActionModals";
+import {
+  canManageInventory,
+  canViewCosts,
+  computeInventoryKpis,
+  computeStockStatus,
+  findUnitByBarcode,
+  formatQtyWithUnits,
+  getActiveBranches,
+  itemMatchesBranchFilter,
+  normalizeSearchText,
+  parseMedicineName,
+  resolveBranchName,
+  type InventoryItemRecord,
+} from "@/lib/inventory/domain";
+import {
+  deleteOrArchiveInventoryItem,
+  restoreInventoryItem,
+  useInventoryData,
+  usePharmacyBranches,
+} from "@/lib/inventory/api";
+import { exportInventoryValuationExcel } from "@/lib/inventory/export";
+import { useStore } from "@/store";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+type FilterTab = "all" | "low" | "out" | "expiring" | "expired" | "controlled" | "stagnant" | "archived";
 
-type MedCategory = "all" | "expiring" | "out" | "controlled";
-
-interface Med {
-  id: string;
-  name: string;
-  scientificName?: string;
-  manufacturer: string;
-  category: string;
-  qty: number;
-  originalQty?: number;
-  minQty?: number;
-  price: number;
-  cost: number;
-  batch_number: string;
-  expiry_date?: string;
-  expiry?: string;
-  isControlled?: number | boolean;
-  branch: { name: string; id?: string } | any;
-  branch_id?: string;
-  units?: string;
-  // Temporary state for UI
-  has_parts?: boolean;
-  part1_name?: string;
-  part1_qty?: number;
-  part1_price?: number;
-  has_subparts?: boolean;
-  part2_name?: string;
-  part2_qty?: number;
-  part2_price?: number;
-  stock_boxes?: number;
-  stock_part1?: number;
-  stock_part2?: number;
-}
-
-export default function Inventory() {
-  const user = useStore((state) => state.user);
-  const language = useStore((state: any) => state.language);
+export default function InventoryPage() {
+  const user = useStore((state: any) => state.user);
+  const language = (useStore((state: any) => state.language) || "ar") as "ar" | "en";
+  const isEn = language === "en";
   const router = useRouter();
 
   useEffect(() => {
-    if (!user) {
-      const hasStored = typeof window !== "undefined" && localStorage.getItem("roshetta_user");
-      if (!hasStored) {
-        router.replace("/login");
-      }
+    if (!user && typeof window !== "undefined" && !localStorage.getItem("roshetta_user")) {
+      router.replace("/login");
     }
   }, [user, router]);
 
-  const [activeCat, setActiveCat] = useState<MedCategory>("all");
+  const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [branchFilter, setBranchFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [branches, setBranches] = useState<any[]>([]);
-  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
+
+  // Action Modals
+  const [formModalOpen, setFormModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItemRecord | null>(null);
+  const [splitItem, setSplitItem] = useState<InventoryItemRecord | null>(null);
+  const [wasteItem, setWasteItem] = useState<InventoryItemRecord | null>(null);
+  const [movementsItem, setMovementsItem] = useState<InventoryItemRecord | null>(null);
+  const [barcodeItem, setBarcodeItem] = useState<InventoryItemRecord | null>(null);
+  const [controlledOpen, setControlledOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("catalog") === "open" || params.get("catalog") === "true") {
-        setIsCatalogOpen(true);
-      }
+      const p = new URLSearchParams(window.location.search);
+      if (p.get("catalog") === "open" || p.get("catalog") === "true") setCatalogOpen(true);
+      const qFilter = p.get("filter") as FilterTab | null;
+      if (qFilter) setFilterTab(qFilter);
     }
   }, []);
 
-  useEffect(() => {
-    async function fetchBranches() {
-      if (!user?.pharmacy_id) return;
-      try {
-        const res = await fetch(
-          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`,
-        );
-        const data = await res.json();
-        if (data.success && data.branches?.length > 0) {
-          setBranches(data.branches);
-        }
-      } catch (err) {}
-    }
-    fetchBranches();
-  }, [user?.pharmacy_id]);
+  const canEdit = canManageInventory(user?.role);
+  const showCosts = canViewCosts(user?.role);
+  const { branches } = usePharmacyBranches(user?.pharmacy_id);
+  const activeBranches = useMemo(() => getActiveBranches(branches), [branches]);
+  const { inventory: allItems, isLoading, mutate } = useInventoryData(user?.pharmacy_id, {
+    includeArchived: filterTab === "archived",
+  });
 
-  // Try to find the user's default branch ID based on their name if they have a fixed branch
-  const userBranchObj = branches.find((b: any) => b.name === user?.branch);
-  let activeBranchId = branchFilter;
-  if (user?.role === "صيدلي" || user?.role === "مدير فرع") {
-    activeBranchId = userBranchObj ? userBranchObj.id : "PENDING";
-  }
-
-  const shouldFetch = user && activeBranchId !== "PENDING";
-  const { data, mutate, isLoading } = useSWR(
-    shouldFetch
-      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/inventory?branch_id=${activeBranchId}`
-      : null,
-    fetcher,
-    {
-      revalidateOnFocus: true,
-      refreshInterval: 8000,
+  const branchScopedItems = useMemo(() => {
+    if (!user?.branch || ["manager", "owner"].includes(String(user?.role || "").toLowerCase())) {
+      return allItems.filter((item) => itemMatchesBranchFilter(item, branchFilter, branches));
     }
-  );
-  const meds = data?.inventory || [];
-  const categories = [
-    { id: "all", name: language === 'en' ? 'All' : "الكل" },
-    { id: "expiring", name: language === 'en' ? 'Expiring' : "قاربت تنتهي" },
-    { id: "out", name: language === 'en' ? 'Out of Stock' : "نفدت الكمية" },
-    { id: "controlled", name: language === 'en' ? 'Controlled' : "مراقبة" },
+    return allItems.filter((item) => itemMatchesBranchFilter(item, user.branch, branches));
+  }, [allItems, branchFilter, branches, user?.branch, user?.role]);
+
+  const kpis = useMemo(() => computeInventoryKpis(branchScopedItems), [branchScopedItems]);
+
+  const filteredItems = useMemo(() => {
+    const qNorm = normalizeSearchText(search);
+    return branchScopedItems
+      .filter((item) => {
+        const st = computeStockStatus(item);
+        if (filterTab === "archived") return st.isArchived;
+        if (st.isArchived) return false;
+        if (filterTab === "low") return st.isLowStock;
+        if (filterTab === "out") return st.isOutOfStock;
+        if (filterTab === "expired") return !st.isOutOfStock && st.expiryStatus.isExpired;
+        if (filterTab === "expiring") return !st.isOutOfStock && (st.expiryStatus.isExpiringSoon || st.expiryStatus.isCritical);
+        if (filterTab === "controlled") return [true, 1, "1"].includes(item.isControlled as any);
+        if (filterTab === "stagnant") return st.isStagnant;
+        return true;
+      })
+      .filter((item) => {
+        if (!qNorm) return true;
+        const fields = [item.name, item.scientificName, item.manufacturer, item.category, item.barcode, item.batch_number];
+        if (fields.some((f) => normalizeSearchText(f).includes(qNorm))) return true;
+        return Boolean(findUnitByBarcode(item, search.trim()));
+      })
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  }, [branchScopedItems, filterTab, search]);
+
+  const handleDeleteOrArchive = async (item: InventoryItemRecord) => {
+    if (!user?.pharmacy_id) return;
+    const msg = isEn
+      ? `Delete or archive "${item.name}"? (Items linked to sales/purchases are safely archived.)`
+      : `هل تريد حذف أو أرشفة الصنف "${item.name}"؟ (الأصناف المرتبطة بفواتير ستُنقل للأرشيف مع تصفير الرصيد)`;
+    if (!window.confirm(msg)) return;
+    try {
+      const res = await deleteOrArchiveInventoryItem(user.pharmacy_id, item.id, false, language);
+      toast.success(
+        res.data?.archived
+          ? (isEn ? "Item moved to archive cleanly" : "تمت أرشفة الصنف مع حفظ سجلاته السابقة")
+          : (isEn ? "Item permanently deleted" : "تم حذف الصنف نهائياً")
+      );
+      mutate();
+    } catch (err: any) {
+      toast.error(err?.message || (isEn ? "Action failed" : "تعذر تنفيذ العملية"));
+    }
+  };
+
+  const handleRestore = async (item: InventoryItemRecord) => {
+    if (!user?.pharmacy_id) return;
+    try {
+      await restoreInventoryItem(user.pharmacy_id, item.id, language);
+      toast.success(isEn ? "Item restored from archive" : "تمت استعادة الصنف بنجاح");
+      mutate();
+    } catch (err: any) {
+      toast.error(err?.message || (isEn ? "Restore failed" : "تعذر الاستعادة"));
+    }
+  };
+
+  if (!user) return null;
+
+  const filterTabs: Array<{ id: FilterTab; label: string; count?: number; tone?: string }> = [
+    { id: "all", label: isEn ? "Active" : "الكل", count: kpis.totalSkus },
+    { id: "low", label: isEn ? "Low Stock" : "نواقص", count: kpis.lowStockCount, tone: "amber" },
+    { id: "out", label: isEn ? "Out of Stock" : "نافد", count: kpis.outOfStockCount, tone: "coral" },
+    { id: "expiring", label: isEn ? "Expiring (<=60d)" : "قريب الانتهاء", count: kpis.expiringWarningCount, tone: "amber" },
+    { id: "expired", label: isEn ? "Expired" : "منتهي", count: kpis.expiredCount, tone: "coral" },
+    { id: "controlled", label: isEn ? "Controlled" : "مراقب", count: kpis.controlledCount },
+    { id: "stagnant", label: isEn ? "Stagnant (>90d)" : "راكد (+90د)", count: kpis.stagnantCount },
+    { id: "archived", label: isEn ? "Archived" : "الأرشيف" },
   ];
 
-  // Helper logic for categories
-  const getMedCategory = (med: Med): MedCategory[] => {
-    const cats: MedCategory[] = ["all"];
-
-    let boxes = med.qty || 0;
-    if (med.units) {
-      try {
-        const arr = JSON.parse(med.units);
-        if (arr && arr.length >= 1 && arr[0].count > 0) {
-          boxes = Math.floor(med.qty / arr[0].count);
-        }
-      } catch (e) {}
-    }
-
-    if (med.qty === 0) {
-      cats.push("out");
-    } else {
-      const threshold =
-        med.minQty !== undefined && med.minQty !== null && med.minQty > 0
-          ? med.minQty
-          : 5;
-      if (boxes < threshold) {
-        cats.push("expiring"); // قاربت تنتهي (Low Stock)
-      }
-    }
-
-    // Pseudo logic for expiring: if expiry is within 30 days
-    const exp = med.expiry || med.expiry_date;
-    if (
-      exp &&
-      new Date(exp) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) &&
-      !cats.includes("expiring")
-    ) {
-      cats.push("expiring"); // قاربت تنتهي (Nearing Expiry Date)
-    }
-    if (med.isControlled === 1 || med.isControlled === true) {
-      cats.push("controlled");
-    }
-    return cats;
-  };
-
-  const [editingItem, setEditingItem] = useState<Med | null>(null);
-  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<Med | null>(null);
-  const [deleteError, setDeleteError] = useState<string>("");
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [batchModalItem, setBatchModalItem] = useState<any>(null);
-  const [newBatchData, setNewBatchData] = useState({
-    qty: "",
-    cost: "",
-    price: "",
-    expiry: "",
-    batch_number: "",
-  });
-  const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
-
-  useEffect(() => {
-    if (batchModalItem) {
-      setNewBatchData({
-        qty: "",
-        cost: batchModalItem.cost !== undefined ? String(batchModalItem.cost) : "",
-        price: batchModalItem.price !== undefined ? String(batchModalItem.price) : "",
-        expiry: batchModalItem.expiry || batchModalItem.expiry_date || "",
-        batch_number: "",
-      });
-    }
-  }, [batchModalItem]);
-
-  const handleCreateNewBatch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!batchModalItem || !newBatchData.qty || Number(newBatchData.qty) <= 0) {
-      toast.error(language === 'en' ? "Please enter a valid quantity" : "يرجى إدخال كمية صحيحة");
-      return;
-    }
-    setIsSubmittingBatch(true);
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/inventory/${batchModalItem.id}/new-batch`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newBatchData),
-        }
-      );
-      const data = await res.json();
-      if (data.success) {
-        toast.success(
-          language === 'en'
-            ? "New batch added successfully! Previous stock tagged as (Old) and new stock as (New)."
-            : "تمت إضافة الدفعة بنجاح! تم تمييز السابق بـ (القديم) والدفعة الحالية بـ (الجديد)."
-        );
-        setBatchModalItem(null);
-        setNewBatchData({ qty: "", cost: "", price: "", expiry: "", batch_number: "" });
-        mutate();
-      } else {
-        toast.error(data.error || (language === 'en' ? "Failed to add batch" : "فشل إضافة الدفعة"));
-      }
-    } catch {
-      toast.error(language === 'en' ? "Connection error" : "خطأ في الاتصال بالخادم");
-    } finally {
-      setIsSubmittingBatch(false);
-    }
-  };
-
-// Auto-calculate sub-unit prices
-  useEffect(() => {
-    if (!editingItem) return;
-    const mainPrice = Number(editingItem.price) || 0;
-    const s1Qty = Number(editingItem.part1_qty) || 0;
-    const s2Qty = Number(editingItem.part2_qty) || 0;
-    
-    let updated = false;
-    let newPart1Price = editingItem.part1_price;
-    let newPart2Price = editingItem.part2_price;
-
-    if (mainPrice > 0 && editingItem.has_parts) {
-      if (s1Qty > 0) {
-        const calc1 = parseFloat((mainPrice / s1Qty).toFixed(2));
-        if (editingItem.part1_price !== calc1) {
-          newPart1Price = calc1;
-          updated = true;
-        }
-        
-        if (editingItem.has_subparts && s2Qty > 0) {
-          const calc2 = parseFloat((mainPrice / (s1Qty * s2Qty)).toFixed(2));
-          if (editingItem.part2_price !== calc2) {
-            newPart2Price = calc2;
-            updated = true;
-          }
-        }
-      }
-    }
-    
-    if (updated) {
-      setEditingItem({
-        ...editingItem,
-        part1_price: newPart1Price,
-        part2_price: newPart2Price
-      });
-    }
-  }, [
-    editingItem?.price,
-    editingItem?.part1_qty,
-    editingItem?.part2_qty,
-    editingItem?.has_parts,
-    editingItem?.has_subparts
-  ]);
-
-  const filteredMeds = meds.filter((med: Med) => {
-    if (med.archived_at) return false;
-    const matchCat = getMedCategory(med).includes(activeCat);
-    if (!search || !search.trim()) return matchCat;
-
-    const normQuery = normalizeSearchText(search);
-    const rawQuery = search.trim().toLowerCase();
-
-    const normName = normalizeSearchText(med.name);
-    const normMfg = normalizeSearchText(med.manufacturer);
-    const normCat = normalizeSearchText(med.category);
-    const barcode = (med.barcode || "").toLowerCase();
-
-    const matchSearch =
-      normName.includes(normQuery) ||
-      normMfg.includes(normQuery) ||
-      normCat.includes(normQuery) ||
-      barcode.startsWith(rawQuery) ||
-      (med.name && med.name.toLowerCase().includes(rawQuery));
-
-    return matchCat && matchSearch;
-  });
-
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingItem) return;
-
-    // Field-level validations (matching mobile AddItemScreen)
-    const newErrors: Record<string, string> = {};
-
-    if (!editingItem.name || !editingItem.name.trim()) {
-      newErrors.name = language === 'en' ? 'Medicine trade name is required' : 'اسم الصنف (التجاري) مطلوب';
-    }
-
-    const priceSell = parseFloat(String(editingItem.price));
-    if (editingItem.price === '' || editingItem.price === null || editingItem.price === undefined || isNaN(priceSell) || priceSell <= 0) {
-      newErrors.price = language === 'en' ? 'Valid selling price (> 0) is required' : 'يرجى إدخال سعر بيع صحيح أكبر من صفر';
-    }
-
-    const priceBuy = parseFloat(String(editingItem.cost));
-    if (editingItem.cost === '' || editingItem.cost === null || editingItem.cost === undefined || isNaN(priceBuy) || priceBuy < 0) {
-      newErrors.cost = language === 'en' ? 'Purchase price cannot be negative' : 'سعر الشراء لا يمكن أن يكون بالسالب';
-    }
-
-    const rawBoxes = String(editingItem.stock_boxes ?? '');
-    const boxesNum = parseFloat(rawBoxes);
-    if (rawBoxes === '' || isNaN(boxesNum) || boxesNum < 0) {
-      newErrors.stock_boxes = language === 'en' ? 'Quantity cannot be negative' : 'الكمية لا يمكن أن تكون بالسالب';
-    }
-
-    if (editingItem.has_parts) {
-      const p1q = parseInt(String(editingItem.part1_qty)) || 0;
-      if (p1q <= 0) {
-        newErrors.part1_qty = language === 'en' ? 'Parts per box must be at least 1' : 'يجب تحديد عدد الأجزاء بالعلبة (1 على الأقل)';
-      }
-      if (editingItem.has_subparts) {
-        const p2q = parseInt(String(editingItem.part2_qty)) || 0;
-        if (p2q <= 0) {
-          newErrors.part2_qty = language === 'en' ? 'Sub-parts count must be at least 1' : 'يجب تحديد عدد الوحدات الفرعية (1 على الأقل)';
-        }
-      }
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setEditErrors(newErrors);
-      return;
-    }
-
-    setEditErrors({});
-    setIsUpdating(true);
-
-    try {
-      let finalQty = Number(editingItem.stock_boxes) || 0;
-      let unitsArr: any = null;
-
-      if (editingItem.has_parts) {
-        const s1Count = Number(editingItem.part1_qty) || 1;
-        const currentBaseline = Number(editingItem.originalQty ?? editingItem.qty ?? 0);
-        if (editingItem.has_subparts) {
-          const s2Count = Number(editingItem.part2_qty) || 1;
-          const boxBaseCount = s1Count * s2Count;
-          const stripBaseCount = s2Count;
-          let rem = 0;
-          if (currentBaseline > 0) {
-            const oldBox = Math.floor(currentBaseline / boxBaseCount);
-            if (Number(editingItem.stock_boxes) === oldBox) {
-              rem = currentBaseline % boxBaseCount;
-            }
-          }
-          finalQty = (Number(editingItem.stock_boxes) * boxBaseCount) + rem;
-          unitsArr = [
-            { name: "علبة", count: boxBaseCount, price: Number(editingItem.price) },
-            { name: editingItem.part1_name || "شريط", count: stripBaseCount, price: Number(editingItem.part1_price || (Number(editingItem.price) / s1Count)) },
-            { name: editingItem.part2_name || "حبة", count: 1, price: Number(editingItem.part2_price || (Number(editingItem.price) / boxBaseCount)) }
-          ];
-        } else {
-          let rem = 0;
-          if (currentBaseline > 0) {
-            const oldBox = Math.floor(currentBaseline / s1Count);
-            if (Number(editingItem.stock_boxes) === oldBox) {
-              rem = currentBaseline % s1Count;
-            }
-          }
-          finalQty = (Number(editingItem.stock_boxes) * s1Count) + rem;
-          unitsArr = [
-            { name: "علبة", count: s1Count, price: Number(editingItem.price) },
-            { name: editingItem.part1_name || "شريط", count: 1, price: Number(editingItem.part1_price || (Number(editingItem.price) / s1Count)) }
-          ];
-        }
-      }
-
-      const baselineQty = editingItem.originalQty !== undefined
-        ? Number(editingItem.originalQty)
-        : Number(editingItem.qty || 0);
-
-      const branchId = editingItem.branch_id || (typeof editingItem.branch === 'object' ? editingItem.branch?.id : null);
-
-      const payload: any = {
-        id: editingItem.id,
-        name: editingItem.name?.trim(),
-        scientificName: editingItem.scientificName?.trim() || "",
-        manufacturer: editingItem.manufacturer?.trim() || "",
-        category: editingItem.category || "أدوية عامة",
-        price: parseFloat(String(editingItem.price)) || 0,
-        cost: parseFloat(String(editingItem.cost)) || 0,
-        price_sell: parseFloat(String(editingItem.price)) || 0,
-        price_buy: parseFloat(String(editingItem.cost)) || 0,
-        isControlled: editingItem.isControlled === 1 || editingItem.isControlled === true ? 1 : 0,
-        qty: finalQty,
-        expectedQty: baselineQty,
-        minQty: Number(editingItem.minQty || 5),
-        batch_number: editingItem.batch_number || "",
-        expiry_date: editingItem.expiry_date || "",
-        expiry: editingItem.expiry_date || "",
-        units: unitsArr ? JSON.stringify(unitsArr) : null,
-      };
-
-      if (branchId) {
-        payload.branch_id = branchId;
-      }
-
-      const res = await fetch(
-        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/inventory/${editingItem.id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      const result = await res.json().catch(() => ({}));
-
-      if (res.ok && result.success) {
-        toast.success(language === 'en' ? 'Medication updated successfully' : "تم تعديل بيانات الدواء بنجاح");
-        setEditingItem(null);
-        setEditErrors({});
-        mutate();
-      } else {
-        const code = result.code || result.error || "";
-        const errMap: Record<string, string> = {};
-
-        if (code === "INVENTORY_NAME_CONFLICT" || String(code).includes("NAME_CONFLICT")) {
-          errMap.name = language === 'en' ? "An item with this name already exists in this branch" : "يوجد صنف مسجل بنفس هذا الاسم مسبقاً في هذا الفرع";
-        } else if (code === "INVENTORY_BASELINE_REQUIRED" || code === "STOCK_CHANGED_SINCE_EDIT") {
-          errMap.stock_boxes = language === 'en' ? "Stock was modified elsewhere; please reopen edit" : "تم تعديل كمية المخزون مسبقاً، يرجى إعادة فتح التعديل لتحديث الرصيد";
-        } else if (code === "REQUIRED_FIELD") {
-          errMap.name = language === 'en' ? "This field is required" : "يرجى تعبئة الحقل المطلوب";
-        } else if (code === "INVALID_TEXT") {
-          errMap.name = language === 'en' ? "Invalid text input" : "النص المدخل غير صالح";
-        } else {
-          errMap.general = translateErrorMessage(code || (language === 'en' ? 'Error during update' : "حدث خطأ أثناء التعديل"), language === 'en' ? 'en' : 'ar');
-        }
-
-        setEditErrors(errMap);
-      }
-    } catch (err: any) {
-      setEditErrors({
-        general: language === 'en' ? 'Server connection error' : "خطأ في الاتصال بالخادم، يرجى المحاولة ثانية"
-      });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const executeDelete = async () => {
-    if (!itemToDelete) return;
-    setIsDeleting(true);
-    setDeleteError("");
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/pharmacies/${user?.pharmacy_id}/inventory/${itemToDelete.id}`,
-        {
-          method: "DELETE",
-        },
-      );
-      const result = await res.json().catch(() => ({}));
-      if (res.ok && result.success) {
-        toast.success(language === 'en' ? 'Deleted successfully' : "تم الحذف بنجاح");
-        setItemToDelete(null);
-        setDeleteError("");
-        mutate();
-      } else {
-        const rawCode = result.code || result.error || "";
-        const errorMsg = translateErrorMessage(
-          rawCode || (language === 'en' ? 'Error during deletion' : "حدث خطأ أثناء الحذف"),
-          language === 'en' ? 'en' : 'ar'
-        );
-        setDeleteError(errorMsg);
-      }
-    } catch (err: any) {
-      setDeleteError(language === 'en' ? 'Server connection error' : "خطأ في الاتصال بالخادم، يرجى المحاولة ثانية");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   return (
-    <div className="w-full pb-10">
-      <AppBar title={language === 'en' ? 'Inventory' : "المخزون"} showLogo={false} showNotifs={false}>
-        <div className="flex gap-2 items-center">
-          {user?.role !== "صيدلي" && user?.role !== "مدير فرع" && (
-            <select
-              value={branchFilter}
-              onChange={(e) => setBranchFilter(e.target.value)}
-              className="bg-card text-ink border-2 border-mint-line px-3 py-2 rounded-xl font-bold text-[14px] outline-none"
+    <main className="w-full pb-24">
+      <AppBar title={isEn ? "Inventory & Stock" : "المخزون والأدوية"} backHref="/" />
+
+      <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-5">
+        {/* Top Action Toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {canEdit && (
+              <>
+                <Link
+                  href="/add-item"
+                  className="px-4 py-2.5 rounded-2xl bg-primary text-white font-black text-[13px] shadow-md hover:bg-primary-light transition-colors"
+                >
+                  + {isEn ? "Add Item" : "إضافة صنف جديد"}
+                </Link>
+                <button
+                  onClick={() => setCatalogOpen(true)}
+                  className="px-4 py-2.5 rounded-2xl bg-white border border-mint-line text-primary font-black text-[13px] hover:bg-primary-pale transition-colors"
+                >
+                  📚 {isEn ? `Drug Catalog (${MASTER_DRUGS_COUNT})` : `الكتالوج (${MASTER_DRUGS_COUNT})`}
+                </button>
+                <Link
+                  href="/stock-take"
+                  className="px-4 py-2.5 rounded-2xl bg-white border border-mint-line text-ink font-black text-[13px] hover:bg-primary-pale transition-colors"
+                >
+                  📋 {isEn ? "Stock Take & Waste" : "الجرد والتوالف"}
+                </Link>
+              </>
+            )}
+            <Link
+              href="/batches"
+              className="px-4 py-2.5 rounded-2xl bg-white border border-mint-line text-ink font-black text-[13px] hover:bg-primary-pale transition-colors"
             >
-              <option value="all">{language === 'en' ? 'All Branches' : 'كل الفروع'}</option>
-              {branches.map((b: any) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+              ⏱ {isEn ? "FEFO Batches" : "الدفعات والصلاحيات"}
+            </Link>
+            <button
+              onClick={() => setControlledOpen(true)}
+              className="px-4 py-2.5 rounded-2xl bg-amber-pale border border-amber text-ink font-black text-[13px] hover:bg-amber/30 transition-colors"
+            >
+              🛡 {isEn ? "Controlled Log" : "دفتر الأدوية المراقبة"}
+            </button>
+          </div>
+
+          <button
+            onClick={() =>
+              exportInventoryValuationExcel({
+                items: filteredItems,
+                branches,
+                pharmacyName: user?.pharmacyName || "Roshetta",
+                showCosts,
+                language,
+              })
+            }
+            className="px-4 py-2.5 rounded-2xl bg-emerald-600 text-white font-black text-[13px] shadow-sm hover:bg-emerald-700 transition-colors"
+          >
+            ⬇ {isEn ? "Export Excel Valuation" : "تصدير Excel وتقييم المخزون"}
+          </button>
+        </div>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm">
+            <div className="text-[11px] font-bold text-ink-soft">{isEn ? "Active SKUs" : "الأصناف الفعالة"}</div>
+            <div className="text-[22px] font-black text-primary mt-0.5">{kpis.totalSkus}</div>
+            <div className="text-[11px] text-ink-soft font-bold">{kpis.totalBoxesTotal} {isEn ? "Total Boxes" : "علبة متوفرة"}</div>
+          </div>
+          <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm">
+            <div className="text-[11px] font-bold text-ink-soft">{isEn ? "Low / Out of Stock" : "نواقص / نافد"}</div>
+            <div className="text-[22px] font-black text-coral mt-0.5">
+              {kpis.lowStockCount} <span className="text-[13px] font-bold text-ink-soft">/ {kpis.outOfStockCount}</span>
+            </div>
+            <div className="text-[11px] text-ink-soft font-bold">{isEn ? "Alert in Boxes" : "تنبيه بالحد الأدنى للعلب"}</div>
+          </div>
+          <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm">
+            <div className="text-[11px] font-bold text-ink-soft">{isEn ? "Expiring (<=60d) / Expired" : "قريب الانتهاء / منتهي"}</div>
+            <div className="text-[22px] font-black text-amber mt-0.5">
+              {kpis.expiringWarningCount} <span className="text-[13px] font-bold text-coral">/ {kpis.expiredCount}</span>
+            </div>
+            <div className="text-[11px] text-ink-soft font-bold">{kpis.expiringCriticalCount} {isEn ? "Critical (<=30d)" : "حرج (<=30 يوم)"}</div>
+          </div>
+          <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm">
+            <div className="text-[11px] font-bold text-ink-soft">{isEn ? "Retail Value" : "القيمة البيعية للمخزون"}</div>
+            <div className="text-[20px] font-black text-primary font-mono mt-0.5">{kpis.totalRetailValue.toFixed(2)} ₪</div>
+            <div className="text-[11px] text-ink-soft font-bold">{isEn ? "Active FEFO Stock" : "مخزون قابل للبيع"}</div>
+          </div>
+          {showCosts && (
+            <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm">
+              <div className="text-[11px] font-bold text-ink-soft">{isEn ? "Cost Value & Margin" : "قيمة التكلفة والربح المتوقع"}</div>
+              <div className="text-[20px] font-black text-emerald-700 font-mono mt-0.5">{kpis.totalCostValue.toFixed(2)} ₪</div>
+              <div className="text-[11px] font-bold text-emerald-700">+{kpis.potentialProfit.toFixed(2)} ₪</div>
+            </div>
           )}
-          <Link
-            href="/stock-take"
-            className="bg-card text-ink-soft border-2 border-mint-line px-4 py-2 rounded-xl font-bold text-[14px] hover:bg-bg transition-colors"
-          >
-            {language === 'en' ? 'Stock Take' : 'جرد المخزون'}
-          </Link>
-          <button
-            type="button"
-            onClick={() => setIsCatalogOpen(true)}
-            className="bg-card text-primary border-2 border-primary/30 px-3.5 py-2 rounded-xl font-bold text-[14px] hover:bg-primary hover:text-white transition-all flex items-center gap-1.5 shadow-sm"
-          >
-            <span>📘</span>
-            <span>{language === 'en' ? 'Drug Directory' : 'دليل الأدوية'}</span>
-          </button>
-          <Link
-            href="/add-item"
-            className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-[14px] hover:bg-teal transition-colors flex items-center justify-center"
-          >
-            {language === 'en' ? '+ Add Item' : '+ إضافة صنف'}
-          </Link>
         </div>
-      </AppBar>
 
-      {/* Master Catalog Hero Banner */}
-      <div
-        onClick={() => setIsCatalogOpen(true)}
-        className="mb-4 bg-gradient-to-r from-primary/10 via-teal/5 to-card border border-primary/25 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 cursor-pointer hover:border-primary/60 transition-all shadow-sm"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-primary text-white flex items-center justify-center font-bold text-xl shadow-md shrink-0">
-            📘
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h4 className="font-bold text-sm text-ink">
-                {language === 'en' ? 'Master Drug Directory (Formulary)' : 'دليل الأدوية الافتراضي الموحد'}
-              </h4>
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-300">
-                {(MASTER_DRUGS_COUNT || 4766).toLocaleString()}+ {language === 'en' ? 'Certified ⚡' : 'صنف معتمد ⚡'}
-              </span>
+        {/* Search + Branch Filter */}
+        <div className="bg-white p-4 rounded-2xl border border-mint-line shadow-sm space-y-3">
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="flex-1 min-w-[240px]">
+              <SearchBar
+                value={search}
+                onChange={setSearch}
+                placeholder={isEn ? "Search trade name, scientific name, barcode, sub-unit..." : "ابحث بالاسم التجاري، العلمي، المصنع، أو باركود العلبة/الشريط..."}
+              />
             </div>
-            <p className="text-xs text-ink-soft mt-0.5">
-              {language === 'en'
-                ? 'Browse official drug directory, check stock status, and 1-click import into your pharmacy inventory'
-                : 'تصفح قاعدة بيانات الأدوية الرسمية، فحص توفر الصنف في صيدليتك، وإدراجه بنقرة واحدة بالمخزون'}
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsCatalogOpen(true);
-          }}
-          className="bg-primary text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-teal transition-colors shrink-0 shadow-sm"
-        >
-          {language === 'en' ? 'Open Directory →' : 'فتح دليل الأدوية ←'}
-        </button>
-      </div>
-
-      <SearchBar
-        placeholder={language === 'en' ? 'Search by med name or barcode...' : "ابحث باسم الدواء أو الباركود…"}
-        value={search}
-        onChange={setSearch}
-      />
-
-      <div className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar mt-4">
-        {categories.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveCat(cat.id as MedCategory)}
-            className={`shrink-0 text-[15px] font-semibold px-4 py-2 rounded-full border transition-all ${
-              activeCat === cat.id
-                ? "bg-primary text-white border-primary"
-                : "bg-card text-ink-soft border-mint-line"
-            }`}
-          >
-            {cat.name}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-        {filteredMeds.map((med: any) => {
-          const cats = getMedCategory(med);
-          const isOut = cats.includes("out");
-          const isExpiring = cats.includes("expiring");
-          const isControlled = cats.includes("controlled");
-          const tag = isOut
-            ? (language === 'en' ? 'Out' : "نفدت")
-            : isExpiring
-              ? (language === 'en' ? 'Expiring' : "قاربت تنتهي")
-              : isControlled
-                ? (language === 'en' ? 'Controlled' : "مراقبة")
-                : (language === 'en' ? 'Available' : "متوفر");
-          const tagColorClass = isOut
-            ? "bg-coral-pale text-coral"
-            : isExpiring
-              ? "bg-amber-pale text-[#B9791C]"
-              : isControlled
-                ? "bg-primary-pale text-primary"
-                : "bg-teal-pale text-teal";
-
-          return (
-            <div
-              key={med.id}
-              className="bg-card rounded-2xl p-4 shadow-sm border border-mint-line"
-            >
-              <div className="flex justify-between items-start mb-2.5">
-                <div className="max-w-[70%] flex flex-col items-start text-start">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <h3
-                      className="text-[16px] font-bold text-ink truncate max-w-full"
-                      dir="auto"
-                    >
-                      {med.name}
-                    </h3>
-                    {med.name?.includes("(القديم)") && (
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 shrink-0">
-                        🏷️ {language === 'en' ? 'Old Batch' : 'القديم'}
-                      </span>
-                    )}
-                    {med.name?.includes("(الجديد)") && (
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-300 shrink-0">
-                        ✨ {language === 'en' ? 'New Batch' : 'الجديد'}
-                      </span>
-                    )}
-                  </div>
-                  <p
-                    className="text-[14px] text-ink-soft mt-0.5 truncate max-w-full"
-                    dir="auto"
-                  >
-                    {med.manufacturer ? med.manufacturer + " · " : ""}{med.category}
-                  </p>
-                  {(med.isControlled === 1 || med.isControlled === true) && (
-                    <span className="mt-1.5 inline-block text-[11px] font-bold px-2 py-0.5 rounded bg-coral-pale text-coral">
-                      {language === 'en' ? 'Controlled Medicine' : 'أدوية مراقبة (مخدّرة)'}
-                    </span>
-                  )}
-                </div>
-                <span
-                  className={`text-[12px] font-bold px-3 py-1 rounded-full ${tagColorClass}`}
-                >
-                  {tag === (language === 'en' ? 'Controlled' : "مراقبة") ? (language === 'en' ? 'Available' : "متوفر") : tag}
-                </span>
-              </div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className={`font-bold text-[14px] ${Number(med.qty || 0) < 0 ? "text-coral" : "text-primary"}`}>
-                    {language === 'en' ? 'Qty:' : 'الكمية:'} {formatQty(med.qty, med.units, language)}
-                  </span>
-                  {Number(med.qty || 0) < 0 && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">
-                      ⚠️ {language === 'en' ? 'Negative' : 'سالب'}
-                    </span>
-                  )}
-                </div>
-                <span className="font-mono text-[16px] font-bold text-primary">
-                  {med.price || 0} ₪
-                </span>
-              </div>
-              <div className="flex items-center gap-2 border-t border-mint-line pt-3 mt-auto">
-                <button
-                  onClick={() => setBatchModalItem(med)}
-                  className="flex-1 text-[12px] font-bold text-primary bg-primary-pale/50 hover:bg-primary hover:text-white py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1"
-                >
-                  <span>+</span> {language === 'en' ? 'New Batch' : 'دفعة جديدة'}
-                </button>
-                <button
-                  onClick={() => {
-                    let hp = false;
-                    let p1n = "شريط",
-                      p1q = 1;
-                    let hs = false;
-                    let p2n = "حبة",
-                      p2q = 1;
-                    const currentTotal = Number(med.qty || 0);
-                    let s_boxes = Math.max(0, currentTotal),
-                      s_p1 = 0,
-                      s_p2 = 0;
-
-                    try {
-                      if (med.units) {
-                        const arr = JSON.parse(med.units);
-                        if (arr && arr.length >= 2) {
-                          hp = true;
-                          p1n = arr[1].name;
-                          const totalPerBox = arr[0].count;
-                          const nonNeg = Math.max(0, currentTotal);
-                          s_boxes = Math.floor(nonNeg / totalPerBox);
-                          const rem = nonNeg % totalPerBox;
-
-                          if (arr.length === 2) {
-                            p1q = arr[0].count / arr[1].count;
-                            s_p1 = Math.floor(rem / arr[1].count);
-                          } else if (arr.length === 3) {
-                            hs = true;
-                            p2n = arr[2].name;
-                            p2q = arr[1].count / arr[2].count;
-                            p1q = arr[0].count / arr[1].count;
-                            s_p1 = Math.floor(rem / arr[1].count);
-                            s_p2 = rem % arr[1].count;
-                          }
-                        }
-                      }
-                    } catch (e) {}
-
-                    setEditingItem({
-                      ...med,
-                      originalQty: Number(med.qty || 0),
-                      expiry_date: med.expiry_date || med.expiry || "",
-                      batch_number: med.batch_number || "",
-                      has_parts: hp,
-                      part1_name: p1n,
-                      part1_qty: p1q,
-                      has_subparts: hs,
-                      part2_name: p2n,
-                      part2_qty: p2q,
-                      stock_boxes: s_boxes,
-                      stock_part1: s_p1,
-                      stock_part2: s_p2,
-                    });
-                    setEditErrors({});
-                  }}
-                  className="flex-1 text-[12px] font-bold text-teal bg-teal-pale/50 hover:bg-teal hover:text-white py-1.5 rounded-lg transition-colors"
-                >
-                  {language === 'en' ? 'Edit' : 'تعديل'}
-                </button>
-                <button
-                  onClick={() => {
-                    setItemToDelete(med);
-                    setDeleteError("");
-                  }}
-                  className="text-[12px] font-bold text-coral bg-coral-pale/50 hover:bg-coral hover:text-white px-3 py-1.5 rounded-lg transition-colors"
-                >
-                  {language === 'en' ? 'Delete' : 'حذف'}
-                </button>
-              </div>
-            </div>
-          );
-        })}
-        {filteredMeds.length === 0 && (
-          <div className="text-center py-10 text-ink-soft text-[14px]">
-            {language === 'en' ? 'No search results found.' : 'لا يوجد نتائج مطابقة للبحث.'}
-          </div>
-        )}
-      </div>
-
-      {editingItem && (
-        <div className="fixed inset-0 bg-ink/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div
-            className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col"
-            style={{ maxHeight: "90vh" }}
-          >
-            <div className="p-5 border-b border-mint-line bg-bg flex justify-between items-center shrink-0">
-              <h3 className="font-bold text-primary">{language === 'en' ? 'Edit Item Details' : 'تعديل بيانات الصنف'}</h3>
-              <button
-                onClick={() => setEditingItem(null)}
-                className="text-ink-soft hover:text-coral font-bold text-[20px]"
+            {(!user?.branch || ["manager", "owner"].includes(String(user?.role || "").toLowerCase())) && activeBranches.length > 0 && (
+              <select
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+                className="bg-bg/70 border border-mint-line rounded-xl px-4 py-2.5 text-[13px] font-bold text-ink outline-none"
               >
-                &times;
-              </button>
-            </div>
-            <form
-              onSubmit={handleUpdate}
-              noValidate
-              className="flex flex-col flex-1 overflow-hidden min-h-0"
-            >
-              <div className="p-5 space-y-4 overflow-y-auto flex-1">
-                {editErrors.general && (
-                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-[13px] font-semibold flex items-center gap-2">
-                    <span>⚠️</span>
-                    <span>{editErrors.general}</span>
-                  </div>
-                )}
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      {language === 'en' ? 'Trade Name *' : 'اسم الصنف (التجاري) *'}
-                    </label>
-                    <input
-                      required
-                      value={editingItem.name}
-                      onChange={(e) => {
-                        setEditingItem({ ...editingItem, name: e.target.value });
-                        if (editErrors.name) setEditErrors((prev) => ({ ...prev, name: "" }));
-                        if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
-                      }}
-                      className={`w-full border rounded-xl p-2.5 outline-none text-[14px] transition-all ${
-                        editErrors.name
-                          ? "border-2 border-red-500 bg-red-500/5 ring-2 ring-red-500/20 text-red-900"
-                          : "border-mint-line focus:border-teal"
-                      }`}
-                      dir="auto"
-                    />
-                    {editErrors.name && (
-                      <p className="text-red-500 text-[12px] font-semibold mt-1.5 flex items-center gap-1">
-                        <span>⚠️</span> {editErrors.name}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      {language === 'en' ? 'Scientific Name' : 'الاسم العلمي'}
-                    </label>
-                    <input
-                      value={editingItem.scientificName || ""}
-                      onChange={(e) => {
-                        setEditingItem({ ...editingItem, scientificName: e.target.value });
-                        if (editErrors.scientificName) setEditErrors((prev) => ({ ...prev, scientificName: "" }));
-                        if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
-                      }}
-                      className={`w-full border rounded-xl p-2.5 outline-none text-[14px] transition-all ${
-                        editErrors.scientificName
-                          ? "border-2 border-red-500 bg-red-500/5 ring-2 ring-red-500/20 text-red-900"
-                          : "border-mint-line focus:border-teal"
-                      }`}
-                      dir="auto"
-                      placeholder={language === 'en' ? 'e.g. Amoxicillin' : 'مثال: أموكسيسيلين / باراسيتامول'}
-                    />
-                    {editErrors.scientificName && (
-                      <p className="text-red-500 text-[12px] font-semibold mt-1.5 flex items-center gap-1">
-                        <span>⚠️</span> {editErrors.scientificName}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      {language === 'en' ? 'Manufacturer' : 'الشركة المصنّعة'}
-                    </label>
-                    <input
-                      value={editingItem.manufacturer || ""}
-                      onChange={(e) => {
-                        setEditingItem({
-                          ...editingItem,
-                          manufacturer: e.target.value,
-                        });
-                        if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
-                      }}
-                      className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-teal text-[14px]"
-                      dir="auto"
-                      placeholder={language === 'en' ? 'e.g. Pfizer / Hikma' : 'مثال: فايزر / الحكمة / دار الدواء'}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      {language === 'en' ? 'Therapeutic Category' : 'الفئة العلاجية'}
-                    </label>
-                    <input
-                      value={editingItem.category || ""}
-                      onChange={(e) => {
-                        setEditingItem({
-                          ...editingItem,
-                          category: e.target.value,
-                        });
-                        if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
-                      }}
-                      className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-teal text-[14px]"
-                      dir="auto"
-                      placeholder={language === 'en' ? 'e.g. Antibiotic' : 'مثال: مضاد حيوي / مسكن'}
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      {language === 'en' ? 'Quantity (Box) *' : 'الكمية (علبة) *'}
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      value={editingItem.stock_boxes ?? ""}
-                      onChange={(e) => {
-                        setEditingItem({
-                          ...editingItem,
-                          stock_boxes: e.target.value,
-                        });
-                        if (editErrors.stock_boxes) setEditErrors((prev) => ({ ...prev, stock_boxes: "" }));
-                        if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
-                      }}
-                      onFocus={(e) => e.target.select()}
-                      onClick={(e) => (e.target as HTMLInputElement).select()}
-                      placeholder="0"
-                      className={`w-full border rounded-xl p-2.5 outline-none font-mono text-center text-[14px] transition-all ${
-                        editErrors.stock_boxes
-                          ? "border-2 border-red-500 bg-red-500/5 ring-2 ring-red-500/20 text-red-900"
-                          : "border-mint-line focus:border-teal"
-                      }`}
-                      style={{ direction: "ltr" }}
-                    />
-                    {editErrors.stock_boxes && (
-                      <p className="text-red-500 text-[12px] font-semibold mt-1.5 flex items-center gap-1">
-                        <span>⚠️</span> {editErrors.stock_boxes}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      {language === 'en' ? 'Buy Price (₪) *' : 'سعر الشراء (₪) *'}
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={editingItem.cost ?? ""}
-                      onChange={(e) => {
-                        setEditingItem({
-                          ...editingItem,
-                          cost: e.target.value,
-                        });
-                        if (editErrors.cost) setEditErrors((prev) => ({ ...prev, cost: "" }));
-                        if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
-                      }}
-                      onFocus={(e) => e.target.select()}
-                      onClick={(e) => (e.target as HTMLInputElement).select()}
-                      placeholder="0.00"
-                      className={`w-full border rounded-xl p-2.5 outline-none font-mono text-center text-[14px] transition-all ${
-                        editErrors.cost
-                          ? "border-2 border-red-500 bg-red-500/5 ring-2 ring-red-500/20 text-red-900"
-                          : "border-mint-line focus:border-teal"
-                      }`}
-                      style={{ direction: "ltr" }}
-                    />
-                    {editErrors.cost && (
-                      <p className="text-red-500 text-[12px] font-semibold mt-1.5 flex items-center gap-1">
-                        <span>⚠️</span> {editErrors.cost}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      {language === 'en' ? 'Sell Price (₪) *' : 'سعر البيع (₪) *'}
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={editingItem.price ?? ""}
-                      onChange={(e) => {
-                        setEditingItem({
-                          ...editingItem,
-                          price: e.target.value,
-                        });
-                        if (editErrors.price) setEditErrors((prev) => ({ ...prev, price: "" }));
-                        if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
-                      }}
-                      onFocus={(e) => e.target.select()}
-                      onClick={(e) => (e.target as HTMLInputElement).select()}
-                      placeholder="0.00"
-                      className={`w-full border rounded-xl p-2.5 outline-none font-mono text-center text-[14px] transition-all ${
-                        editErrors.price
-                          ? "border-2 border-red-500 bg-red-500/5 ring-2 ring-red-500/20 text-red-900"
-                          : "border-mint-line focus:border-teal"
-                      }`}
-                      style={{ direction: "ltr" }}
-                    />
-                    {editErrors.price && (
-                      <p className="text-red-500 text-[12px] font-semibold mt-1.5 flex items-center gap-1">
-                        <span>⚠️</span> {editErrors.price}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      {language === 'en' ? 'Batch Number' : 'رقم الدفعة'}
-                    </label>
-                    <input
-                      value={editingItem.batch_number || ""}
-                      onChange={(e) =>
-                        setEditingItem({
-                          ...editingItem,
-                          batch_number: e.target.value,
-                        })
-                      }
-                      className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary font-mono text-center text-[14px]"
-                      style={{ direction: "ltr" }}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-[13px] font-bold text-ink-soft mb-1.5">
-                      {language === 'en' ? 'Expiry Date' : 'تاريخ الصلاحية'}
-                      <span className="text-xs font-normal ms-1 text-ink-soft/80">({language === 'en' ? 'Optional' : 'اختياري'})</span>
-                    </label>
-                    <input
-                      type="month"
-                      value={editingItem.expiry_date || ""}
-                      onChange={(e) =>
-                        setEditingItem({
-                          ...editingItem,
-                          expiry_date: e.target.value,
-                        })
-                      }
-                      className="w-full border border-mint-line rounded-xl p-2.5 outline-none focus:border-primary font-mono text-center text-[14px]"
-                      style={{ direction: "ltr" }}
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 pt-2">
-                  <input
-                    type="checkbox"
-                    checked={editingItem.isControlled === 1 || editingItem.isControlled === true}
-                    onChange={(e) =>
-                      setEditingItem({
-                        ...editingItem,
-                        isControlled: e.target.checked ? 1 : 0,
-                      })
-                    }
-                    className="w-5 h-5 accent-teal cursor-pointer"
-                  />
-                  <div>
-                    <label className="font-bold text-teal block text-[14px]">{language === 'en' ? 'Controlled Medicine' : 'دواء خاضع للرقابة (مراقبة)'}</label>
-                    <span className="text-[11px] text-ink-soft">{language === 'en' ? 'Selling this medicine is restricted to management' : 'يمنع بيع هذا الدواء إلا بصلاحيات الإدارة'}</span>
-                  </div>
-                </div>
-                {/* ── الوحدات والأجزاء (متزامن مع الموبايل) ── */}
-                <div
-                  className="border border-mint-line rounded-xl p-4 bg-bg"
-                  dir="rtl"
+                <option value="all">{isEn ? "All Branches" : "كافة الفروع"}</option>
+                {activeBranches.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {filterTabs.map((tab) => {
+              const active = filterTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setFilterTab(tab.id)}
+                  className={`px-3.5 py-1.5 rounded-xl text-[12px] font-black transition-all flex items-center gap-1.5 ${
+                    active
+                      ? "bg-primary text-white shadow-sm"
+                      : "bg-bg/70 text-ink-soft hover:bg-primary-pale hover:text-primary"
+                  }`}
                 >
-                  <label className="flex items-center justify-between cursor-pointer mb-3">
-                    <span className="text-[13px] font-bold text-ink">
-                      {language === 'en' ? 'Sold in parts (Strips / Pills)?' : 'يُباع بالأجزاء (أشرطة / حبات)؟'}
+                  <span>{tab.label}</span>
+                  {tab.count !== undefined && (
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${active ? "bg-white/20 text-white" : "bg-white text-ink"}`}>
+                      {tab.count}
                     </span>
-                    <div
-                      onClick={() =>
-                        setEditingItem({
-                          ...editingItem,
-                          has_parts: !editingItem.has_parts,
-                        })
-                      }
-                      className={`w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-colors ${editingItem.has_parts ? "bg-primary border-primary" : "bg-white border-mint-line"}`}
-                    >
-                      {editingItem.has_parts && (
-                        <svg
-                          className="w-4 h-4 text-white"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="3"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                  </label>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-                  {editingItem.has_parts && (
-                    <div className="space-y-3 pt-3 border-t border-mint-line">
-                      <p className="text-[12px] font-bold text-ink-soft">
-                        {language === 'en' ? 'First Part (e.g., Strip)' : 'الجزء الأول (مثال: شريط)'}
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[11px] font-bold text-ink-soft mb-1">
-                            {language === 'en' ? 'Part Name' : 'اسم الجزء'}
-                          </label>
-                          <select
-                            value={editingItem.part1_name || "شريط"}
-                            onChange={(e) =>
-                              setEditingItem({
-                                ...editingItem,
-                                part1_name: e.target.value,
-                              })
-                            }
-                            className="w-full border border-mint-line rounded-lg p-2 text-[12px] outline-none focus:border-primary text-start"
-                          >
-                            <option value="شريط">{language === 'en' ? 'Strip' : 'شريط'}</option>
-                            <option value="حبة">{language === 'en' ? 'Pill / Capsule' : 'حبة / كبسولة'}</option>
-                            <option value="أمبولة">{language === 'en' ? 'Ampoule' : 'أمبولة'}</option>
-                            <option value="ظرف">{language === 'en' ? 'Sachet' : 'ظرف (مغلف)'}</option>
-                            <option value="قطرة">{language === 'en' ? 'Drops' : 'قطرة'}</option>
-                            <option value="عبوة">{language === 'en' ? 'Bottle' : 'عبوة'}</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-ink-soft mb-1">
-                            {language === 'en' ? 'How many per box? *' : 'كم في العلبة؟ *'}
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={editingItem.part1_qty ?? 1}
-                            onChange={(e) => {
-                              setEditingItem({
-                                ...editingItem,
-                                part1_qty: parseInt(e.target.value) || 1,
-                              });
-                              if (editErrors.part1_qty) setEditErrors((prev) => ({ ...prev, part1_qty: "" }));
-                              if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
-                            }}
-                            className={`w-full border rounded-lg p-2 text-[12px] outline-none text-center transition-all ${
-                              editErrors.part1_qty
-                                ? "border-2 border-red-500 bg-red-500/5 ring-2 ring-red-500/20 text-red-900"
-                                : "border-mint-line focus:border-primary"
-                            }`}
-                          />
-                          {editErrors.part1_qty && (
-                            <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
-                              <span>⚠️</span> {editErrors.part1_qty}
-                            </p>
-                          )}
-                        </div>
-                      </div>
+        {/* Inventory Table */}
+        <div className="bg-white rounded-[24px] border border-mint-line shadow-sm overflow-hidden">
+          {isLoading ? (
+            <div className="p-12 text-center font-bold text-ink-soft">{isEn ? "Loading inventory..." : "جاري تحميل المخزون..."}</div>
+          ) : filteredItems.length === 0 ? (
+            <div className="p-12 text-center font-bold text-ink-soft">
+              {isEn ? "No matching items found." : "لا توجد أصناف مطابقة للفلتر أو البحث الحالي."}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px] border-collapse">
+                <thead>
+                  <tr className="bg-bg/80 text-ink-soft text-[12px] font-black border-b border-mint-line">
+                    <th className="p-3.5 text-start">{isEn ? "Medicine" : "الصنف الدوائي"}</th>
+                    <th className="p-3.5 text-center">{isEn ? "Stock" : "الرصيد (FEFO)"}</th>
+                    <th className="p-3.5 text-center">{isEn ? "Sell / Cost" : showCosts ? "السعر / التكلفة" : "سعر البيع"}</th>
+                    <th className="p-3.5 text-center">{isEn ? "Nearest Expiry" : "أقرب صلاحية"}</th>
+                    <th className="p-3.5 text-center">{isEn ? "Branch" : "الفرع"}</th>
+                    <th className="p-3.5 text-end">{isEn ? "Actions" : "الإجراءات"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredItems.map((item) => {
+                    const st = computeStockStatus(item);
+                    const { primary, secondary } = parseMedicineName(item.name, isEn);
+                    const expSt = st.expiryStatus;
+                    const expiryBadge =
+                      expSt.status === "expired"
+                        ? "bg-coral-pale text-coral"
+                        : expSt.status === "critical"
+                          ? "bg-coral-pale text-coral"
+                          : expSt.status === "warning"
+                            ? "bg-amber-pale text-amber"
+                            : "bg-bg text-ink-soft";
 
-                      {editingItem.part1_name !== 'حبة' && editingItem.part1_name !== 'أمبولة' && editingItem.part1_name !== 'قطرة' && (
-                        <>
-                          <label className="flex items-center justify-between cursor-pointer pt-2 border-t border-mint-line mt-3">
-                            <span className="text-[12px] font-bold text-ink-soft">
-                              {language === 'en' ? 'Sold in sub-parts? (e.g., Pill)' : 'هل يباع مجزأ؟ (مثال: حبة)'}
-                            </span>
-                            <div
-                              onClick={() =>
-                                setEditingItem({
-                                  ...editingItem,
-                                  has_subparts: !editingItem.has_subparts,
-                                })
-                              }
-                              className={`w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-colors ${editingItem.has_subparts ? "bg-primary border-primary" : "bg-white border-mint-line"}`}
-                            >
-                              {editingItem.has_subparts && (
-                                <svg
-                                  className="w-3 h-3 text-white"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="3"
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>
-                              )}
-                            </div>
-                          </label>
-                        </>
-                      )}
-
-                      {editingItem.part1_name !== 'حبة' && editingItem.part1_name !== 'أمبولة' && editingItem.part1_name !== 'قطرة' && editingItem.has_subparts && (
-                        <div className="grid grid-cols-2 gap-2 pt-2">
-                          <div>
-                            <label className="block text-[11px] font-bold text-ink-soft mb-1">
-                              {language === 'en' ? 'Part Name' : 'اسم الجزء'}
-                            </label>
-                            <select
-                              value={editingItem.part2_name || "حبة"}
-                              onChange={(e) =>
-                                setEditingItem({
-                                  ...editingItem,
-                                  part2_name: e.target.value,
-                                })
-                              }
-                              className="w-full border border-mint-line rounded-lg p-2 text-[12px] outline-none focus:border-primary text-start"
-                            >
-                              <option value="حبة">{language === 'en' ? 'Pill' : 'حبة'}</option>
-                              <option value="مل">{language === 'en' ? 'ml' : 'مل'}</option>
-                              <option value="غرام">{language === 'en' ? 'Gram' : 'غرام'}</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-ink-soft mb-1">
-                              {language === 'en' ? 'How many in the' : 'كم في الـ'} {editingItem.part1_name || (language === 'en' ? 'Strip' : "شريط")}؟ *
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={editingItem.part2_qty ?? 1}
-                              onChange={(e) => {
-                                setEditingItem({
-                                  ...editingItem,
-                                  part2_qty: parseInt(e.target.value) || 1,
-                                });
-                                if (editErrors.part2_qty) setEditErrors((prev) => ({ ...prev, part2_qty: "" }));
-                                if (editErrors.general) setEditErrors((prev) => ({ ...prev, general: "" }));
-                              }}
-                              className={`w-full border rounded-lg p-2 text-[12px] outline-none text-center transition-all ${
-                                editErrors.part2_qty
-                                  ? "border-2 border-red-500 bg-red-500/5 ring-2 ring-red-500/20 text-red-900"
-                                  : "border-mint-line focus:border-primary"
-                              }`}
-                            />
-                            {editErrors.part2_qty && (
-                              <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
-                                <span>⚠️</span> {editErrors.part2_qty}
-                              </p>
+                    return (
+                      <tr key={item.id} className="border-b border-mint-line hover:bg-primary-pale/30 transition-colors">
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-ink text-[14px]">{primary || item.name}</span>
+                            {[true, 1, "1"].includes(item.isControlled as any) && (
+                              <span className="px-2 py-0.5 rounded-full bg-amber-pale text-amber text-[10px] font-black">
+                                {isEn ? "Controlled" : "مراقب"}
+                              </span>
                             )}
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="p-5 border-t border-mint-line bg-white shrink-0">
-                <button
-                  type="submit"
-                  disabled={isUpdating}
-                  className="w-full bg-primary text-white font-bold rounded-xl py-3 hover:bg-teal transition-colors shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {isUpdating ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>{language === 'en' ? 'Saving...' : 'جاري الحفظ...'}</span>
-                    </>
-                  ) : (
-                    <span>{language === 'en' ? 'Save Changes' : 'حفظ التعديلات'}</span>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                          {(secondary || item.scientificName) && (
+                            <div className="text-[11px] text-ink-soft font-medium">
+                              {secondary} {secondary && item.scientificName ? "·" : ""} {item.scientificName}
+                            </div>
+                          )}
+                          <div className="text-[11px] text-ink-soft font-mono mt-0.5 flex gap-2">
+                            {item.barcode && <span>#{item.barcode}</span>}
+                            {item.category && <span className="font-sans">· {item.category}</span>}
+                          </div>
+                        </td>
 
-      {/* Delete Confirmation Modal */}
-      {itemToDelete && (
-        <div className="fixed inset-0 bg-ink/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-100 transition-opacity">
-          <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl transform scale-100 transition-transform">
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-coral/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-8 h-8 text-coral"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-[20px] font-black text-ink mb-2">
-                {language === 'en' ? 'Confirm Deletion' : 'تأكيد الحذف'}
-              </h3>
-              <p className="text-[14px] text-ink-soft leading-relaxed mb-3">
-                {language === 'en' ? 'Are you sure you want to permanently delete the item ' : 'هل أنت متأكد من حذف الصنف '}
-                <span className="font-bold text-primary">
-                  {itemToDelete.name}
-                </span>{" "}
-                {language === 'en' ? '? This action cannot be undone.' : 'نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.'}
-              </p>
-              {deleteError && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-[13px] font-bold text-center flex items-center justify-center gap-1.5 animate-fadeIn">
-                  <span>⚠️</span>
-                  <span>{deleteError}</span>
-                </div>
-              )}
+                        <td className="p-3.5 text-center">
+                          <div
+                            className={`inline-block px-3 py-1 rounded-xl font-black text-[12px] ${
+                              st.isOutOfStock
+                                ? "bg-coral-pale text-coral"
+                                : st.isLowStock
+                                  ? "bg-amber-pale text-amber"
+                                  : "bg-primary-pale text-primary"
+                            }`}
+                          >
+                            {formatQtyWithUnits(item, item.units, language)}
+                          </div>
+                          <div className="text-[10px] text-ink-soft font-bold mt-1">
+                            {isEn ? `Min: ${st.minQtyBoxes} Box` : `حد التنبيه: ${st.minQtyBoxes} علبة`}
+                            {st.batchCount > 1 ? ` · ${st.batchCount} ${isEn ? "batches" : "دفعات"}` : ""}
+                          </div>
+                        </td>
+
+                        <td className="p-3.5 text-center font-mono">
+                          <div className="font-black text-primary text-[14px]">{Number(item.price || 0).toFixed(2)} ₪</div>
+                          {showCosts && (
+                            <div className="text-[11px] text-ink-soft font-bold">
+                              {isEn ? "Cost:" : "تكلفة:"} {Number(item.cost || 0).toFixed(2)} ₪
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="p-3.5 text-center">
+                          {st.nearestExpiry ? (
+                            <span className={`inline-block px-2.5 py-1 rounded-lg font-mono text-[11px] font-black ${expiryBadge}`}>
+                              {st.nearestExpiry}
+                              {expSt.daysLeft !== null && expSt.daysLeft <= 60 ? ` (${expSt.daysLeft}d)` : ""}
+                            </span>
+                          ) : (
+                            <span className="text-ink-soft text-[11px]">—</span>
+                          )}
+                        </td>
+
+                        <td className="p-3.5 text-center text-[12px] font-bold text-ink-soft">
+                          {resolveBranchName(branches, item.branch_id, item.branchName, language)}
+                        </td>
+
+                        <td className="p-3.5 text-end">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <button
+                              onClick={() => setMovementsItem(item)}
+                              title={isEn ? "Stock Card Ledger" : "كارت الصنف"}
+                              className="px-2.5 py-1.5 rounded-lg bg-bg text-primary text-[11px] font-black hover:bg-primary hover:text-white transition-colors"
+                            >
+                              📒 {isEn ? "Card" : "كارت"}
+                            </button>
+                            <button
+                              onClick={() => setBarcodeItem(item)}
+                              title={isEn ? "Print Barcode Labels" : "طباعة باركود"}
+                              className="px-2.5 py-1.5 rounded-lg bg-bg text-ink text-[11px] font-bold hover:bg-mint-line"
+                            >
+                              🏷
+                            </button>
+                            {canEdit && filterTab !== "archived" && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setEditingItem(item);
+                                    setFormModalOpen(true);
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-lg bg-primary-pale text-primary text-[11px] font-black hover:bg-primary hover:text-white"
+                                >
+                                  ✏ {isEn ? "Edit" : "تعديل"}
+                                </button>
+                                <button
+                                  onClick={() => setSplitItem(item)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-black hover:bg-emerald-600 hover:text-white"
+                                >
+                                  + {isEn ? "Batch" : "دفعة"}
+                                </button>
+                                <button
+                                  onClick={() => setWasteItem(item)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-amber-pale/70 text-ink text-[11px] font-black hover:bg-amber hover:text-white"
+                                >
+                                  {isEn ? "Waste" : "تالف"}
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteOrArchive(item)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-coral-pale text-coral text-[11px] font-black hover:bg-coral hover:text-white"
+                                >
+                                  🗑
+                                </button>
+                              </>
+                            )}
+                            {canEdit && filterTab === "archived" && (
+                              <button
+                                onClick={() => handleRestore(item)}
+                                className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-black"
+                              >
+                                ↩ {isEn ? "Restore" : "استعادة"}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-
-            <div className="flex border-t border-mint-line bg-bg/50">
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={() => {
-                  setItemToDelete(null);
-                  setDeleteError("");
-                }}
-                className="flex-1 py-4 text-[15px] font-bold text-ink-soft hover:bg-black/5 hover:text-ink transition-colors disabled:opacity-50"
-              >
-                {language === 'en' ? 'Cancel' : 'تراجع'}
-              </button>
-              <div className="w-[1px] bg-mint-line"></div>
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={executeDelete}
-                className="flex-1 py-4 text-[15px] font-bold text-coral hover:bg-coral hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isDeleting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-coral border-t-transparent rounded-full animate-spin" />
-                    <span>{language === 'en' ? 'Deleting...' : 'جاري الحذف...'}</span>
-                  </>
-                ) : (
-                  <span>{language === 'en' ? 'Yes, delete item' : 'نعم، احذف الصنف'}</span>
-                )}
-              </button>
-            </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* New Batch Modal */}
-      {batchModalItem && (
-        <div className="fixed inset-0 bg-ink/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-mint-line flex flex-col">
-            <div className="p-5 border-b border-mint-line flex justify-between items-center bg-bg/50">
-              <div className="flex items-center gap-2">
-                <span className="text-[20px]">✨</span>
-                <div>
-                  <h3 className="font-black text-[17px] text-primary">
-                    {language === 'en' ? 'Add New Batch' : 'إضافة دفعة جديدة'}
-                  </h3>
-                  <p className="text-[12px] text-ink-soft truncate max-w-[260px]">
-                    {batchModalItem.name}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setBatchModalItem(null)}
-                className="w-8 h-8 rounded-full bg-white border border-mint-line flex items-center justify-center text-ink-soft hover:text-coral transition-colors font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateNewBatch} className="p-5 space-y-4">
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-[13px] text-amber-900 leading-relaxed">
-                <span className="font-bold block mb-1">💡 {language === 'en' ? 'How does this solve price conflict?' : 'كيف تحل هذه الميزة مشكلة الأسعار؟'}</span>
-                {language === 'en'
-                  ? `The current stock (${formatQty(batchModalItem.qty, batchModalItem.units, language)}) will remain at its current price (${batchModalItem.price} ₪) and will be tagged as "(Old)". This new batch will be added with the new price and tagged as "(New)" to prevent pricing conflicts.`
-                  : `الكمية الحالية المتوفرة (${formatQty(batchModalItem.qty, batchModalItem.units, language)}) ستبقى بسعرها الحالي (${batchModalItem.price} ₪) ويكتب عليها "(القديم)". وسيتم إضافة الدفعة الجديدة بالسعر المدخل أدناه ويكتب عليها "(الجديد)".`}
-              </div>
-
-              <div>
-                <label className="block text-[13px] font-bold text-ink mb-1">
-                  {language === 'en' ? 'New Batch Quantity (Boxes) *' : 'كمية الدفعة الجديدة (علب) *'}
-                </label>
-                <input
-                  required
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={newBatchData.qty}
-                  onChange={(e) => setNewBatchData({ ...newBatchData, qty: e.target.value })}
-                  placeholder="0"
-                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 outline-none focus:border-teal font-mono font-bold text-[15px]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[13px] font-bold text-ink mb-1">
-                    {language === 'en' ? 'New Cost Price (₪)' : 'سعر الشراء / التكلفة (₪)'}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newBatchData.cost}
-                    onChange={(e) => setNewBatchData({ ...newBatchData, cost: e.target.value })}
-                    placeholder="0.00"
-                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 outline-none focus:border-teal font-mono font-bold text-[15px]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[13px] font-bold text-ink mb-1">
-                    {language === 'en' ? 'New Selling Price (₪) *' : 'سعر البيع الجديد (₪) *'}
-                  </label>
-                  <input
-                    required
-                    type="number"
-                    step="0.01"
-                    value={newBatchData.price}
-                    onChange={(e) => setNewBatchData({ ...newBatchData, price: e.target.value })}
-                    placeholder="0.00"
-                    className="w-full bg-bg border border-mint-line rounded-xl px-4 py-2.5 outline-none focus:border-teal font-mono font-bold text-[15px] text-teal"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[13px] font-bold text-ink mb-1">
-                    {language === 'en' ? 'Expiry Date' : 'تاريخ الصلاحية'}
-                    <span className="text-xs font-normal ms-1 text-ink-soft/80">({language === 'en' ? 'Optional' : 'اختياري'})</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={newBatchData.expiry}
-                    onChange={(e) => setNewBatchData({ ...newBatchData, expiry: e.target.value })}
-                    className="w-full bg-bg border border-mint-line rounded-xl px-3 py-2.5 outline-none focus:border-teal font-semibold text-[13px]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[13px] font-bold text-ink mb-1">
-                    {language === 'en' ? 'Batch Number' : 'رقم التشغيلة'}
-                  </label>
-                  <input
-                    type="text"
-                    value={newBatchData.batch_number}
-                    onChange={(e) => setNewBatchData({ ...newBatchData, batch_number: e.target.value })}
-                    placeholder="B-101"
-                    className="w-full bg-bg border border-mint-line rounded-xl px-3 py-2.5 outline-none focus:border-teal font-semibold text-[13px]"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setBatchModalItem(null)}
-                  className="flex-1 py-3 border border-mint-line rounded-xl font-bold text-ink-soft hover:bg-bg transition-colors text-[14px]"
-                >
-                  {language === 'en' ? 'Cancel' : 'إلغاء'}
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingBatch}
-                  className="flex-1 py-3 bg-teal hover:bg-[#259775] text-white rounded-xl font-bold shadow-md shadow-teal/20 transition-all text-[14px] disabled:opacity-50"
-                >
-                  {isSubmittingBatch
-                    ? (language === 'en' ? 'Adding...' : 'جاري الإضافة...')
-                    : (language === 'en' ? 'Confirm New Batch' : 'تأكيد إضافة الدفعة')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Master Catalog Modal */}
-      <MasterCatalogModal
-        isOpen={isCatalogOpen}
-        onClose={() => setIsCatalogOpen(false)}
-        inventory={meds}
-        pharmacyId={user?.pharmacy_id}
+      {/* Unified Modals */}
+      <InventoryFormModal
+        mode="modal"
+        isOpen={formModalOpen}
+        onClose={() => {
+          setFormModalOpen(false);
+          setEditingItem(null);
+        }}
+        onSaved={() => mutate()}
+        editingItem={editingItem}
+        pharmacyId={user.pharmacy_id}
+        userRole={user.role}
+        userBranch={user.branch}
         branches={branches}
-        currentBranchId={branchFilter !== "all" ? branchFilter : (userBranchObj?.id || user?.branch)}
-        onItemAdded={mutate}
+        defaultBranchFilter={branchFilter}
+        language={language}
       />
-    </div>
+
+      <SplitBatchModal
+        item={splitItem}
+        pharmacyId={user.pharmacy_id}
+        userRole={user.role}
+        language={language}
+        onClose={() => setSplitItem(null)}
+      />
+
+      <WasteAdjustmentModal
+        item={wasteItem}
+        pharmacyId={user.pharmacy_id}
+        userName={user.managerName || user.name}
+        userRole={user.role}
+        language={language}
+        onClose={() => setWasteItem(null)}
+      />
+
+      <StockMovementsModal
+        item={movementsItem}
+        pharmacyId={user.pharmacy_id}
+        language={language}
+        onClose={() => setMovementsItem(null)}
+      />
+
+      <BarcodeLabelModal
+        item={barcodeItem}
+        language={language}
+        onClose={() => setBarcodeItem(null)}
+      />
+
+      <ControlledRegisterModal
+        isOpen={controlledOpen}
+        pharmacyId={user.pharmacy_id}
+        language={language}
+        onClose={() => setControlledOpen(false)}
+      />
+
+      <MasterCatalogModal
+        isOpen={catalogOpen}
+        onClose={() => setCatalogOpen(false)}
+        inventory={allItems}
+        pharmacyId={user.pharmacy_id}
+        branches={activeBranches}
+        currentBranchId={branchFilter}
+        onItemAdded={() => mutate()}
+      />
+    </main>
   );
 }

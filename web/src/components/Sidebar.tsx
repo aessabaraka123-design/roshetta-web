@@ -7,6 +7,7 @@ import { rehydrateClientStore, useStore } from "@/store";
 import toast from "react-hot-toast";
 import RoshettaLogo from "./RoshettaLogo";
 import { useTranslation } from "@/i18n";
+import { canManageInventory } from "@/lib/inventory/domain";
 import {
   HomeIcon,
   InventoryIcon,
@@ -55,6 +56,7 @@ export default function Sidebar() {
         { name: t.sidebar.suppliers_management, href: "/suppliers", icon: CustomersIcon },
         { name: t.sidebar.purchase_invoices, href: "/purchases", icon: SalesIcon },
         { name: t.sidebar.batches_expiry, href: "/batches", icon: BoxIcon },
+        { name: language === "en" ? "Stock Take & Waste" : "الجرد والتوالف", href: "/stock-take", icon: ReportsIcon },
         { name: t.sidebar.returns, href: "/returns", icon: ReturnsIcon },
       ],
     },
@@ -137,11 +139,7 @@ export default function Sidebar() {
       <nav className="flex-1 p-3 space-y-4 overflow-y-auto no-scrollbar">
         {navGroups
           .map((group) => {
-            const isManager =
-              user?.role === "manager" ||
-              user?.role === "admin" ||
-              user?.role === "owner" ||
-              user?.role === "صيدلي أول";
+            const isManager = canManageInventory(user?.role);
             let items = [...group.items];
 
             if (!isManager) {

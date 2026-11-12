@@ -92,7 +92,7 @@ export default function SocketProvider({
         );
       } else if (type === "sales") {
         mutate(
-          (key) => typeof key === "string" && (key.includes("/sales") || key.includes("/shifts") || key.includes("/customers")),
+          (key) => typeof key === "string" && (key.includes("/sales") || key.includes("/shifts") || key.includes("/customers") || key.includes("/inventory") || key.includes("/batches") || key.includes("/stock-movements") || key.includes("/controlled-drugs-log") || key.includes("/dashboard")),
           undefined,
           { revalidate: true }
         );
@@ -104,6 +104,11 @@ export default function SocketProvider({
               key.includes("/suppliers") ||
               key.includes("/statement") ||
               key.includes("/inventory") ||
+              key.includes("/batches") ||
+              key.includes("/stock-adjustments") ||
+              key.includes("/stock-movements") ||
+              key.includes("/controlled-drugs-log") ||
+              key.includes("/dashboard") ||
               key.includes("/expenses")),
           undefined,
           { revalidate: true }
