@@ -12,7 +12,6 @@ import { SessionSetupModal } from "@/components/stock-take/SessionSetupModal";
 import {
   canManageInventory,
   canViewCosts,
-  composeBaseQty,
   decomposeBaseQty,
   extractBoxMultiplier,
   findUnitByBarcode,
