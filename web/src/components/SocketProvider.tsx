@@ -96,7 +96,7 @@ export default function SocketProvider({
           undefined,
           { revalidate: true }
         );
-      } else if (type === "purchases" || type === "suppliers" || type === "inventory" || type === "expenses") {
+      } else if (type === "purchases" || type === "suppliers" || type === "inventory" || type === "expenses" || type === "stock_take") {
         mutate(
           (key) =>
             typeof key === "string" &&
@@ -107,6 +107,7 @@ export default function SocketProvider({
               key.includes("/batches") ||
               key.includes("/stock-adjustments") ||
               key.includes("/stock-movements") ||
+              key.includes("/stock-take") ||
               key.includes("/controlled-drugs-log") ||
               key.includes("/dashboard") ||
               key.includes("/expenses")),

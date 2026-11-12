@@ -148,7 +148,8 @@ export default function Sidebar() {
                   (i) =>
                     i.name === t.sidebar.inventory_meds ||
                     i.name === t.sidebar.returns ||
-                    i.name === t.sidebar.batches_expiry,
+                    i.name === t.sidebar.batches_expiry ||
+                    (user?.role === "pharmacist" && i.href === "/stock-take"),
                 );
               }
               if (group.title === t.sidebar.reports) {
