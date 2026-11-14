@@ -265,9 +265,19 @@ export default function BranchesAndStaff() {
 
   const handleOpenEditStaff = (emp: StaffRecord) => {
     setEditingStaffId(emp.id);
+    const cleanEmpBranch = String(emp.branch || "").trim();
+    const matchedBranch = activeBranches.find(
+      (b) => String(b.name || "").trim() === cleanEmpBranch || String(b.id) === cleanEmpBranch
+    );
+    const branchName = matchedBranch
+      ? matchedBranch.name
+      : activeBranches.length > 0
+      ? activeBranches[0].name
+      : cleanEmpBranch;
+
     setStaffFormData({
       name: emp.name || "",
-      branch: emp.branch || (activeBranches.length > 0 ? activeBranches[0].name : ""),
+      branch: branchName,
       role: normalizeRole(emp.role),
       phone: emp.phone || "",
       email: emp.email || "",
@@ -962,6 +972,11 @@ export default function BranchesAndStaff() {
                       onChange={(e) => setStaffFormData({ ...staffFormData, branch: e.target.value })}
                       className="w-full bg-bg border border-mint-line rounded-xl p-3 text-[13px] font-bold text-ink focus:outline-none focus:border-primary"
                     >
+                      {staffFormData.branch && !activeBranches.some(b => String(b.name || '').trim() === String(staffFormData.branch || '').trim()) && (
+                        <option value={staffFormData.branch}>
+                          {staffFormData.branch}
+                        </option>
+                      )}
                       {activeBranches.map((b) => (
                         <option key={b.id} value={b.name}>
                           {b.name}
