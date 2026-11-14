@@ -1,17 +1,20 @@
 "use client";
-import { useState, useEffect } from "react";
-
+import { useState, useEffect, useRef } from "react";
+import toast from "react-hot-toast";
+import { Camera } from "lucide-react";
 import { useRouter } from "next/navigation";
 import AppBar from "@/components/AppBar";
 import { useStore } from "@/store";
 import { useTranslation } from "@/i18n";
-import { useStaffData } from "@/lib/staff/api";
+import { useStaffData, uploadAvatar } from "@/lib/staff/api";
 
 export default function More() {
   const router = useRouter();
   const user = useStore((state) => state.user);
   const { staff } = useStaffData(user?.pharmacy_id);
   const [avatarError, setAvatarError] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const matchedStaff = (staff || []).find(
     (s: any) =>
@@ -23,6 +26,62 @@ export default function More() {
   const { t } = useTranslation();
   const language = useStore((state: any) => state.language);
   const setLanguage = useStore((state: any) => state.setLanguage);
+  const isEn = language === "en";
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.pharmacy_id) return;
+    if (!file.type.startsWith("image/")) {
+      return toast.error(isEn ? "Please select an image file" : "يرجى اختيار ملف صورة صالح");
+    }
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        const maxDimension = 400;
+
+        if (width > height) {
+          if (width > maxDimension) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          }
+        } else {
+          if (height > maxDimension) {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+
+        setIsUploading(true);
+        try {
+          await uploadAvatar(user.pharmacy_id, dataUrl, language);
+          const updatedUser = { ...user, avatar: dataUrl };
+          useStore.setState({ user: updatedUser });
+          if (typeof window !== "undefined") {
+            try { localStorage.setItem("roshetta_user", JSON.stringify(updatedUser)); } catch (_) {}
+          }
+          setAvatarError(false);
+          toast.success(isEn ? "Profile photo updated successfully" : "تم تحديث الصورة الشخصية بنجاح");
+        } catch (err: any) {
+          toast.error(err.message || (isEn ? "Failed to update profile photo" : "تعذر تحديث الصورة الشخصية"));
+        } finally {
+          setIsUploading(false);
+        }
+      };
+      img.src = uploadEvent.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
   
   const tLabel = (arLabel: string) => {
     if (language !== "en") return arLabel;
@@ -124,17 +183,37 @@ export default function More() {
       <AppBar title={language === "en" ? "Settings" : "الإعدادات"} />
 
       <div className="flex items-center gap-3 bg-card border border-mint-line rounded-[16px] p-4 mb-5 shadow-sm">
-        <div className="bg-primary-pale text-primary w-[50px] h-[50px] rounded-full flex items-center justify-center font-bold text-[18px] shrink-0 overflow-hidden relative border border-mint-line">
-          {userAvatar ? (
-            <img
-              src={userAvatar}
-              alt={user?.managerName || "Avatar"}
-              className="w-full h-full object-cover"
-              onError={() => setAvatarError(true)}
-            />
-          ) : (
-            <span>👤</span>
-          )}
+        <div
+          className="relative group cursor-pointer"
+          onClick={() => fileInputRef.current?.click()}
+          title={isEn ? "Click to change profile photo" : "انقر لتغيير الصورة الشخصية"}
+        >
+          <div className="bg-primary-pale text-primary w-[52px] h-[52px] rounded-full flex items-center justify-center font-bold text-[18px] shrink-0 overflow-hidden relative border-2 border-mint-line group-hover:border-primary transition-all">
+            {userAvatar ? (
+              <img
+                src={userAvatar}
+                alt={user?.managerName || "Avatar"}
+                className="w-full h-full object-cover"
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <span>{(user?.managerName || "👤").slice(0, 2)}</span>
+            )}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+              <Camera className="w-5 h-5 text-white" />
+            </div>
+          </div>
+          <div className="absolute -bottom-1 -right-1 bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+            <Camera className="w-3 h-3" />
+          </div>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarChange}
+            disabled={isUploading}
+          />
         </div>
         <div>
           <div className="text-[18px] font-bold text-ink">

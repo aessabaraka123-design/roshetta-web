@@ -163,3 +163,26 @@ export async function toggleStaffStatus(
 export function revalidateStaff(pharmacyId: string) {
   mutate(`${API_BASE}/api/admin/pharmacies/${pharmacyId}/staff`);
 }
+
+export async function uploadAvatar(
+  pharmacyId: string,
+  avatarDataUrl: string,
+  lang: string = "ar"
+): Promise<{ success: boolean; avatar: string }> {
+  const isEn = lang === "en";
+  const res = await fetch(`${API_BASE}/api/pharmacies/${pharmacyId}/avatar`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ avatar: avatarDataUrl }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || (isEn ? "Failed to update profile photo" : "تعذر تحديث الصورة الشخصية"));
+  }
+  const data = await res.json();
+  mutate(`${API_BASE}/api/admin/pharmacies/${pharmacyId}/staff`);
+  return { success: true, avatar: data?.avatar || avatarDataUrl };
+}

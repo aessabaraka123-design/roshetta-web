@@ -42,6 +42,10 @@ export default function Sidebar() {
   const setMobileMenuOpen = useStore((state: any) => state.setMobileMenuOpen);
 
   useEffect(() => {
+    setAvatarError(false);
+  }, [user?.avatar, matchedStaff?.avatar]);
+
+  useEffect(() => {
     rehydrateClientStore();
     setMobileMenuOpen(false);
   }, [pathname, setMobileMenuOpen]);
