@@ -11,11 +11,6 @@ import SearchBar from "@/components/SearchBar";
 import { API_BASE_URL } from "@/lib/config";
 import { useStore } from "@/store";
 import {
-  DEFAULT_STAFF_ROLES,
-  getRoleDisplayName,
-  normalizeRoleForBackend,
-} from "@/data/roles";
-import {
   isBranchActive,
   isMainBranch,
   countActiveBranches,
@@ -30,8 +25,22 @@ import {
   archiveBranch,
   restoreBranch,
 } from "@/lib/branches/api";
-
-const staffFetcher = (url: string) => fetch(url).then((res) => res.json());
+import {
+  useStaffData,
+  addStaff,
+  editStaff,
+  deleteStaff,
+  toggleStaffStatus,
+} from "@/lib/staff/api";
+import {
+  normalizeRole,
+  isStaffActive,
+  canActorManageStaff,
+  validateStaffInput,
+  getRoleDisplayName,
+  CANONICAL_ROLES,
+  type StaffRecord,
+} from "@/lib/staff/domain";
 
 export default function BranchesAndStaff() {
   const user = useStore((state: any) => state.user);
@@ -67,9 +76,13 @@ export default function BranchesAndStaff() {
   const [archiveTarget, setArchiveTarget] = useState<BranchRecord | null>(null);
   const [archiveLoading, setArchiveLoading] = useState(false);
 
-  // Staff Modals
+  // Staff Modals & State
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+  const [staffFilterTab, setStaffFilterTab] = useState<"active" | "suspended">("active");
+  const [staffDeleteTarget, setStaffDeleteTarget] = useState<StaffRecord | null>(null);
+  const [staffDeleteLoading, setStaffDeleteLoading] = useState(false);
+  const [staffFormError, setStaffFormError] = useState("");
   const [staffFormData, setStaffFormData] = useState({
     name: "",
     branch: "",
@@ -77,7 +90,10 @@ export default function BranchesAndStaff() {
     phone: "",
     email: "",
     password: "",
+    salary: 0,
+    active: 1,
     controlledMedsAccess: false,
+    avatar: "",
   });
   const [staffSaving, setStaffSaving] = useState(false);
 
@@ -87,11 +103,12 @@ export default function BranchesAndStaff() {
     { includeArchived: true }
   );
 
-  const { data: staffData, mutate: mutateStaff } = useSWR(
-    user ? `${API_BASE_URL}/api/admin/pharmacies/${user.pharmacy_id}/staff` : null,
-    staffFetcher
-  );
-  const staff = staffData?.staff || [];
+  const {
+    staff,
+    quota: staffQuota,
+    isLoading: staffLoading,
+    mutate: mutateStaff,
+  } = useStaffData(user?.pharmacy_id);
 
   // Active branches count & quota resolution
   const activeCount = useMemo(() => countActiveBranches(branches), [branches]);
@@ -110,6 +127,10 @@ export default function BranchesAndStaff() {
 
   const canAddMoreBranches = effectiveQuota.allowed;
 
+  // Active & Suspended Staff
+  const activeStaff = useMemo(() => staff.filter(isStaffActive), [staff]);
+  const suspendedStaff = useMemo(() => staff.filter((s) => !isStaffActive(s)), [staff]);
+
   // Filtered lists
   const displayedBranches = useMemo(() => {
     const list = branchFilterTab === "active" ? activeBranches : archivedBranches;
@@ -123,15 +144,16 @@ export default function BranchesAndStaff() {
   }, [branchFilterTab, activeBranches, archivedBranches, branchSearch]);
 
   const displayedStaff = useMemo(() => {
+    const list = staffFilterTab === "active" ? activeStaff : suspendedStaff;
     const q = staffSearch.trim().toLowerCase();
-    if (!q) return staff;
-    return staff.filter((s: any) =>
+    if (!q) return list;
+    return list.filter((s: StaffRecord) =>
       (s.name && s.name.toLowerCase().includes(q)) ||
       (s.branch && s.branch.toLowerCase().includes(q)) ||
       (s.phone && s.phone.includes(q)) ||
       (s.email && s.email.toLowerCase().includes(q))
     );
-  }, [staff, staffSearch]);
+  }, [staffFilterTab, activeStaff, suspendedStaff, staffSearch]);
 
   // Branch Handlers
   const handleOpenAddBranch = () => {
@@ -215,17 +237,15 @@ export default function BranchesAndStaff() {
   };
 
   // Staff Handlers
-  const resolveRoleId = (roleStr?: string): string => {
-    if (!roleStr) return "pharmacist";
-    const r = String(roleStr).trim().toLowerCase();
-    if (r === "branchmanager" || r === "branch_manager" || r === "مدير فرع" || r === "branch manager") {
-      return "branchManager";
-    }
-    if (r === "cashier" || r === "كاشير") return "cashier";
-    return "pharmacist";
-  };
-
   const handleOpenAddStaff = () => {
+    if (!staffQuota.allowed) {
+      toast.error(
+        isEn
+          ? `Plan staff limit reached (${staffQuota.maxStaff} staff members). Upgrade your plan to add more.`
+          : `تم الوصول للحد الأقصى للموظفين في باقتك (${staffQuota.maxStaff} موظفين). يرجى الترقية لإضافة موظف جديد.`
+      );
+      return;
+    }
     setEditingStaffId(null);
     setStaffFormData({
       name: "",
@@ -234,96 +254,127 @@ export default function BranchesAndStaff() {
       phone: "",
       email: "",
       password: "",
+      salary: 0,
+      active: 1,
       controlledMedsAccess: false,
+      avatar: "",
     });
+    setStaffFormError("");
     setShowAddStaffModal(true);
   };
 
-  const handleOpenEditStaff = (emp: any) => {
+  const handleOpenEditStaff = (emp: StaffRecord) => {
     setEditingStaffId(emp.id);
-    const rawEmail = (emp.email || "").trim();
-    const rawPhone = (emp.phone || "").trim();
-    const isEmail = rawEmail.includes("@");
-    let phone = rawPhone;
-    let email = rawEmail;
-    if (!phone && /^[0-9+\-\s]{7,}$/.test(rawEmail)) {
-      phone = rawEmail;
-      email = "";
-    } else if (!email && isEmail) {
-      email = rawEmail;
-    }
-
     setStaffFormData({
       name: emp.name || "",
       branch: emp.branch || (activeBranches.length > 0 ? activeBranches[0].name : ""),
-      role: resolveRoleId(emp.role),
-      phone,
-      email,
-      password: emp.password || "",
+      role: normalizeRole(emp.role),
+      phone: emp.phone || "",
+      email: emp.email || "",
+      password: "",
+      salary: Number(emp.salary) || 0,
+      active: isStaffActive(emp) ? 1 : 0,
       controlledMedsAccess: Boolean(emp.controlledMedsAccess),
+      avatar: emp.avatar || "",
     });
+    setStaffFormError("");
     setShowAddStaffModal(true);
   };
 
-  const handleSaveStaff = async () => {
-    if (!staffFormData.name) {
-      return toast.error(isEn ? "Enter staff name" : "أدخل اسم الموظف");
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      return toast.error(isEn ? "Please select a valid image file" : "يرجى اختيار ملف صورة صالح");
     }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_SIZE = 300;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+        setStaffFormData((prev) => ({ ...prev, avatar: dataUrl }));
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveStaff = async () => {
+    if (!user?.pharmacy_id) return;
+    const validation = validateStaffInput(staffFormData, staff, editingStaffId);
+    if (!validation.ok) {
+      const firstErr = Object.values(validation.errors)[0];
+      setStaffFormError(firstErr);
+      return toast.error(firstErr);
+    }
+
     setStaffSaving(true);
+    setStaffFormError("");
     try {
-      const url = editingStaffId
-        ? `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${editingStaffId}`
-        : `${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff`;
-
-      const payloadRole = normalizeRoleForBackend(staffFormData.role);
-      const cleanEmail = (staffFormData.email || "").trim().toLowerCase();
-      const cleanPhone = (staffFormData.phone || "").trim();
-
-      const res = await fetch(url, {
-        method: editingStaffId ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: staffFormData.name,
-          email: cleanEmail || cleanPhone,
-          phone: cleanPhone,
-          password: staffFormData.password,
-          role: payloadRole,
-          branch: staffFormData.branch,
-          controlledMedsAccess: staffFormData.controlledMedsAccess ? 1 : 0,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(
-          editingStaffId
-            ? (isEn ? "Staff updated successfully" : "تم تعديل الموظف بنجاح")
-            : (isEn ? "Staff added successfully" : "تمت إضافة الموظف بنجاح")
-        );
-        setShowAddStaffModal(false);
-        mutateStaff();
+      if (editingStaffId) {
+        await editStaff(user.pharmacy_id, editingStaffId, validation.cleanData, language);
+        toast.success(isEn ? "Staff member updated successfully" : "تم تعديل بيانات الموظف بنجاح");
       } else {
-        toast.error(data.error || (isEn ? "Save failed" : "فشل الحفظ"));
+        await addStaff(user.pharmacy_id, validation.cleanData, language);
+        toast.success(isEn ? "Staff member added successfully" : "تمت إضافة الموظف بنجاح");
       }
-    } catch {
-      toast.error(isEn ? "Connection error" : "خطأ في الاتصال");
+      setShowAddStaffModal(false);
+      mutateStaff();
+    } catch (err: any) {
+      setStaffFormError(err.message || (isEn ? "Operation failed" : "تعذر حفظ بيانات الموظف"));
+      toast.error(err.message || (isEn ? "Operation failed" : "تعذر حفظ بيانات الموظف"));
     } finally {
       setStaffSaving(false);
     }
   };
 
-  const handleDeleteStaff = async (id: string) => {
+  const handleConfirmDeleteStaff = async () => {
+    if (!user?.pharmacy_id || !staffDeleteTarget) return;
+    setStaffDeleteLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/pharmacies/${user?.pharmacy_id}/staff/${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        toast.success(isEn ? "Staff removed" : "تم حذف الموظف");
-        mutateStaff();
-      } else {
-        toast.error(isEn ? "Delete failed" : "فشل الحذف");
-      }
-    } catch {
-      toast.error(isEn ? "Connection error" : "خطأ في الاتصال");
+      await deleteStaff(user.pharmacy_id, staffDeleteTarget.id, language);
+      toast.success(isEn ? "Staff member removed successfully" : "تم حذف الموظف بنجاح");
+      setStaffDeleteTarget(null);
+      mutateStaff();
+    } catch (err: any) {
+      toast.error(err.message || (isEn ? "Operation failed" : "تعذر حذف الموظف"));
+    } finally {
+      setStaffDeleteLoading(false);
+    }
+  };
+
+  const handleToggleStaffStatus = async (emp: StaffRecord) => {
+    if (!user?.pharmacy_id) return;
+    const targetActive = !isStaffActive(emp);
+    try {
+      await toggleStaffStatus(user.pharmacy_id, emp.id, targetActive, language);
+      toast.success(
+        targetActive
+          ? (isEn ? "Staff member activated successfully" : "تم تفعيل حساب الموظف بنجاح")
+          : (isEn ? "Staff member suspended" : "تم إيقاف حساب الموظف")
+      );
+      mutateStaff();
+    } catch (err: any) {
+      toast.error(err.message || (isEn ? "Action failed" : "تعذر تغيير حالة الموظف"));
     }
   };
 
@@ -547,80 +598,194 @@ export default function BranchesAndStaff() {
         ) : (
           /* Staff Management Tab */
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-mint-line shadow-sm">
-              <div className="flex-1 min-w-[220px]">
+            {/* Subscription Staff Quota Banner */}
+            <div className="bg-white rounded-3xl p-5 border border-mint-line shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[18px]">👥</span>
+                  <h2 className="text-[16px] font-black text-ink">
+                    {isEn ? "Staff Subscription Quota" : "سعة الموظفين في الباقة"}
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-primary-pale text-primary">
+                    {staffQuota.activeCount} / {staffQuota.maxStaff} {isEn ? "Active Staff" : "موظفين نشطين"}
+                  </span>
+                </div>
+                <p className="text-[12px] text-ink-soft font-medium mt-1">
+                  {isEn
+                    ? `Current plan supports up to ${staffQuota.maxStaff} active staff members.`
+                    : `باقتك الحالية تدعم حتى ${staffQuota.maxStaff} موظفين نشطين مع صلاحيات دقيقة.`}
+                </p>
+                <div className="w-full md:w-64 bg-bg rounded-full h-2 mt-2 overflow-hidden border border-mint-line">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      staffQuota.remaining === 0 ? "bg-amber" : "bg-primary"
+                    }`}
+                    style={{ width: `${Math.min(100, (staffQuota.activeCount / staffQuota.maxStaff) * 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                {!staffQuota.allowed && (
+                  <Link
+                    href="/upgrade-plan"
+                    className="px-4 py-2.5 rounded-xl bg-amber-pale border border-amber text-ink font-black text-[12px] hover:bg-amber/20 transition-colors"
+                  >
+                    ⚡ {isEn ? "Upgrade Plan" : "ترقية الباقة"}
+                  </Link>
+                )}
+                <button
+                  onClick={handleOpenAddStaff}
+                  disabled={!staffQuota.allowed}
+                  className="flex-1 md:flex-none px-5 py-2.5 rounded-xl bg-primary text-white font-black text-[13px] shadow-md shadow-primary/20 hover:bg-primary-light disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                >
+                  <span>+</span>
+                  <span>{isEn ? "Add Staff" : "إضافة موظف جديد"}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Tabs & Search */}
+            <div className="bg-white rounded-2xl p-4 border border-mint-line shadow-sm flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setStaffFilterTab("active")}
+                  className={`px-4 py-2 rounded-xl text-[12px] font-black transition-all ${
+                    staffFilterTab === "active"
+                      ? "bg-primary text-white shadow-sm"
+                      : "bg-bg text-ink-soft hover:text-ink"
+                  }`}
+                >
+                  {isEn ? "Active Staff" : "الموظفون النشطون"} ({activeStaff.length})
+                </button>
+                <button
+                  onClick={() => setStaffFilterTab("suspended")}
+                  className={`px-4 py-2 rounded-xl text-[12px] font-black transition-all ${
+                    staffFilterTab === "suspended"
+                      ? "bg-primary text-white shadow-sm"
+                      : "bg-bg text-ink-soft hover:text-ink"
+                  }`}
+                >
+                  {isEn ? "Suspended Staff" : "الموقوفون"} ({suspendedStaff.length})
+                </button>
+              </div>
+
+              <div className="flex-1 min-w-[220px] max-w-md">
                 <SearchBar
                   value={staffSearch}
                   onChange={setStaffSearch}
                   placeholder={isEn ? "Search staff by name, role, branch, phone..." : "ابحث باسم الموظف، الفرع، الهاتف، أو المسمى..."}
                 />
               </div>
-              <button
-                onClick={handleOpenAddStaff}
-                className="px-4 py-2.5 rounded-xl bg-primary text-white font-black text-[13px] shadow-sm hover:bg-primary-light transition-all flex items-center gap-2"
-              >
-                <span>+</span>
-                <span>{isEn ? "Add New Staff" : "إضافة موظف جديد"}</span>
-              </button>
             </div>
 
-            <div className="space-y-3">
-              {displayedStaff.map((emp: any) => (
-                <div
-                  key={emp.id}
-                  className="bg-white border border-mint-line rounded-2xl p-4 shadow-sm flex items-center gap-3 hover:shadow-md transition-shadow"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-primary-pale text-primary font-black text-[16px] flex items-center justify-center">
-                    {String(emp.name || "ST")
-                      .split(" ")
-                      .map((n: string) => n[0])
-                      .join("")
-                      .substring(0, 2)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-black text-ink text-[15px]">{emp.name}</h4>
-                      {Boolean(emp.controlledMedsAccess) && (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-pale text-amber text-[10px] font-black">
-                          🛡 {isEn ? "Controlled Meds Access" : "صلاحية المراقبة"}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[12px] text-ink-soft font-semibold flex items-center gap-2 mt-0.5">
-                      <span className="text-primary font-black">{getRoleDisplayName(emp.role, language)}</span>
-                      <span>•</span>
-                      <span>{emp.branch || (isEn ? "Unassigned" : "غير محدد")}</span>
-                    </div>
-                    {(emp.phone || (emp.email && emp.email.includes("@"))) && (
-                      <div className="text-[11px] text-ink-soft/80 flex items-center gap-2 mt-0.5 font-mono">
-                        {emp.phone && <span dir="ltr">{emp.phone}</span>}
-                        {emp.phone && emp.email && emp.email.includes("@") && <span>•</span>}
-                        {emp.email && emp.email.includes("@") && <span>{emp.email}</span>}
+            {/* Staff Cards List */}
+            {staffLoading ? (
+              <div className="p-12 text-center font-bold text-ink-soft bg-white rounded-3xl border border-mint-line">
+                {isEn ? "Loading staff..." : "جاري تحميل قائمة الموظفين..."}
+              </div>
+            ) : displayedStaff.length === 0 ? (
+              <div className="p-12 text-center font-bold text-ink-soft bg-white rounded-3xl border border-mint-line">
+                {isEn ? "No staff records match your filter." : "لا يوجد موظفون مطابقون للبحث أو الفلتر."}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {displayedStaff.map((emp: StaffRecord) => {
+                  const active = isStaffActive(emp);
+                  const isCurrentSelf = user && (String(user.id) === String(emp.id) || String(user.email).toLowerCase() === String(emp.email || "").toLowerCase());
+
+                  return (
+                    <div
+                      key={emp.id}
+                      className="bg-white border border-mint-line rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-primary-pale text-primary font-black text-[16px] flex items-center justify-center overflow-hidden shrink-0 border border-primary/20">
+                          {emp.avatar ? (
+                            <img src={emp.avatar} alt={emp.name} className="w-full h-full object-cover" />
+                          ) : (
+                            String(emp.name || "ST")
+                              .split(" ")
+                              .map((n: string) => n[0])
+                              .join("")
+                              .substring(0, 2)
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-black text-ink text-[15px]">{emp.name}</h4>
+                            {isCurrentSelf && (
+                              <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-black">
+                                👤 {isEn ? "Current Account" : "حسابك الحالي"}
+                              </span>
+                            )}
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                                active ? "bg-emerald-50 text-emerald-700" : "bg-coral-pale text-coral"
+                              }`}
+                            >
+                              {active ? (isEn ? "Active" : "نشط") : (isEn ? "Suspended" : "موقوف")}
+                            </span>
+                            {Boolean(emp.controlledMedsAccess) && (
+                              <span className="px-2 py-0.5 rounded-full bg-amber-pale text-amber text-[10px] font-black">
+                                🛡 {isEn ? "Controlled Meds Access" : "صلاحية المراقبة"}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[12px] text-ink-soft font-semibold flex items-center gap-2 mt-0.5">
+                            <span className="text-primary font-black">{getRoleDisplayName(emp.role, language)}</span>
+                            <span>•</span>
+                            <span>{emp.branch || (isEn ? "Unassigned" : "غير محدد")}</span>
+                            {emp.salary ? (
+                              <>
+                                <span>•</span>
+                                <span className="font-mono">₪{Number(emp.salary).toLocaleString("ar-EG-u-nu-latn")}</span>
+                              </>
+                            ) : null}
+                          </div>
+                          {(emp.phone || (emp.email && emp.email.includes("@"))) && (
+                            <div className="text-[11px] text-ink-soft/80 flex items-center gap-2 mt-0.5 font-mono">
+                              {emp.phone && <span dir="ltr">📞 {emp.phone}</span>}
+                              {emp.phone && emp.email && emp.email.includes("@") && <span>•</span>}
+                              {emp.email && emp.email.includes("@") && <span>✉️ {emp.email}</span>}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleOpenEditStaff(emp)}
-                      className="px-3 py-1.5 rounded-xl bg-bg hover:bg-mint-line text-ink font-bold text-[12px] transition-colors"
-                    >
-                      {isEn ? "Edit" : "تعديل"}
-                    </button>
-                    <button
-                      onClick={() => handleDeleteStaff(emp.id)}
-                      className="px-3 py-1.5 rounded-xl bg-coral-pale hover:bg-coral hover:text-white text-coral font-bold text-[12px] transition-colors"
-                    >
-                      {isEn ? "Delete" : "حذف"}
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {displayedStaff.length === 0 && (
-                <div className="text-center py-12 text-ink-soft font-bold bg-white rounded-3xl border border-mint-line">
-                  {isEn ? "No staff records found." : "لا يوجد موظفين مسجلين."}
-                </div>
-              )}
-            </div>
+
+                      <div className="flex items-center gap-2 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-mint-line/30">
+                        <button
+                          onClick={() => handleOpenEditStaff(emp)}
+                          className="px-3 py-1.5 rounded-xl bg-bg hover:bg-mint-line text-ink font-bold text-[12px] transition-colors"
+                        >
+                          ✏️ {isEn ? "Edit" : "تعديل"}
+                        </button>
+                        {!isCurrentSelf && (
+                          <>
+                            <button
+                              onClick={() => handleToggleStaffStatus(emp)}
+                              className={`px-3 py-1.5 rounded-xl font-bold text-[12px] transition-colors ${
+                                active
+                                  ? "bg-amber-pale text-amber hover:bg-amber hover:text-white"
+                                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white"
+                              }`}
+                            >
+                              {active ? (isEn ? "Suspend" : "إيقاف") : (isEn ? "Activate" : "تفعيل")}
+                            </button>
+                            <button
+                              onClick={() => setStaffDeleteTarget(emp)}
+                              className="px-3 py-1.5 rounded-xl bg-coral-pale hover:bg-coral hover:text-white text-coral font-bold text-[12px] transition-colors"
+                            >
+                              🗑 {isEn ? "Delete" : "حذف"}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -714,7 +879,7 @@ export default function BranchesAndStaff() {
         {/* Add / Edit Staff Modal */}
         {showAddStaffModal && (
           <div className="fixed inset-0 bg-primary/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-mint-line animate-fade-in-up space-y-4">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-mint-line animate-fade-in-up space-y-4 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center border-b border-mint-line/40 pb-3">
                 <h3 className="text-[18px] font-black text-primary">
                   {editingStaffId
@@ -729,7 +894,51 @@ export default function BranchesAndStaff() {
                 </button>
               </div>
 
+              {staffFormError && (
+                <div className="p-3 rounded-xl bg-coral-pale border border-coral/30 text-coral text-[12px] font-bold">
+                  ⚠️ {staffFormError}
+                </div>
+              )}
+
               <div className="space-y-3">
+                {/* Employee Photo / Avatar Picker */}
+                <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-bg border border-mint-line/70">
+                  <div className="w-14 h-14 rounded-2xl bg-primary-pale text-primary font-black text-[18px] flex items-center justify-center overflow-hidden shrink-0 border border-primary/20">
+                    {staffFormData.avatar ? (
+                      <img src={staffFormData.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{staffFormData.name ? staffFormData.name[0]?.toUpperCase() : "👤"}</span>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <span className="block text-[12px] font-bold text-ink">
+                      {isEn ? "Staff Profile Photo" : "صورة الموظف الشخصية"}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white text-[11px] font-black hover:bg-teal transition-colors shadow-sm shadow-primary/20">
+                        <span>📷</span>
+                        <span>{staffFormData.avatar ? (isEn ? "Change Photo" : "تغيير الصورة") : (isEn ? "Upload Photo" : "رفع صورة")}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleAvatarUpload}
+                        />
+                      </label>
+                      {Boolean(staffFormData.avatar) && (
+                        <button
+                          type="button"
+                          onClick={() => setStaffFormData((prev) => ({ ...prev, avatar: "" }))}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-coral-pale text-coral text-[11px] font-black hover:bg-coral/20 transition-colors"
+                        >
+                          <span>✕</span>
+                          <span>{isEn ? "Remove" : "إزالة"}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-[13px] font-bold text-ink mb-1.5">
                     {isEn ? "Staff Name *" : "اسم الموظف *"}
@@ -765,13 +974,13 @@ export default function BranchesAndStaff() {
                       {isEn ? "Role" : "المسمى الوظيفي"}
                     </label>
                     <select
-                      value={resolveRoleId(staffFormData.role)}
+                      value={staffFormData.role}
                       onChange={(e) => setStaffFormData({ ...staffFormData, role: e.target.value })}
                       className="w-full bg-bg border border-mint-line rounded-xl p-3 text-[13px] font-bold text-ink focus:outline-none focus:border-primary"
                     >
-                      {DEFAULT_STAFF_ROLES.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {isEn ? r.name_en : r.name_ar}
+                      {CANONICAL_ROLES.map((r) => (
+                        <option key={r} value={r}>
+                          {getRoleDisplayName(r, language)}
                         </option>
                       ))}
                     </select>
@@ -794,13 +1003,41 @@ export default function BranchesAndStaff() {
 
                 <div>
                   <label className="block text-[13px] font-bold text-ink mb-1.5">
+                    {isEn ? "Email" : "البريد الإلكتروني"}
+                  </label>
+                  <input
+                    type="email"
+                    value={staffFormData.email}
+                    onChange={(e) => setStaffFormData({ ...staffFormData, email: e.target.value })}
+                    placeholder="staff@example.com"
+                    dir="ltr"
+                    className="w-full bg-bg border border-mint-line rounded-xl p-3 text-[13px] font-bold text-ink focus:outline-none focus:border-primary text-start"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[13px] font-bold text-ink mb-1.5">
+                    {isEn ? "Monthly Salary (ILS)" : "الراتب الشهري (شيكل)"}
+                  </label>
+                  <input
+                    type="number"
+                    value={staffFormData.salary || ""}
+                    onChange={(e) => setStaffFormData({ ...staffFormData, salary: Number(e.target.value) || 0 })}
+                    placeholder="0"
+                    dir="ltr"
+                    className="w-full bg-bg border border-mint-line rounded-xl p-3 text-[13px] font-bold text-ink focus:outline-none focus:border-primary text-start"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[13px] font-bold text-ink mb-1.5">
                     {isEn ? "Password" : "كلمة المرور"}
                   </label>
                   <input
                     type="text"
                     value={staffFormData.password}
                     onChange={(e) => setStaffFormData({ ...staffFormData, password: e.target.value })}
-                    placeholder={isEn ? "Leave empty to keep current" : "كلمة المرور للدخول"}
+                    placeholder={editingStaffId ? (isEn ? "Leave empty to keep current" : "اتركه فارغاً للاحتفاظ بكلمة المرور الحالية") : (isEn ? "Password for login" : "كلمة المرور للدخول (6 خانات على الأقل)")}
                     dir="ltr"
                     className="w-full bg-bg border border-mint-line rounded-xl p-3 text-[13px] font-bold text-ink focus:outline-none focus:border-primary text-start"
                   />
@@ -841,7 +1078,7 @@ export default function BranchesAndStaff() {
           </div>
         )}
 
-        {/* Confirm Archive Dialog */}
+        {/* Confirm Archive Branch Dialog */}
         <ConfirmDialog
           isOpen={Boolean(archiveTarget)}
           title={isEn ? "Archive Branch" : "تأكيد أرشفة الفرع"}
@@ -858,6 +1095,25 @@ export default function BranchesAndStaff() {
           loading={archiveLoading}
           onConfirm={handleConfirmArchive}
           onClose={() => setArchiveTarget(null)}
+        />
+
+        {/* Confirm Delete Staff Dialog */}
+        <ConfirmDialog
+          isOpen={Boolean(staffDeleteTarget)}
+          title={isEn ? "Delete Staff Member" : "تأكيد حذف الموظف"}
+          message={
+            staffDeleteTarget
+              ? isEn
+                ? `Are you sure you want to delete staff member "${staffDeleteTarget.name}"?`
+                : `هل أنت متأكد من حذف الموظف "${staffDeleteTarget.name}" نهائياً من الصيدلية؟`
+              : ""
+          }
+          confirmLabel={isEn ? "Delete Staff" : "حذف الموظف"}
+          cancelLabel={isEn ? "Cancel" : "إلغاء"}
+          tone="danger"
+          loading={staffDeleteLoading}
+          onConfirm={handleConfirmDeleteStaff}
+          onClose={() => setStaffDeleteTarget(null)}
         />
       </main>
     </>
