@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
-import { Camera } from "lucide-react";
 import { useRouter } from "next/navigation";
 import AppBar from "@/components/AppBar";
 import { useStore } from "@/store";
@@ -15,6 +14,7 @@ export default function More() {
   const [avatarError, setAvatarError] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const matchedStaff = (staff || []).find(
     (s: any) =>
@@ -81,6 +81,19 @@ export default function More() {
       img.src = uploadEvent.target?.result as string;
     };
     reader.readAsDataURL(file);
+  };
+
+  const startLongPress = () => {
+    longPressTimerRef.current = setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 2000);
+  };
+
+  const cancelLongPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
   };
   
   const tLabel = (arLabel: string) => {
@@ -184,11 +197,15 @@ export default function More() {
 
       <div className="flex items-center gap-3 bg-card border border-mint-line rounded-[16px] p-4 mb-5 shadow-sm">
         <div
-          className="relative group cursor-pointer"
-          onClick={() => fileInputRef.current?.click()}
-          title={isEn ? "Click to change profile photo" : "انقر لتغيير الصورة الشخصية"}
+          className="relative cursor-pointer select-none"
+          onMouseDown={startLongPress}
+          onMouseUp={cancelLongPress}
+          onMouseLeave={cancelLongPress}
+          onTouchStart={startLongPress}
+          onTouchEnd={cancelLongPress}
+          title={isEn ? "Hold continuously for 2 seconds to change photo" : "اضغط مطولاً لمدة ثانيتين لتغيير الصورة الشخصية"}
         >
-          <div className="bg-primary-pale text-primary w-[52px] h-[52px] rounded-full flex items-center justify-center font-bold text-[18px] shrink-0 overflow-hidden relative border-2 border-mint-line group-hover:border-primary transition-all">
+          <div className="bg-primary-pale text-primary w-[52px] h-[52px] rounded-full flex items-center justify-center font-bold text-[18px] shrink-0 overflow-hidden relative border-2 border-mint-line shadow-sm hover:border-primary transition-all">
             {userAvatar ? (
               <img
                 src={userAvatar}
@@ -199,12 +216,11 @@ export default function More() {
             ) : (
               <span>{(user?.managerName || "👤").slice(0, 2)}</span>
             )}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
-              <Camera className="w-5 h-5 text-white" />
-            </div>
-          </div>
-          <div className="absolute -bottom-1 -right-1 bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
-            <Camera className="w-3 h-3" />
+            {isUploading && (
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-[10px] font-bold">
+                ...
+              </div>
+            )}
           </div>
           <input
             type="file"
