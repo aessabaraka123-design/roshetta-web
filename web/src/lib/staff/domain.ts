@@ -306,7 +306,9 @@ export function validateStaffInput(
   }
 
   const controlledMedsAccess = Boolean(input.controlledMedsAccess);
-  const active = input.active !== undefined ? (isStaffActive(input) ? 1 : 0) : 1;
+  const explicitlyActive = input.active === 1 || input.active === true || input.status === "active";
+  const explicitlyInactive = input.active === 0 || input.active === false || input.status === "suspended";
+  const active = explicitlyActive ? 1 : explicitlyInactive ? 0 : (input.active !== undefined ? (isStaffActive(input) ? 1 : 0) : 1);
 
   const ok = Object.keys(errors).length === 0;
   const cleanData = ok

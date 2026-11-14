@@ -52,7 +52,7 @@ export function newStockTakeEventId(): string {
   return `st_evt_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function resolveStockTakeEndpoint(pharmacyId: string, command: StockTakeCommand): { url: string; method: "POST" | "PATCH" } {
+function resolveStockTakeEndpoint(pharmacyId: string, command: StockTakeCommand): { url: string; method: "POST" | "PATCH" | "PUT" | "DELETE" } {
   const base = `${API_BASE_URL}/api/pharmacies/${encodeURIComponent(pharmacyId)}`;
   const target = command.targetId ? encodeURIComponent(String(command.targetId)) : "";
 
@@ -60,11 +60,11 @@ function resolveStockTakeEndpoint(pharmacyId: string, command: StockTakeCommand)
     case "CREATE_STOCK_TAKE_SESSION":
       return { url: `${base}/stock-take/sessions`, method: "POST" };
     case "UPDATE_STOCK_TAKE_SESSION":
-      return { url: `${base}/stock-take/sessions/${target}`, method: "PATCH" };
+      return { url: `${base}/stock-take/sessions/${target}`, method: "PUT" };
     case "POST_STOCK_TAKE_SESSION":
       return { url: `${base}/stock-take/sessions/${target}/post`, method: "POST" };
     case "CANCEL_STOCK_TAKE_SESSION":
-      return { url: `${base}/stock-take/sessions/${target}/cancel`, method: "POST" };
+      return { url: `${base}/stock-take/sessions/${target}`, method: "DELETE" };
     case "STOCK_TAKE":
       return { url: `${base}/stock-take`, method: "POST" };
     default:

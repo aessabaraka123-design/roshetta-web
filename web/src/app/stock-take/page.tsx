@@ -175,19 +175,23 @@ export default function StockTakePage() {
     if (activeSession) {
       const serverLines = safeJson<any[]>(activeSession.items_json, []);
       const hydrated: Record<string, CountDraft> = {};
+      const isBlind = Boolean(activeSession.blind_mode);
       for (const line of serverLines) {
         const item = inventoryMap.get(String(line.id));
         const units = item?.units || line.units;
-        const actualBase =
-          line.actualQty !== null && line.actualQty !== undefined
-            ? Number(line.actualQty)
+        const hasActualCount = line.actualQty !== null && line.actualQty !== undefined;
+        // In blind mode, uncounted items must NOT pre-fill with expected book quantity!
+        const actualBase = hasActualCount
+          ? Number(line.actualQty)
+          : isBlind
+            ? 0
             : Number(line.expectedQty ?? item?.qty ?? 0);
         const decomp = decomposeBaseQty(actualBase, units);
         hydrated[String(line.id)] = {
           itemId: String(line.id),
-          boxes: decomp.boxes,
-          strips: decomp.strips,
-          pills: decomp.pills,
+          boxes: hasActualCount || !isBlind ? decomp.boxes : 0,
+          strips: hasActualCount || !isBlind ? decomp.strips : 0,
+          pills: hasActualCount || !isBlind ? decomp.pills : 0,
           counted: Boolean(line.counted),
           reasonCode: line.reasonCode || line.reason || "count_adjustment",
           notes: line.notes || "",
@@ -228,13 +232,14 @@ export default function StockTakePage() {
   const getDraftForItem = (item: any): CountDraft => {
     const existing = drafts[String(item.id)];
     if (existing) return existing;
+    const isBlind = Boolean(activeSession ? activeSession.blind_mode : blindModeLocal);
     const baseQty = Number(item.__sessionExpected ?? item.qty ?? 0);
     const decomp = decomposeBaseQty(baseQty, item.units);
     return {
       itemId: String(item.id),
-      boxes: decomp.boxes,
-      strips: decomp.strips,
-      pills: decomp.pills,
+      boxes: isBlind ? 0 : decomp.boxes,
+      strips: isBlind ? 0 : decomp.strips,
+      pills: isBlind ? 0 : decomp.pills,
       counted: false,
       reasonCode: "count_adjustment",
       notes: "",
@@ -600,15 +605,15 @@ export default function StockTakePage() {
         },
         language
       );
-      await mutateSessions();
-      const createdId = res?.data?.session?.id;
+      setShowSetupModal(false);
+      const createdId = res?.data?.session?.id || (res as any)?.session?.id || (res as any)?.data?.id;
       if (createdId) {
         setActiveSessionId(String(createdId));
         setDraftLoadedKey("");
       }
-      setShowSetupModal(false);
       setTab("count");
       toast.success(isEn ? "Stock take session started" : "تم فتح جلسة الجرد بنجاح");
+      mutateSessions().catch(() => {});
     } catch (err: any) {
       toast.error(err?.message || (isEn ? "Failed to create session" : "تعذر إنشاء الجلسة"));
     } finally {

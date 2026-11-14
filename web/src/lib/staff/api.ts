@@ -155,7 +155,7 @@ export async function toggleStaffStatus(
   return editStaff(
     pharmacyId,
     staffId,
-    { active: targetActive ? 1 : 0 },
+    { active: targetActive ? 1 : 0, status: targetActive ? "active" : "suspended" },
     lang
   );
 }
