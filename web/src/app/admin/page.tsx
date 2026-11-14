@@ -36,6 +36,16 @@ export default function PharmacyManager() {
   const [activeTab, setActiveTab] = useState<
     "branches" | "staff" | "reports" | "settings" | "subscription"
   >("branches");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (tabParam && ["branches", "staff", "reports", "settings", "subscription"].includes(tabParam)) {
+        setActiveTab(tabParam as any);
+      }
+    }
+  }, []);
   const { data: adminSettingsData } = useSWR(`${API_BASE_URL}/api/admin/settings`, fetcher);
   const supportWhatsapp = resolveWhatsappContact(adminSettingsData);
   const [search, setSearch] = useState("");
@@ -734,7 +744,7 @@ export default function PharmacyManager() {
                 : "border-transparent text-ink-soft hover:bg-bg"
             }`}
           >
-            {language === "en" ? "Subscription & Billing 💳" : "الاشتراك والفواتير 💳"}
+            {language === "en" ? "Subscription & Renewal 💳" : "الاشتراك والتجديد 💳"}
           </button>
         </div>
 
