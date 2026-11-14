@@ -5,10 +5,21 @@ import { useRouter } from "next/navigation";
 import AppBar from "@/components/AppBar";
 import { useStore } from "@/store";
 import { useTranslation } from "@/i18n";
+import { useStaffData } from "@/lib/staff/api";
 
 export default function More() {
   const router = useRouter();
   const user = useStore((state) => state.user);
+  const { staff } = useStaffData(user?.pharmacy_id);
+  const [avatarError, setAvatarError] = useState(false);
+
+  const matchedStaff = (staff || []).find(
+    (s: any) =>
+      (user?.id && String(s.id) === String(user.id)) ||
+      (user?.email && s.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
+      (user?.managerName && s.name && s.name.trim().toLowerCase() === user.managerName.trim().toLowerCase())
+  );
+  const userAvatar = !avatarError ? (user?.avatar || matchedStaff?.avatar || null) : null;
   const { t } = useTranslation();
   const language = useStore((state: any) => state.language);
   const setLanguage = useStore((state: any) => state.setLanguage);
@@ -113,8 +124,17 @@ export default function More() {
       <AppBar title={language === "en" ? "Settings" : "الإعدادات"} />
 
       <div className="flex items-center gap-3 bg-card border border-mint-line rounded-[16px] p-4 mb-5 shadow-sm">
-        <div className="bg-primary-pale text-primary w-[50px] h-[50px] rounded-full flex items-center justify-center font-bold text-[18px] shrink-0">
-          👤
+        <div className="bg-primary-pale text-primary w-[50px] h-[50px] rounded-full flex items-center justify-center font-bold text-[18px] shrink-0 overflow-hidden relative border border-mint-line">
+          {userAvatar ? (
+            <img
+              src={userAvatar}
+              alt={user?.managerName || "Avatar"}
+              className="w-full h-full object-cover"
+              onError={() => setAvatarError(true)}
+            />
+          ) : (
+            <span>👤</span>
+          )}
         </div>
         <div>
           <div className="text-[18px] font-bold text-ink">

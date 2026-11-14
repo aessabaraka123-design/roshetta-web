@@ -342,6 +342,13 @@ export default function BranchesAndStaff() {
     try {
       if (editingStaffId) {
         await editStaff(user.pharmacy_id, editingStaffId, validation.cleanData, language);
+        if (String(editingStaffId) === String(user?.id) || validation.cleanData.email === user?.email) {
+          const updatedUser = { ...user, avatar: (validation.cleanData as any).avatar || staffFormData.avatar };
+          useStore.setState({ user: updatedUser });
+          if (typeof window !== "undefined") {
+            try { localStorage.setItem("roshetta_user", JSON.stringify(updatedUser)); } catch (_) {}
+          }
+        }
         toast.success(isEn ? "Staff member updated successfully" : "تم تعديل بيانات الموظف بنجاح");
       } else {
         await addStaff(user.pharmacy_id, validation.cleanData, language);

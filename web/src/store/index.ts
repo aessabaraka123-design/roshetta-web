@@ -26,6 +26,7 @@ interface PosCartItem extends Med {
 }
 
 interface User {
+  id?: string | number;
   email: string;
   role: string;
   managerName: string;
@@ -37,6 +38,7 @@ interface User {
   branch: string;
   branch_id?: string;
   branchName?: string;
+  avatar?: string;
   controlledMedsAccess?: boolean;
   isReadOnly?: boolean;
   isExpired?: boolean;

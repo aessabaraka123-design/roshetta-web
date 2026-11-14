@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import RoshettaLogo from "./RoshettaLogo";
 import { useTranslation } from "@/i18n";
 import { canManageInventory } from "@/lib/inventory/domain";
+import { useStaffData } from "@/lib/staff/api";
 import {
   HomeIcon,
   InventoryIcon,
@@ -26,6 +27,16 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const user = useStore((state) => state.user);
+  const { staff } = useStaffData(user?.pharmacy_id);
+  const [avatarError, setAvatarError] = useState(false);
+
+  const matchedStaff = (staff || []).find(
+    (s: any) =>
+      (user?.id && String(s.id) === String(user.id)) ||
+      (user?.email && s.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
+      (user?.managerName && s.name && s.name.trim().toLowerCase() === user.managerName.trim().toLowerCase())
+  );
+  const userAvatar = !avatarError ? (user?.avatar || matchedStaff?.avatar || null) : null;
   const logout = useStore((state) => state.logout);
   const isMobileMenuOpen = useStore((state: any) => state.isMobileMenuOpen);
   const setMobileMenuOpen = useStore((state: any) => state.setMobileMenuOpen);
@@ -233,8 +244,17 @@ export default function Sidebar() {
       <div className="p-4 border-t border-mint-line">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-teal-pale text-teal w-10 h-10 rounded-full flex items-center justify-center font-bold text-[14px] shrink-0">
-              {(user?.managerName || user?.username || "?").slice(0, 2)}
+            <div className="bg-teal-pale text-teal w-10 h-10 rounded-full flex items-center justify-center font-bold text-[14px] shrink-0 overflow-hidden relative border border-mint-line">
+              {userAvatar ? (
+                <img
+                  src={userAvatar}
+                  alt={user?.managerName || user?.username || "Avatar"}
+                  className="w-full h-full object-cover"
+                  onError={() => setAvatarError(true)}
+                />
+              ) : (
+                <span>{(user?.managerName || user?.username || "?").slice(0, 2)}</span>
+              )}
             </div>
             <div>
               <div className="text-[15px] font-bold text-ink line-clamp-1 max-w-[120px]">
