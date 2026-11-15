@@ -280,7 +280,7 @@ export default function Dashboard() {
               {t.dashboard.todays_sales}
             </div>
             <div className="font-mono text-[28px] font-black flex items-baseline gap-1">
-              {stats.salesToday.toLocaleString()}
+              {(stats?.salesToday || 0).toLocaleString()}
               <small className="text-[16px] font-bold text-white/80">₪</small>
             </div>
             <div className="text-[14px] font-bold mt-2 flex items-center gap-1 text-white bg-white/20 w-fit px-2 py-0.5 rounded-full">

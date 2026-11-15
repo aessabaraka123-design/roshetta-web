@@ -236,7 +236,12 @@ export default function Reports() {
     totalVat: Number(rawReport.totalVat ?? 0),
     netProfit: Number(rawReport.netProfit ?? 0),
     profitMargin: Number(rawReport.profitMargin ?? rawReport.netMargin ?? 0).toFixed(1),
-    dailyTrend: Array.isArray(rawReport.dailyTrend) ? rawReport.dailyTrend : [],
+    dailyTrend: Array.isArray(rawReport.dailyTrend)
+      ? rawReport.dailyTrend.map((d: any) => ({
+          date: String(d?.date || ""),
+          revenue: Number(d?.revenue || 0),
+        }))
+      : [],
     branchPerformance: Array.isArray(rawReport.branchPerformance) ? rawReport.branchPerformance : [],
     topItems: Array.isArray(rawReport.topItems) ? rawReport.topItems : [],
     paymentBreakdown: rawReport.paymentBreakdown || { cash: 0, card: 0, bank: 0, jawwal: 0, palpay: 0, maalchat: 0, credit: 0, insurance: 0, other: 0 },
@@ -493,17 +498,18 @@ export default function Reports() {
                       tick={{ fontSize: 12, fill: "#64748B" }}
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(val) => val.substring(5)}
+                      tickFormatter={(val) => (typeof val === "string" ? val.substring(5) : "")}
                     />
                     <YAxis
                       tick={{ fontSize: 12, fill: "#64748B" }}
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(val) => `₪${val}`}
+                      tickFormatter={(val) => `₪${Number(val || 0)}`}
                       orientation="right"
                       width={60}
                     />
                     <Tooltip
+                      formatter={(val: any) => [`₪${Number(val || 0).toLocaleString()}`, language === "en" ? "Revenue" : "المبيعات"]}
                       contentStyle={{
                         borderRadius: "12px",
                         border: "none",

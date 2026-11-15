@@ -46,9 +46,9 @@ export function buildUnifiedReportHtml({
 
   const numSpan = (num: number) => {
     const val = Number(num || 0);
-    const prefix = val < 0 ? "-" : "";
     const absVal = Math.abs(val);
-    return `<span dir="ltr" style="direction: ltr; unicode-bidi: isolate; display: inline-block; white-space: nowrap; line-height: 1.5; font-weight: inherit;">${prefix}${fmt(absVal)} ₪</span>`;
+    const sign = val < 0 ? "-" : "";
+    return `<span dir="ltr" style="direction: ltr !important; unicode-bidi: isolate; display: inline-block; white-space: nowrap; line-height: 1.5; font-weight: inherit;">${sign}₪${fmt(absVal)}</span>`;
   };
 
   return `

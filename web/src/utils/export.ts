@@ -355,23 +355,8 @@ export const exportComprehensivePDF = async (
   branchName: string = "الفرع الرئيسي",
 ) => {
   const language = useStore.getState().language;
-  const container = document.createElement("div");
-  container.style.position = "fixed";
-  container.style.top = "0";
-  container.style.left = "0";
-  container.style.width = "820px";
-  container.style.zIndex = "-9999";
-  container.style.opacity = "0.01";
-  container.style.pointerEvents = "none";
-  container.style.backgroundColor = "#ffffff";
-  container.style.direction = language === "en" ? "ltr" : "rtl";
-  container.style.fontFamily = "var(--font-ibm-plex-sans-arabic), 'IBM Plex Sans Arabic', Tahoma, Arial, sans-serif";
-  container.style.color = "#1f2937";
-  container.style.lineHeight = "1.9";
-  container.style.letterSpacing = "normal";
-  container.style.wordSpacing = "normal";
-
-  container.innerHTML = buildUnifiedReportHtml({
+  const isEn = language === "en";
+  const htmlContent = buildUnifiedReportHtml({
     report,
     pharmacyName,
     dateRange,
@@ -379,61 +364,88 @@ export const exportComprehensivePDF = async (
     language,
   });
 
-  document.body.appendChild(container);
+  // Dedicated high-fidelity print frame ensuring 100% native Arabic ligature shaping & vector PDF quality
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "none";
+  iframe.style.zIndex = "-9999";
+  document.body.appendChild(iframe);
 
-  try {
-    if (typeof document !== "undefined" && document.fonts && document.fonts.ready) {
-      await document.fonts.ready;
-    }
-    await new Promise((r) => setTimeout(r, 600));
-
-    const canvas = await html2canvas(container, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: "#ffffff",
-      windowWidth: 1200,
-    });
-    const imgData = canvas.toDataURL("image/png");
-
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-    let heightLeft = pdfHeight;
-    let position = 0;
-    const pageHeight = pdf.internal.pageSize.getHeight();
-
-    pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
-    heightLeft -= pageHeight;
-
-    while (heightLeft > 0) {
-      position = heightLeft - pdfHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pageHeight;
-    }
-
-    try {
-      const pdfBlob = pdf.output("blob");
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = `${filename}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
-    } catch {
-      pdf.save(`${filename}.pdf`);
-    }
-  } catch (err) {
-    console.error("PDF Export Error:", err);
-  } finally {
-    if (container.parentNode) {
-      document.body.removeChild(container);
-    }
+  const doc = iframe.contentWindow?.document;
+  if (!doc) {
+    window.print();
+    return;
   }
+
+  doc.open();
+  doc.write(`
+    <!DOCTYPE html>
+    <html dir="${isEn ? "ltr" : "rtl"}" lang="${isEn ? "en" : "ar"}">
+      <head>
+        <meta charset="utf-8" />
+        <title>${filename}</title>
+        <style>
+          @page {
+            size: A4 portrait;
+            margin: 12mm 14mm 15mm 14mm;
+          }
+          * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            background: #ffffff;
+            color: #1e293b;
+            direction: ${isEn ? "ltr" : "rtl"};
+          }
+          table {
+            page-break-inside: auto;
+          }
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          thead {
+            display: table-header-group;
+          }
+          tfoot {
+            display: table-footer-group;
+          }
+          .avoid-break {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+        </style>
+      </head>
+      <body>
+        ${htmlContent}
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.focus();
+              window.print();
+            }, 350);
+          };
+        </script>
+      </body>
+    </html>
+  `);
+  doc.close();
+
+  // Safely cleanup iframe
+  setTimeout(() => {
+    if (iframe.parentNode) {
+      document.body.removeChild(iframe);
+    }
+  }, 60000);
 };
 
 export const exportComprehensiveWord = (
