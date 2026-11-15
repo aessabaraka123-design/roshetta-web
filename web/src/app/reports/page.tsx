@@ -222,20 +222,24 @@ export default function Reports() {
     }
   }, [error, from, to, activeBranchId, inventory]);
 
-  const report = data?.data || offlineReport?.data || {
-    totalRevenue: 0,
-    grossRevenue: 0,
-    totalCost: 0,
-    totalProfit: 0,
-    totalExpenses: 0,
-    totalDiscount: 0,
-    totalVat: 0,
-    netProfit: 0,
-    profitMargin: 0,
-    dailyTrend: [],
-    branchPerformance: [],
-    topItems: [],
-    paymentBreakdown: { cash: 0, card: 0, bank: 0, jawwal: 0, palpay: 0, maalchat: 0, credit: 0, insurance: 0, other: 0 },
+  const rawReport = data?.data || offlineReport?.data || {};
+  const report = {
+    totalRevenue: Number(rawReport.totalRevenue ?? rawReport.netRevenue ?? rawReport.grossRevenue ?? 0),
+    netRevenue: Number(rawReport.netRevenue ?? rawReport.totalRevenue ?? rawReport.grossRevenue ?? 0),
+    grossRevenue: Number(rawReport.grossRevenue ?? rawReport.totalRevenue ?? rawReport.netRevenue ?? 0),
+    totalCost: Number(rawReport.totalCost ?? rawReport.cogs ?? 0),
+    cogs: Number(rawReport.cogs ?? rawReport.totalCost ?? 0),
+    totalProfit: Number(rawReport.totalProfit ?? rawReport.grossProfit ?? 0),
+    grossProfit: Number(rawReport.grossProfit ?? rawReport.totalProfit ?? 0),
+    totalExpenses: Number(rawReport.totalExpenses ?? rawReport.operatingExpenses ?? 0),
+    totalDiscount: Number(rawReport.totalDiscount ?? rawReport.totalDiscounts ?? 0),
+    totalVat: Number(rawReport.totalVat ?? 0),
+    netProfit: Number(rawReport.netProfit ?? 0),
+    profitMargin: Number(rawReport.profitMargin ?? rawReport.netMargin ?? 0).toFixed(1),
+    dailyTrend: Array.isArray(rawReport.dailyTrend) ? rawReport.dailyTrend : [],
+    branchPerformance: Array.isArray(rawReport.branchPerformance) ? rawReport.branchPerformance : [],
+    topItems: Array.isArray(rawReport.topItems) ? rawReport.topItems : [],
+    paymentBreakdown: rawReport.paymentBreakdown || { cash: 0, card: 0, bank: 0, jawwal: 0, palpay: 0, maalchat: 0, credit: 0, insurance: 0, other: 0 },
   };
 
   const pb = report.paymentBreakdown || {};
@@ -391,7 +395,7 @@ export default function Reports() {
               {language === "en" ? "Total Revenue" : "إجمالي المبيعات"}
             </div>
             <div className="font-mono text-[18px] md:text-[22px] font-black">
-              ₪{report.totalRevenue.toLocaleString()}
+              ₪{(report.totalRevenue || 0).toLocaleString()}
             </div>
           </div>
           <div className="bg-slate-700 text-white rounded-2xl p-4 shadow-lg shadow-slate-700/20 transform hover:-translate-y-1 transition-all">
@@ -407,7 +411,7 @@ export default function Reports() {
               {language === "en" ? "Gross Profit" : "الربح الإجمالي"}
             </div>
             <div className="font-mono text-[18px] md:text-[22px] font-black">
-              ₪{report.totalProfit.toLocaleString()}
+              ₪{(report.totalProfit || 0).toLocaleString()}
             </div>
           </div>
           <div className="bg-coral text-white rounded-2xl p-4 shadow-lg shadow-coral/20 transform hover:-translate-y-1 transition-all">
@@ -593,20 +597,21 @@ export default function Reports() {
                     );
                     const totalRevenue =
                       branchData.reduce(
-                        (sum: number, b: any) => sum + b.revenue,
+                        (sum: number, b: any) => sum + (Number(b?.revenue) || 0),
                         0,
                       ) || 1;
 
                     return branchData.map((b: any, idx: number) => {
+                      const bRev = Number(b?.revenue) || 0;
                       const percentage = (
-                        (b.revenue / totalRevenue) *
+                        (bRev / totalRevenue) *
                         100
                       ).toFixed(1);
                       return (
                         <div
                           key={idx}
                           className="flex items-center gap-4"
-                          title={`₪${b.revenue.toLocaleString()}`}
+                          title={`₪${bRev.toLocaleString()}`}
                         >
                           <div className="w-24 text-start font-black text-[13px] text-[#1E293B] truncate shrink-0">
                             {b.name}
@@ -615,7 +620,7 @@ export default function Reports() {
                             <div
                               className="h-full rounded-full shadow-sm"
                               style={{
-                                width: `${Math.max((b.revenue / maxRevenue) * 100, 1.5)}%`,
+                                width: `${Math.max((bRev / maxRevenue) * 100, 1.5)}%`,
                                 background:
                                   "linear-gradient(to left, #223E56, #8BA7C0)",
                               }}
@@ -664,7 +669,7 @@ export default function Reports() {
                           {item.qty} {language === "en" ? "box" : "علبة"}
                         </div>
                         <div className="text-[12px] font-mono text-ink-soft">
-                          ₪{item.revenue.toFixed(2)}
+                          ₪{(Number(item.revenue) || 0).toFixed(2)}
                         </div>
                       </div>
                     </div>

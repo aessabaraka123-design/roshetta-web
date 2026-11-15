@@ -755,8 +755,10 @@ export function computeFinancialReport({
       totalLineDiscounts: round2(totalLineDiscounts),
       totalInvoiceDiscounts: round2(totalInvoiceDiscounts),
       totalDiscounts,
+      totalDiscount: totalDiscounts,
       totalRefunds: round2(totalRefunds),
       netRevenue,
+      totalRevenue: netRevenue,
       totalVat: round2(totalVat),
       totalCollected,
       totalCreditSales: round2(totalCreditSales),
@@ -765,6 +767,7 @@ export function computeFinancialReport({
       totalCost: roundedCogs,
       cogs: roundedCogs,
       grossProfit,
+      totalProfit: grossProfit,
       grossMargin: round2(grossMargin),
 
       totalExpenses: roundedOperatingExpenses,
