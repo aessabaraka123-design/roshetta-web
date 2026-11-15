@@ -21,7 +21,7 @@ import {
   Legend,
 } from "recharts";
 
-import { exportCorporateExcel, exportComprehensivePDF } from "@/utils/export";
+import { exportCorporateExcel, exportComprehensivePDF, exportComprehensiveWord } from "@/utils/export";
 import { computeFinancialReport } from "@/lib/reports/domain";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -214,13 +214,30 @@ export default function Reports() {
             <button
               onClick={() => {
                 const now = new Date();
-                const fileName = `Sales_Report_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
-                exportComprehensivePDF(
+                const fileName = `Financial_Report_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+                exportComprehensiveWord(
                   report,
-                  user.pharmacyName || (language === "en" ? "My Pharmacy" : "صيدليتي"),
+                  user?.pharmacyName || (user as any)?.pharmacy_name || (language === "en" ? "Roshetta Pharmacy" : "صيدلية روشيتة"),
                   `${from} ${language === "en" ? "to" : "إلى"} ${to}`,
                   fileName,
-                )
+                  activeBranchId === "all" ? (language === "en" ? "All Branches" : "جميع الفروع") : (activeBranchId || "الفرع الرئيسي"),
+                );
+              }}
+              className="bg-[#2563EB] text-white px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-md flex items-center gap-1.5"
+            >
+              <span>Word</span>
+            </button>
+            <button
+              onClick={() => {
+                const now = new Date();
+                const fileName = `Financial_Report_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+                exportComprehensivePDF(
+                  report,
+                  user?.pharmacyName || (user as any)?.pharmacy_name || (language === "en" ? "Roshetta Pharmacy" : "صيدلية روشيتة"),
+                  `${from} ${language === "en" ? "to" : "إلى"} ${to}`,
+                  fileName,
+                  activeBranchId === "all" ? (language === "en" ? "All Branches" : "جميع الفروع") : (activeBranchId || "الفرع الرئيسي"),
+                );
               }}
               className="bg-coral text-white px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-md"
             >

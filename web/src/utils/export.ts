@@ -343,11 +343,16 @@ export const exportCorporateExcel = (
   XLSX.writeFile(wb, `${filename}.xlsx`);
 };
 
+import { buildUnifiedReportHtml } from "./reportTemplate";
+
+export { buildUnifiedReportHtml };
+
 export const exportComprehensivePDF = async (
   report: any,
   pharmacyName: string,
   dateRange: string,
   filename: string,
+  branchName: string = "الفرع الرئيسي",
 ) => {
   const language = useStore.getState().language;
   const container = document.createElement("div");
@@ -355,204 +360,124 @@ export const exportComprehensivePDF = async (
   container.style.top = "-9999px";
   container.style.left = "-9999px";
   container.style.width = "210mm";
-  container.style.minHeight = "297mm";
   container.style.backgroundColor = "#ffffff";
   container.style.direction = language === "en" ? "ltr" : "rtl";
-  container.style.fontFamily = "Cairo, Tahoma, sans-serif";
+  container.style.fontFamily = "'Segoe UI', 'Cairo', Tahoma, Arial, sans-serif";
   container.style.color = "#1f2937";
 
-  const generateTable = (headers: string[], rows: any[][]) => {
-    return `<table style="width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 40px; font-size: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden;">
-      <thead>
-        <tr style="background-color: #0f3d2e; color: white;">
-          ${headers.map((h) => `<th style="padding: 12px 15px; text-align: right; font-weight: bold; border-bottom: 2px solid #0a291f;">${h}</th>`).join("")}
-        </tr>
-      </thead>
-      <tbody>
-        ${rows
-          .map(
-            (row, i) => `
-          <tr style="background-color: ${i % 2 === 0 ? "#ffffff" : "#f8fafc"}; border-bottom: 1px solid #e2e8f0;">
-            ${row.map((cell) => `<td style="padding: 12px 15px; color: #334155;">${cell}</td>`).join("")}
-          </tr>
-        `,
-          )
-          .join("")}
-      </tbody>
-    </table>`;
-  };
-
-  container.innerHTML = `
-    
-      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
-      <style>
-        * { font-family: 'Cairo', Tahoma, sans-serif !important; }
-      </style>
-
-    <div style="padding: 15mm; background: #ffffff; min-height: 267mm; position: relative;">
-      
-      <!-- Watermark -->
-      <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 120px; color: rgba(15, 61, 46, 0.02); font-weight: 900; z-index: 0; pointer-events: none; white-space: nowrap;">
-        ${pharmacyName}
-      </div>
-
-      <div style="position: relative; z-index: 1;">
-        <!-- Header Section -->
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 20px; border-bottom: 2px solid #e2e8f0; margin-bottom: 30px;">
-          <div style="display: flex; align-items: center; gap: 20px;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <svg style="width: 50px; height: 50px; drop-shadow: 0 2px 4px rgba(0,0,0,0.1);" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="12" fill="#2D6E7E" />
-                <g transform="rotate(-45 12 12)">
-                  <path d="M8.5 12 V8.5 a3.5 3.5 0 0 1 7 0 V12 Z" fill="#88B09F" />
-                  <path d="M8.5 12 v3.5 a3.5 3.5 0 0 0 7 0 V12 Z" fill="#ffffff" />
-                </g>
-              </svg>
-            </div>
-            <div>
-              <h1 style="margin: 0; color: #0f3d2e; font-size: 28px; font-weight: 900;">${language === "en" ? "Comprehensive Financial Report" : "التقرير المالي الشامل"}</h1>
-              <h2 style="margin: 5px 0 0 0; color: #64748b; font-size: 16px; font-weight: normal;">${language === "en" ? "Pharmacy:" : "صيدلية:"} <strong style="color: #334155;">${pharmacyName}</strong></h2>
-            </div>
-          </div>
-          <div style="text-align: left; background: #f8fafc; padding: 12px 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
-            <div style="margin-bottom: 8px; font-size: 13px; color: #64748b;">
-              <span style="font-weight: bold; color: #334155;">${language === "en" ? "Issue Date:" : "تاريخ الإصدار:"}</span> <span dir="ltr">${new Date().toLocaleDateString("en-GB")}</span>
-            </div>
-            <div style="font-size: 13px; color: #64748b;">
-              <span style="font-weight: bold; color: #334155;">${language === "en" ? "Report Period:" : "فترة التقرير:"}</span> <span dir="ltr">${dateRange}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Executive Summary -->
-        <h3 style="color: #0f3d2e; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center; gap: 8px;">
-          <span style="width: 4px; height: 18px; background: #0f3d2e; border-radius: 4px; display: inline-block;"></span>
-          ${language === "en" ? "Financial Summary" : "الملخص المالي ومؤشرات الأداء"}
-        </h3>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
-          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #10b981; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 12px; color: #64748b; margin-bottom: 6px;">${language === "en" ? "Total Sales" : "إجمالي المبيعات"}</div>
-            <div style="font-size: 22px; font-weight: 900; color: #0f3d2e;">₪${(report.totalRevenue || 0).toLocaleString()}</div>
-          </div>
-          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #475569; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 12px; color: #64748b; margin-bottom: 6px;">${language === "en" ? "Cost of Goods (COGS)" : "تكلفة المبيعات (COGS)"}</div>
-            <div style="font-size: 22px; font-weight: 900; color: #334155;">₪${(report.totalCost || 0).toLocaleString()}</div>
-          </div>
-          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #0d9488; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 12px; color: #64748b; margin-bottom: 6px;">${language === "en" ? "Gross Profit" : "الربح الإجمالي"}</div>
-            <div style="font-size: 22px; font-weight: 900; color: #0f766e;">₪${(report.totalProfit || 0).toLocaleString()}</div>
-          </div>
-          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #ef4444; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 12px; color: #64748b; margin-bottom: 6px;">${language === "en" ? "Total Expenses" : "إجمالي المصروفات"}</div>
-            <div style="font-size: 22px; font-weight: 900; color: #b91c1c;">₪${(report.totalExpenses || 0).toLocaleString()}</div>
-          </div>
-        </div>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px;">
-          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #d97706; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 12px; color: #64748b; margin-bottom: 6px;">${language === "en" ? "Total Discounts" : "إجمالي الخصومات"}</div>
-            <div style="font-size: 20px; font-weight: 900; color: #b45309;">₪${(report.totalDiscount || 0).toLocaleString()}</div>
-          </div>
-          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #059669; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 12px; color: #64748b; margin-bottom: 6px;">${language === "en" ? "Total VAT" : "ضريبة القيمة المضافة"}</div>
-            <div style="font-size: 20px; font-weight: 900; color: #047857;">₪${(report.totalVat || 0).toLocaleString()}</div>
-          </div>
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-right: 4px solid #15803d; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 12px; color: #166534; margin-bottom: 6px; font-weight: bold; display: flex; justify-content: space-between;">
-              <span>${language === "en" ? "Net Profit" : "صافي الربح"}</span>
-              <span style="font-size: 11px; background: rgba(22,101,52,0.1); padding: 1px 6px; border-radius: 10px;">${report.profitMargin || 0}%</span>
-            </div>
-            <div style="font-size: 22px; font-weight: 900; color: #15803d;">₪${(report.netProfit || 0).toLocaleString()}</div>
-          </div>
-          <div style="background: #fffbeb; border: 1px solid #fde68a; border-right: 4px solid #f59e0b; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 12px; color: #b45309; margin-bottom: 6px; font-weight: bold;">${language === "en" ? "Credit Sales (Debts)" : "مبيعات بالذمة (ديون)"}</div>
-            <div style="font-size: 20px; font-weight: 900; color: #b45309;">₪${(report.paymentBreakdown?.credit || 0).toLocaleString()}</div>
-          </div>
-        </div>
-
-        <!-- Payment Breakdown -->
-        <h3 style="color: #0f3d2e; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center; gap: 8px;">
-          <span style="width: 4px; height: 18px; background: #0f3d2e; border-radius: 4px; display: inline-block;"></span>
-          ${language === "en" ? "Payment Methods Analysis" : "تحليل طرق الدفع والتحصيل"}
-        </h3>
-        <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 35px;">
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">${language === "en" ? "Cash" : "كاش"}</div>
-            <div style="font-size: 16px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.cash || 0).toLocaleString()}</div>
-          </div>
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">${language === "en" ? "Bank" : "تحويل بنكي"}</div>
-            <div style="font-size: 16px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.bank || 0).toLocaleString()}</div>
-          </div>
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">${language === "en" ? "Jawwal Pay" : "جوال باي"}</div>
-            <div style="font-size: 16px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.jawwal || 0).toLocaleString()}</div>
-          </div>
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">${language === "en" ? "PalPay" : "بال باي"}</div>
-            <div style="font-size: 16px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.palpay || 0).toLocaleString()}</div>
-          </div>
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">${language === "en" ? "Credit Card" : "بطاقة بنكية"}</div>
-            <div style="font-size: 16px; font-weight: bold; color: #334155;">₪${(report.paymentBreakdown?.card || 0).toLocaleString()}</div>
-          </div>
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">${language === "en" ? "Credit (Receivables)" : "آجل (ذمم)"}</div>
-            <div style="font-size: 16px; font-weight: bold; color: #b45309;">₪${(report.paymentBreakdown?.credit || 0).toLocaleString()}</div>
-          </div>
-        </div>
-
-        <!-- Daily Trend Table -->
-        <h3 style="color: #0f3d2e; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center; gap: 8px;">
-          <span style="width: 4px; height: 18px; background: #0f3d2e; border-radius: 4px; display: inline-block;"></span>
-          ${language === "en" ? "Daily Sales" : "المبيعات اليومية"}
-        </h3>
-        ${generateTable(
-          [language === "en" ? "Date" : "التاريخ", language === "en" ? "Total Sales" : "إجمالي المبيعات", language === "en" ? "Gross Profit" : "إجمالي الربح"],
-          (report.dailyTrend || []).map((t: any) => [
-            `<span dir="ltr">${t.date}</span>`,
-            `<strong style="color: #0f3d2e;">₪${(t.revenue || 0).toLocaleString()}</strong>`,
-            `<strong style="color: #10b981;">₪${(t.profit || 0).toLocaleString()}</strong>`,
-          ]),
-        )}
-
-        <!-- Top Items Table -->
-        <h3 style="color: #0f3d2e; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center; gap: 8px; page-break-before: auto;">
-          <span style="width: 4px; height: 18px; background: #0f3d2e; border-radius: 4px; display: inline-block;"></span>
-          ${language === "en" ? "Top Selling Medicines" : "الأدوية الأكثر مبيعاً"}
-        </h3>
-        ${generateTable(
-          [language === "en" ? "Medicine Name" : "اسم الدواء", language === "en" ? "Quantity Sold" : "الكمية المباعة", language === "en" ? "Total Revenue" : "إجمالي الإيرادات"],
-          (report.topItems || []).map((i: any) => [
-            i.name,
-            `<span style="background: #f1f5f9; padding: 2px 8px; border-radius: 12px; font-size: 12px;">${i.qty} ${language === "en" ? "Pack" : "عبوة"}</span>`,
-            `₪${(i.revenue || 0).toLocaleString()}`,
-          ]),
-        )}
-
-        <!-- Footer -->
-        <div style="margin-top: 50px; text-align: center; border-top: 2px dashed #e2e8f0; padding-top: 20px;">
-          <p style="margin: 0; font-size: 14px; font-weight: bold; color: #0f3d2e;">${language === "en" ? "Roshetta Pharmacy Management System" : "نظام روشتة لإدارة الصيدليات المتقدمة"}</p>
-          <p style="margin: 5px 0 0 0; font-size: 12px; color: #94a3b8;">${language === "en" ? "Official automated financial document • No stamp required" : "وثيقة مالية رسمية مُصدرة آلياً • لا تحتاج إلى ختم"}</p>
-        </div>
-      </div>
-    </div>
-  `;
+  container.innerHTML = buildUnifiedReportHtml({
+    report,
+    pharmacyName,
+    dateRange,
+    branchName,
+    language,
+  });
 
   document.body.appendChild(container);
 
   try {
-    await new Promise((r) => setTimeout(r, 500));
-    const canvas = await html2canvas(container, { scale: 2, useCORS: true });
+    await new Promise((r) => setTimeout(r, 400));
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    });
     const imgData = canvas.toDataURL("image/png");
 
     const pdf = new jsPDF("p", "mm", "a4");
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
-    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-    pdf.save(filename + ".pdf");
-  } catch {
+    let heightLeft = pdfHeight;
+    let position = 0;
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - pdfHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save(`${filename}.pdf`);
+  } catch (err) {
+    console.error("PDF Export Error:", err);
   } finally {
     document.body.removeChild(container);
   }
+};
+
+export const exportComprehensiveWord = (
+  report: any,
+  pharmacyName: string,
+  dateRange: string,
+  filename: string,
+  branchName: string = "الفرع الرئيسي",
+) => {
+  const language = useStore.getState().language;
+  const isRtl = language !== "en";
+  const bodyContent = buildUnifiedReportHtml({
+    report,
+    pharmacyName,
+    dateRange,
+    branchName,
+    language,
+  });
+
+  const wordDocument = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head>
+      <meta charset='utf-8'>
+      <title>${filename}</title>
+      <!--[if gte mso 9]>
+      <xml>
+        <w:WordDocument>
+          <w:View>Print</w:View>
+          <w:Zoom>100</w:Zoom>
+          <w:DoNotOptimizeForBrowser/>
+        </w:WordDocument>
+      </xml>
+      <![endif]-->
+      <style>
+        @page Section1 {
+          size: 210mm 297mm;
+          margin: 15mm 15mm 15mm 15mm;
+          mso-header-margin: 36pt;
+          mso-footer-margin: 36pt;
+          mso-paper-source: 0;
+        }
+        div.Section1 { page: Section1; }
+        body {
+          font-family: 'Segoe UI', 'Cairo', Tahoma, Arial, sans-serif;
+          direction: ${isRtl ? "rtl" : "ltr"};
+          text-align: ${isRtl ? "right" : "left"};
+          background: #ffffff;
+          margin: 0;
+          padding: 0;
+        }
+        table { border-collapse: collapse; }
+      </style>
+    </head>
+    <body>
+      <div class="Section1">
+        ${bodyContent}
+      </div>
+    </body>
+    </html>
+  `;
+
+  const blob = new Blob(["\ufeff", wordDocument], {
+    type: "application/msword;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${filename}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 };
