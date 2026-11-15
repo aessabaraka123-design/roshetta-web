@@ -23,10 +23,14 @@ import {
 
 import { exportCorporateExcel, exportComprehensivePDF, exportComprehensiveWord } from "@/utils/export";
 import { computeFinancialReport } from "@/lib/reports/domain";
+import { getWebAuthHeaders } from "@/lib/customers/transport";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async (url: string) => {
+  const res = await fetch(url, { headers: getWebAuthHeaders() });
+  return res.json();
+};
 
-type DateRange = "today" | "week" | "month" | "custom";
+type DateRange = "today" | "week" | "month" | "all" | "custom";
 
 function getDateRange(
   range: DateRange,
@@ -50,6 +54,9 @@ function getDateRange(
   if (range === "month") {
     const start = new Date(today.getFullYear(), today.getMonth(), 1);
     return { from: fmt(start), to: fmt(today) };
+  }
+  if (range === "all") {
+    return { from: "2024-01-01", to: fmt(today) };
   }
   return { from: customFrom || fmt(today), to: customTo || fmt(today) };
 }
@@ -89,6 +96,7 @@ export default function Reports() {
       try {
         const res = await fetch(
           `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard`,
+          { headers: getWebAuthHeaders() }
         );
         const data = await res.json();
         if (data.success && data.branches?.length > 0) {
@@ -255,7 +263,7 @@ export default function Reports() {
         {/* Date & Branch Filter */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-mint-line print:hidden flex flex-wrap gap-3 items-center">
           <div className="flex bg-bg rounded-xl p-1 w-fit">
-            {(["today", "week", "month", "custom"] as DateRange[]).map((r) => (
+            {(["today", "week", "month", "all", "custom"] as DateRange[]).map((r) => (
               <button
                 key={r}
                 onClick={() => setDateRange(r)}
@@ -267,7 +275,9 @@ export default function Reports() {
                     ? language === "en" ? "Last 7 Days" : "آخر 7 أيام"
                     : r === "month"
                       ? language === "en" ? "This Month" : "هذا الشهر"
-                      : language === "en" ? "Custom" : "مخصص"}
+                      : r === "all"
+                        ? language === "en" ? "All Time" : "كل الفترات"
+                        : language === "en" ? "Custom" : "مخصص"}
               </button>
             ))}
           </div>
