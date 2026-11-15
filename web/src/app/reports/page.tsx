@@ -22,6 +22,7 @@ import {
 } from "recharts";
 
 import { exportCorporateExcel, exportComprehensivePDF } from "@/utils/export";
+import { computeFinancialReport } from "@/lib/reports/domain";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -110,15 +111,44 @@ export default function Reports() {
   }
 
   const shouldFetch = user && activeBranchId !== "PENDING";
-  const { data, isLoading } = useSWR(
+  const { data, isLoading, error } = useSWR(
     shouldFetch
       ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/reports?from=${from}&to=${to}&branch=${activeBranchId}`
       : null,
     fetcher,
   );
 
-  const report = data?.data || {
+  const inventory = useStore((state) => state.inventory) || [];
+  const [offlineReport, setOfflineReport] = useState<any>(null);
+
+  useEffect(() => {
+    // If SWR fails or browser is offline, compute financial report deterministically from local storage
+    if ((error || !navigator.onLine) && typeof window !== "undefined") {
+      try {
+        const storedSalesRaw = localStorage.getItem("roshetta_offline_sales") || localStorage.getItem("offline_sales") || "[]";
+        const storedExpensesRaw = localStorage.getItem("roshetta_offline_expenses") || "[]";
+        const sales = JSON.parse(storedSalesRaw);
+        const expenses = JSON.parse(storedExpensesRaw);
+        const localReport = computeFinancialReport({
+          sales,
+          expenses,
+          inventory,
+          from,
+          to,
+          branch: activeBranchId,
+        });
+        setOfflineReport(localReport);
+      } catch (e) {
+        console.warn("Failed to compute offline report:", e);
+      }
+    } else {
+      setOfflineReport(null);
+    }
+  }, [error, from, to, activeBranchId, inventory]);
+
+  const report = data?.data || offlineReport?.data || {
     totalRevenue: 0,
+    grossRevenue: 0,
     totalCost: 0,
     totalProfit: 0,
     totalExpenses: 0,
