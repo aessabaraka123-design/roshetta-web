@@ -359,10 +359,10 @@ export const exportComprehensivePDF = async (
   container.style.position = "absolute";
   container.style.top = "-9999px";
   container.style.left = "-9999px";
-  container.style.width = "210mm";
+  container.style.width = "794px";
   container.style.backgroundColor = "#ffffff";
   container.style.direction = language === "en" ? "ltr" : "rtl";
-  container.style.fontFamily = "'Segoe UI', 'Cairo', Tahoma, Arial, sans-serif";
+  container.style.fontFamily = "Tahoma, Arial, 'Segoe UI', sans-serif";
   container.style.color = "#1f2937";
 
   container.innerHTML = buildUnifiedReportHtml({
