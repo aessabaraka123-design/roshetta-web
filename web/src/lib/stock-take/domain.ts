@@ -425,6 +425,7 @@ export function maskLineForBlindMode(line: any, blindMode = false, revealVarianc
   if (!blindMode || revealVariance) return { ...line, expectedMasked: false };
   return {
     ...line,
+    expectedQty: null,
     expectedBaseQty: null,
     deltaBaseQty: null,
     deltaFormatted: null,

@@ -1191,34 +1191,60 @@ export default function StockTakePage() {
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    {activeSession && (
+                  {activeSession && activeSession.status !== "draft" ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="px-4 py-2 rounded-[14px] bg-emerald-100 text-emerald-800 text-[13px] font-black">
+                        ✓ {activeSession.status === "posted" ? (isEn ? "Session Posted & Reconciled (Read-only)" : "جلسة معتمدة ومرحلة بالكامل (عرض فقط)") : (isEn ? "Session Cancelled" : "جلسة ملغاة")}
+                      </span>
                       <button
                         type="button"
-                        disabled={savingDraft}
-                        onClick={handleSaveDraftToServer}
-                        className="px-4 py-2.5 rounded-[14px] bg-bg border border-mint-line text-ink text-[13px] font-black hover:bg-bg/80 disabled:opacity-50"
+                        onClick={() => { setActiveSessionId(""); setDraftLoadedKey(""); }}
+                        className="px-3.5 py-2 rounded-[14px] bg-bg border border-mint-line text-ink text-[12px] font-bold hover:bg-bg/80"
                       >
-                        {savingDraft
-                          ? isEn ? "Syncing..." : "جارٍ المزامنة..."
-                          : isEn ? "Save Draft to Cloud" : "حفظ مسودة للسيرفر"}
+                        {isEn ? "Start New Count" : "بدء عد جديد"}
                       </button>
-                    )}
-                    {canManage && (
-                      <button
-                        type="button"
-                        disabled={submitting}
-                        onClick={() => handlePostSession()}
-                        className="px-5 py-2.5 rounded-[14px] bg-primary text-white text-[13px] font-black hover:bg-primary/90 disabled:opacity-50 shadow-sm"
-                      >
-                        {submitting
-                          ? isEn ? "Posting..." : "جارٍ الاعتماد..."
-                          : activeSession
-                            ? isEn ? "Post Session & Reconcile" : "اعتماد وترحيل الجلسة"
-                            : isEn ? "Post Stock Take" : "اعتماد الجرد الفوري"}
-                      </button>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {activeSession && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={submitting}
+                            onClick={() => handleCancelSession(activeSession.id)}
+                            className="px-3.5 py-2.5 rounded-[14px] bg-coral/10 text-coral border border-coral/20 text-[13px] font-black hover:bg-coral/20 disabled:opacity-50"
+                            title={isEn ? "Cancel Draft Session" : "إلغاء مسودة الجرد"}
+                          >
+                            {isEn ? "Cancel Draft" : "إلغاء مسودة الجرد"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={savingDraft}
+                            onClick={handleSaveDraftToServer}
+                            className="px-4 py-2.5 rounded-[14px] bg-bg border border-mint-line text-ink text-[13px] font-black hover:bg-bg/80 disabled:opacity-50"
+                          >
+                            {savingDraft
+                              ? isEn ? "Syncing..." : "جارٍ المزامنة..."
+                              : isEn ? "Save Draft to Cloud" : "حفظ مسودة للسيرفر"}
+                          </button>
+                        </>
+                      )}
+                      {canManage && (
+                        <button
+                          type="button"
+                          disabled={submitting}
+                          onClick={() => handlePostSession()}
+                          className="px-5 py-2.5 rounded-[14px] bg-primary text-white text-[13px] font-black hover:bg-primary/90 disabled:opacity-50 shadow-sm"
+                        >
+                          {submitting
+                            ? isEn ? "Posting..." : "جارٍ الاعتماد..."
+                            : activeSession
+                              ? isEn ? "Post Session & Reconcile" : "اعتماد وترحيل الجلسة"
+                              : isEn ? "Post Stock Take" : "اعتماد الجرد الفوري"}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Counting Table */}
@@ -1307,18 +1333,20 @@ export default function StockTakePage() {
                                     <input
                                       type="number"
                                       min={0}
+                                      disabled={Boolean(activeSession && activeSession.status !== "draft")}
                                       value={draft.boxes}
                                       onChange={(e) => updateItemDraft(item, { boxes: Math.max(0, Number(e.target.value) || 0) })}
-                                      className="w-16 px-2 py-1.5 rounded-[10px] bg-bg border border-mint-line text-center font-mono font-black outline-none focus:border-primary"
+                                      className="w-16 px-2 py-1.5 rounded-[10px] bg-bg border border-mint-line text-center font-mono font-black outline-none focus:border-primary disabled:opacity-60"
                                       title={isEn ? "Boxes" : "علب"}
                                     />
                                     {hasStrips && (
                                       <input
                                         type="number"
                                         min={0}
+                                        disabled={Boolean(activeSession && activeSession.status !== "draft")}
                                         value={draft.strips}
                                         onChange={(e) => updateItemDraft(item, { strips: Math.max(0, Number(e.target.value) || 0) })}
-                                        className="w-14 px-2 py-1.5 rounded-[10px] bg-bg border border-mint-line text-center font-mono font-bold outline-none focus:border-primary"
+                                        className="w-14 px-2 py-1.5 rounded-[10px] bg-bg border border-mint-line text-center font-mono font-bold outline-none focus:border-primary disabled:opacity-60"
                                         title={isEn ? "Strips" : "أشرطة"}
                                       />
                                     )}
@@ -1326,9 +1354,10 @@ export default function StockTakePage() {
                                       <input
                                         type="number"
                                         min={0}
+                                        disabled={Boolean(activeSession && activeSession.status !== "draft")}
                                         value={draft.pills}
                                         onChange={(e) => updateItemDraft(item, { pills: Math.max(0, Number(e.target.value) || 0) })}
-                                        className="w-14 px-2 py-1.5 rounded-[10px] bg-bg border border-mint-line text-center font-mono font-bold outline-none focus:border-primary"
+                                        className="w-14 px-2 py-1.5 rounded-[10px] bg-bg border border-mint-line text-center font-mono font-bold outline-none focus:border-primary disabled:opacity-60"
                                         title={isEn ? "Pills / Smallest" : "حبة"}
                                       />
                                     )}

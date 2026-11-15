@@ -64,7 +64,7 @@ function resolveStockTakeEndpoint(pharmacyId: string, command: StockTakeCommand)
     case "POST_STOCK_TAKE_SESSION":
       return { url: `${base}/stock-take/sessions/${target}/post`, method: "POST" };
     case "CANCEL_STOCK_TAKE_SESSION":
-      return { url: `${base}/stock-take/sessions/${target}`, method: "DELETE" };
+      return { url: `${base}/stock-take/sessions/${target}/cancel`, method: "POST" };
     case "STOCK_TAKE":
       return { url: `${base}/stock-take`, method: "POST" };
     default:

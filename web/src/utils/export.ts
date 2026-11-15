@@ -356,15 +356,20 @@ export const exportComprehensivePDF = async (
 ) => {
   const language = useStore.getState().language;
   const container = document.createElement("div");
-  container.style.position = "absolute";
-  container.style.top = "-9999px";
-  container.style.left = "-9999px";
-  container.style.width = "794px";
+  container.style.position = "fixed";
+  container.style.top = "0";
+  container.style.left = "0";
+  container.style.width = "820px";
+  container.style.zIndex = "-9999";
+  container.style.opacity = "0.01";
+  container.style.pointerEvents = "none";
   container.style.backgroundColor = "#ffffff";
   container.style.direction = language === "en" ? "ltr" : "rtl";
-  container.style.fontFamily = "Tahoma, Arial, 'Segoe UI', sans-serif";
+  container.style.fontFamily = "var(--font-ibm-plex-sans-arabic), 'IBM Plex Sans Arabic', Tahoma, Arial, sans-serif";
   container.style.color = "#1f2937";
-  container.style.lineHeight = "1.8";
+  container.style.lineHeight = "1.9";
+  container.style.letterSpacing = "normal";
+  container.style.wordSpacing = "normal";
 
   container.innerHTML = buildUnifiedReportHtml({
     report,
@@ -377,11 +382,17 @@ export const exportComprehensivePDF = async (
   document.body.appendChild(container);
 
   try {
-    await new Promise((r) => setTimeout(r, 400));
+    if (typeof document !== "undefined" && document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+    }
+    await new Promise((r) => setTimeout(r, 600));
+
     const canvas = await html2canvas(container, {
       scale: 2,
       useCORS: true,
       logging: false,
+      backgroundColor: "#ffffff",
+      windowWidth: 1200,
     });
     const imgData = canvas.toDataURL("image/png");
 
@@ -403,11 +414,25 @@ export const exportComprehensivePDF = async (
       heightLeft -= pageHeight;
     }
 
-    pdf.save(`${filename}.pdf`);
+    try {
+      const pdfBlob = pdf.output("blob");
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `${filename}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    } catch {
+      pdf.save(`${filename}.pdf`);
+    }
   } catch (err) {
     console.error("PDF Export Error:", err);
   } finally {
-    document.body.removeChild(container);
+    if (container.parentNode) {
+      document.body.removeChild(container);
+    }
   }
 };
 
@@ -480,5 +505,5 @@ export const exportComprehensiveWord = (
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 };

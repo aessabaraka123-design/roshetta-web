@@ -52,13 +52,13 @@ export function buildUnifiedReportHtml({
   };
 
   return `
-    <div style="width: 100%; max-width: 820px; margin: 0 auto; background: #ffffff; color: #1e293b; font-family: Tahoma, Arial, 'Segoe UI', sans-serif; direction: ${isRtl ? "rtl" : "ltr"}; text-align: ${isRtl ? "right" : "left"}; line-height: 1.9; box-sizing: border-box; padding: 20px 24px;">
+    <div style="width: 100%; max-width: 820px; margin: 0 auto; background: #ffffff; color: #1e293b; font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif; direction: ${isRtl ? "rtl" : "ltr"}; text-align: ${isRtl ? "right" : "left"}; line-height: 1.9; letter-spacing: normal !important; word-spacing: normal !important; text-rendering: geometricPrecision; box-sizing: border-box; padding: 20px 24px;">
       
       <!-- Top Brand Header Block -->
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border-bottom: 2.5px solid #0f3d2e; padding-bottom: 14px;">
         <tr>
           <td style="vertical-align: middle; width: 55%; direction: ${isRtl ? "rtl" : "ltr"}; text-align: ${isRtl ? "right" : "left"}; padding: 8px 6px;">
-            <h1 style="margin: 0; font-size: 24px; font-weight: bold; color: #0f3d2e; font-family: Tahoma, Arial, sans-serif; line-height: 1.5;">
+            <h1 style="margin: 0; font-size: 24px; font-weight: bold; color: #0f3d2e; font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif; line-height: 1.5; letter-spacing: normal !important;">
               ${isRtl ? "نظام روشتة لإدارة الصيدليات" : "Roshetta Pharmacy System"}
             </h1>
           </td>

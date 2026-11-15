@@ -204,17 +204,20 @@ export function SessionSetupModal({
           <button
             type="button"
             disabled={submitting || scopedItems.length === 0}
-            onClick={() =>
-              onConfirm({
-                title: title.trim() || defaultTitle,
-                scopeType,
-                scopeValue: scopeType === "cycle_category" ? scopeValue : "",
-                branchId: branchId === "all" ? "" : branchId,
-                blindMode,
-                notes: notes.trim(),
-                items: scopedItems,
-              })
-            }
+            onClick={async () => {
+              try {
+                await onConfirm({
+                  title: title.trim() || defaultTitle,
+                  scopeType,
+                  scopeValue: scopeType === "cycle_category" ? scopeValue : "",
+                  branchId: branchId === "all" ? "" : branchId,
+                  blindMode,
+                  notes: notes.trim(),
+                  items: scopedItems,
+                });
+                onClose();
+              } catch (_) {}
+            }}
             className="px-5 py-2 rounded-[12px] bg-primary text-white text-[13px] font-black hover:bg-primary/90 disabled:opacity-50"
           >
             {submitting

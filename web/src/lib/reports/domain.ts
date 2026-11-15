@@ -207,6 +207,7 @@ export const CANONICAL_PAYMENT_METHODS: Record<string, string[]> = {
   credit: ["credit", "ذمم", "آجل", "اجل", "شريحة", "دين", "debt"],
   split: ["split", "مجزأ", "متعدد", "دفعات"],
   debt_payment: ["debt_payment", "سداد ذمم", "تسديد دين", "سداد دين", "pay_off_a_debt", "دفعة ذمم"],
+  non_cash: ["non_cash", "غير نقدي", "تسوية قيد", "تالف", "هدر", "adjustment"],
 };
 
 export function normalizePaymentMethod(methodRaw: any): string {
@@ -433,6 +434,7 @@ export function computeFinancialReport({
   expenses = [],
   inventory = [],
   stockTakes = [],
+  branches = [],
   from = "",
   to = "",
   branch = "all",
@@ -441,6 +443,7 @@ export function computeFinancialReport({
   expenses?: ExpenseRecordLike[];
   inventory?: InventoryItemLike[] | Map<string, InventoryItemLike>;
   stockTakes?: StockTakeLike[];
+  branches?: any[];
   from?: string;
   to?: string;
   branch?: string;
@@ -484,7 +487,8 @@ export function computeFinancialReport({
     if (branch && branch !== "all") {
       const bId = String(sale.branch_id || sale.branchId || "");
       const bName = String(sale.branchName || "");
-      if (bId !== branch && bName !== branch) continue;
+      const isMatch = bId === branch || bName === branch;
+      if (!isMatch) continue;
     }
 
     const saleStatus = String(sale.status || "").toLowerCase();
@@ -503,7 +507,7 @@ export function computeFinancialReport({
     }
 
     if (isRefund) {
-      totalRefunds += saleTotal;
+      totalRefunds += Math.abs(saleTotal);
       continue;
     }
 
@@ -611,6 +615,16 @@ export function computeFinancialReport({
         }
       }
 
+      // Normalized Base Quantity for Multi-Unit Items (Boxes -> Strips -> Pills)
+      const mult = extractBoxMultiplier(invItem?.units || item?.units);
+      const unitType = String(item.selectedUnit || item.unit || "").toLowerCase();
+      let normalizedQty = qty;
+      if (item.deductQty != null && Number(item.deductQty) > 0) {
+        normalizedQty = Number(item.deductQty);
+      } else if (mult > 1 && (unitType === "box" || unitType === "علبة" || !unitType)) {
+        normalizedQty = qty * mult;
+      }
+
       const itemId = String(item.id || item.medicine_id || item.name || "unknown");
       const itemName = item.name || "عنصر غير محدد";
 
@@ -625,7 +639,7 @@ export function computeFinancialReport({
           category: invItem?.category || "أدوية عامة",
         };
       }
-      itemAnalytics[itemId].qty += qty;
+      itemAnalytics[itemId].qty += normalizedQty;
       itemAnalytics[itemId].revenue += itemLineNet;
       itemAnalytics[itemId].cost += itemLineCost;
       itemAnalytics[itemId].grossProfit += (itemLineNet - itemLineCost);
@@ -638,9 +652,11 @@ export function computeFinancialReport({
     }
   }
 
-  // Operating Expenses (strictly excluding supplier settlements)
+  // Operating Expenses (strictly excluding supplier settlements and isolating shrinkage)
   let operatingExpenses = 0;
   let supplierPayments = 0;
+  let inventoryShrinkageCost = 0;
+  let inventoryShrinkageCount = 0;
   const expensesByCategory: Record<string, number> = {};
 
   for (const exp of expenses) {
@@ -650,7 +666,9 @@ export function computeFinancialReport({
 
     if (branch && branch !== "all") {
       const bId = String(exp.branch_id || exp.branchId || "");
-      if (bId && bId !== branch) continue;
+      const bName = String(exp.branchName || "");
+      const isMatch = bId === branch || bName === branch;
+      if (!isMatch) continue;
     }
 
     const amt = Number(exp.amount) || 0;
@@ -658,16 +676,26 @@ export function computeFinancialReport({
 
     if (category === "سداد موردين" || category === "دفعات موردين" || category === "supplier_payment") {
       supplierPayments += amt;
+    } else if (
+      category === "هدر وتلفيات" ||
+      category === "فاقد وتالف" ||
+      category === "عجز مخزون" ||
+      category === "تالف مخزون" ||
+      category === "تالف" ||
+      category === "هدر" ||
+      category === "shrinkage" ||
+      category === "waste"
+    ) {
+      inventoryShrinkageCost += amt;
+      inventoryShrinkageCount += 1;
+      expensesByCategory["هدر وتلفيات"] = (expensesByCategory["هدر وتلفيات"] || 0) + amt;
     } else {
       operatingExpenses += amt;
       expensesByCategory[category] = (expensesByCategory[category] || 0) + amt;
     }
   }
 
-  // Inventory Shrinkage
-  let inventoryShrinkageCost = 0;
-  let inventoryShrinkageCount = 0;
-
+  // Inventory Shrinkage from Stock Takes
   for (const st of stockTakes) {
     if (!st) continue;
     const stDate = st.date || st.created_at || st.createdAt || "";
@@ -859,8 +887,9 @@ export function computeCashFlowReport({
     const pm = normalizePaymentMethod(sale.paymentMethod);
 
     if (saleStatus === "refunded" || saleStatus === "refund_proxy") {
-      refundsOutflow += saleTotal;
-      channels.cashDrawer -= saleTotal;
+      const refundAmt = Math.abs(saleTotal);
+      refundsOutflow += refundAmt;
+      channels.cashDrawer -= refundAmt;
       continue;
     }
 
@@ -912,12 +941,30 @@ export function computeCashFlowReport({
 
     if (branch && branch !== "all") {
       const bId = String(exp.branch_id || exp.branchId || "");
-      if (bId && bId !== branch) continue;
+      const bName = String(exp.branchName || "");
+      if (bId !== branch && bName !== branch) continue;
     }
 
     const amt = Number(exp.amount) || 0;
     const category = String(exp.category || "").trim();
+    const rawPm = String(exp.paymentMethod || "").trim().toLowerCase();
     const expPm = normalizePaymentMethod(exp.paymentMethod || "cash");
+
+    const isNonCashCategory = [
+      "هدر وتلفيات",
+      "فاقد وتالف",
+      "عجز مخزون",
+      "تالف مخزون",
+      "تالف",
+      "هدر",
+      "waste",
+      "shrinkage",
+    ].includes(category);
+    const isNonCash = expPm === "non_cash" || rawPm === "non_cash" || rawPm === "none" || isNonCashCategory;
+
+    if (isNonCash) {
+      continue;
+    }
 
     if (category === "سداد موردين" || category === "دفعات موردين" || category === "supplier_payment") {
       supplierPaymentsOutflow += amt;
