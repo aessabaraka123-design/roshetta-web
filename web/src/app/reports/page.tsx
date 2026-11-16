@@ -189,7 +189,7 @@ export default function Reports() {
   const shouldFetch = user && activeBranchId !== "PENDING";
   const { data, isLoading, error } = useSWR(
     shouldFetch
-      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/reports?from=${from}&to=${to}&branch=${activeBranchId}`
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/reports?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&branch=${encodeURIComponent(activeBranchId)}`
       : null,
     fetchReports,
   );
@@ -400,7 +400,7 @@ export default function Reports() {
               {language === "en" ? "Total Revenue" : "إجمالي المبيعات"}
             </div>
             <div className="font-mono text-[18px] md:text-[22px] font-black">
-              ₪{(report.totalRevenue || 0).toLocaleString()}
+              ₪{(Number(report.totalRevenue) || 0).toLocaleString()}
             </div>
           </div>
           <div className="bg-slate-700 text-white rounded-2xl p-4 shadow-lg shadow-slate-700/20 transform hover:-translate-y-1 transition-all">
@@ -408,7 +408,7 @@ export default function Reports() {
               {language === "en" ? "Cost of Goods (COGS)" : "تكلفة المبيعات (COGS)"}
             </div>
             <div className="font-mono text-[18px] md:text-[22px] font-black text-slate-100">
-              ₪{(report.totalCost || 0).toLocaleString()}
+              ₪{(Number(report.totalCost) || 0).toLocaleString()}
             </div>
           </div>
           <div className="bg-teal text-white rounded-2xl p-4 shadow-lg shadow-teal/20 transform hover:-translate-y-1 transition-all">
@@ -416,7 +416,7 @@ export default function Reports() {
               {language === "en" ? "Gross Profit" : "الربح الإجمالي"}
             </div>
             <div className="font-mono text-[18px] md:text-[22px] font-black">
-              ₪{(report.totalProfit || 0).toLocaleString()}
+              ₪{(Number(report.totalProfit) || 0).toLocaleString()}
             </div>
           </div>
           <div className="bg-coral text-white rounded-2xl p-4 shadow-lg shadow-coral/20 transform hover:-translate-y-1 transition-all">
@@ -424,7 +424,7 @@ export default function Reports() {
               {language === "en" ? "Total Expenses" : "إجمالي المصروفات"}
             </div>
             <div className="font-mono text-[18px] md:text-[22px] font-black">
-              ₪{(report.totalExpenses || 0).toLocaleString()}
+              ₪{(Number(report.totalExpenses) || 0).toLocaleString()}
             </div>
           </div>
           <div className="bg-amber text-ink rounded-2xl p-4 shadow-sm border border-amber/30 transform hover:-translate-y-1 transition-all">
@@ -432,7 +432,7 @@ export default function Reports() {
               {language === "en" ? "Total Discounts" : "إجمالي الخصومات"}
             </div>
             <div className="font-mono text-[18px] md:text-[22px] font-black text-amber-700">
-              ₪{(report.totalDiscount || 0).toLocaleString()}
+              ₪{(Number(report.totalDiscount) || 0).toLocaleString()}
             </div>
           </div>
           <div className="bg-emerald-50 text-emerald-800 rounded-2xl p-4 shadow-sm border border-emerald-200 transform hover:-translate-y-1 transition-all">
@@ -440,7 +440,7 @@ export default function Reports() {
               {language === "en" ? "Total VAT" : "ضريبة القيمة المضافة"}
             </div>
             <div className="font-mono text-[18px] md:text-[22px] font-black text-emerald-800">
-              ₪{(report.totalVat || 0).toLocaleString()}
+              ₪{(Number(report.totalVat) || 0).toLocaleString()}
             </div>
           </div>
           <div className="bg-white border-2 border-primary/20 rounded-2xl p-4 shadow-sm transform hover:-translate-y-1 transition-all">
@@ -453,7 +453,7 @@ export default function Reports() {
             <div
               className={`font-mono text-[18px] md:text-[22px] font-black ${(report.netProfit || 0) >= 0 ? "text-primary" : "text-coral"}`}
             >
-              ₪{(report.netProfit || 0).toLocaleString()}
+              ₪{(Number(report.netProfit) || 0).toLocaleString()}
             </div>
           </div>
         </div>
@@ -560,7 +560,7 @@ export default function Reports() {
                         />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(val: any) => `₪${val}`} />
+                    <Tooltip formatter={(val: any) => `₪${Number(val || 0).toLocaleString()}`} />
                     <Legend
                       iconType="circle"
                       wrapperStyle={{ fontSize: "13px", paddingTop: "20px" }}
