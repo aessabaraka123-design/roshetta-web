@@ -21,6 +21,7 @@ import {
   CreditNotePayload,
   round2,
   formatCurrency,
+  resolveRefundAmount,
 } from "@/lib/returns/domain";
 import {
   fetchReturnsApi,
@@ -753,7 +754,7 @@ export default function ReturnsPage() {
                     {filteredHistory.map((ret: any) => {
                       const custName = ret.customer?.name || (typeof ret.customer === "string" ? ret.customer : "عميل نقدي");
                       const isFull = ret.status === "refunded";
-                      const amt = Math.abs(Number(ret.total || ret.refundedAmount || 0));
+                      const amt = resolveRefundAmount(ret);
 
                       return (
                         <tr key={ret.id} className="hover:bg-bg/50 transition-all">

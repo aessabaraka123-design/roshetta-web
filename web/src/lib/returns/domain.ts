@@ -341,6 +341,63 @@ export function computeRefundSettlement(params: {
   };
 }
 
+// --- Robust Refund Amount Resolver for Historic & Modern Sales ---
+
+export function resolveRefundAmount(sale: any, parsedItems?: any[], parsedNotes?: any): number {
+  if (!sale) return 0;
+
+  // 1. Explicit refundedAmount
+  if (sale.refundedAmount != null && Number(sale.refundedAmount) > 0) {
+    return round2(Number(sale.refundedAmount));
+  }
+
+  // 2. Notes object
+  const notes = parsedNotes || (typeof sale.notes === "object" ? sale.notes : (() => {
+    try { return JSON.parse(sale.notes || "{}"); } catch { return {}; }
+  })());
+
+  const noteAmt = notes?.refundAmount ?? notes?.reflectedPaid ?? notes?.totalRefund ?? notes?.amount;
+  if (noteAmt != null && Number(noteAmt) > 0) {
+    return round2(Number(noteAmt));
+  }
+
+  // 3. Negative total (e.g. refund_proxy rows where total = -30)
+  const totalNum = Number(sale.total);
+  if (Number.isFinite(totalNum) && totalNum < 0) {
+    return round2(Math.abs(totalNum));
+  }
+
+  // 4. Positive total (if preserved on refunded sale)
+  if (Number.isFinite(totalNum) && totalNum > 0) {
+    return round2(totalNum);
+  }
+
+  // 5. Subtotal minus discount (legacy refunded sales where total was updated to 0)
+  const subtotalNum = Number(sale.subtotal || 0);
+  const discountNum = Number(sale.discount || 0);
+  if (subtotalNum > 0) {
+    return round2(Math.max(0, subtotalNum - discountNum));
+  }
+
+  // 6. Items valuation
+  const items = parsedItems || (Array.isArray(sale.items) ? sale.items : (() => {
+    try { return JSON.parse(sale.items || "[]"); } catch { return []; }
+  })());
+
+  if (Array.isArray(items) && items.length > 0) {
+    const itemsGross = items.reduce((sum: number, item: any) => {
+      const p = Number(item.unitPrice ?? item.price ?? 0);
+      const q = Number(item.returnedQty ?? item.returnQty ?? item.qty ?? item.cartQty ?? item.deductQty ?? 1);
+      return sum + p * q;
+    }, 0);
+    if (itemsGross > 0) {
+      return round2(Math.max(0, itemsGross - discountNum));
+    }
+  }
+
+  return 0;
+}
+
 // --- KPI Aggregator ---
 
 export function calculateReturnsKPIs(returnsList: any[]): ReturnsKPIs {
@@ -356,15 +413,15 @@ export function calculateReturnsKPIs(returnsList: any[]): ReturnsKPIs {
     if (!ret) continue;
     totalReturnsCount++;
 
-    const amt = Math.abs(Number(ret.total ?? ret.refundedAmount ?? ret.amount ?? 0));
-    totalRefundAmount += amt;
-
     let items: any[] = [];
     try {
       items = typeof ret.items === "string" ? JSON.parse(ret.items) : (ret.items || []);
     } catch {
       items = [];
     }
+
+    const amt = resolveRefundAmount(ret, items);
+    totalRefundAmount += amt;
 
     for (const item of items) {
       const q = Number(item.returnedQty ?? item.returnQty ?? item.qty ?? 0);
