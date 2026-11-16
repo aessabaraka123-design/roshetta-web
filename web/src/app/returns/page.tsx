@@ -754,7 +754,11 @@ export default function ReturnsPage() {
                     {filteredHistory.map((ret: any) => {
                       const custName = ret.customer?.name || (typeof ret.customer === "string" ? ret.customer : "عميل نقدي");
                       const isFull = ret.status === "refunded";
-                      const amt = resolveRefundAmount(ret);
+                      let items: any[] = [];
+                      try { items = typeof ret.items === "string" ? JSON.parse(ret.items) : (ret.items || []); } catch {}
+                      let notes: any = null;
+                      try { notes = typeof ret.notes === "string" ? JSON.parse(ret.notes) : (ret.notes || {}); } catch {}
+                      const amt = resolveRefundAmount(ret, items, notes);
 
                       return (
                         <tr key={ret.id} className="hover:bg-bg/50 transition-all">

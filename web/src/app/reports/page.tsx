@@ -282,6 +282,10 @@ export default function Reports() {
           <div className="flex gap-2 print:hidden">
             <button
               onClick={() => {
+                if (!report) {
+                  toast.error(language === "en" ? "Report data is still loading..." : "بيانات التقرير قيد التحميل...");
+                  return;
+                }
                 const now = new Date();
                 const fileName = `Financial_Ledger_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
                 const branchDisplayName = activeBranchId === "all"
@@ -301,6 +305,10 @@ export default function Reports() {
             </button>
             <button
               onClick={() => {
+                if (!report) {
+                  toast.error(language === "en" ? "Report data is still loading..." : "بيانات التقرير قيد التحميل...");
+                  return;
+                }
                 const now = new Date();
                 const fileName = `Financial_Report_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
                 const branchDisplayName = activeBranchId === "all"
@@ -320,6 +328,10 @@ export default function Reports() {
             </button>
             <button
               onClick={() => {
+                if (!report) {
+                  toast.error(language === "en" ? "Report data is still loading..." : "بيانات التقرير قيد التحميل...");
+                  return;
+                }
                 const now = new Date();
                 const fileName = `Financial_Report_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
                 const branchDisplayName = activeBranchId === "all"

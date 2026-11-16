@@ -28,6 +28,7 @@ import {
   findUnitByBarcode,
   normalizeSearchText,
 } from "@/lib/inventory/domain";
+import { checkDrugAllergyWarnings } from "@/lib/prescriptions/domain";
 import { getWebAuthHeaders } from "@/lib/customers/transport";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -140,8 +141,27 @@ function POSContent() {
     fetcher,
   );
   const pendingPrescriptions = (prescriptionsData?.prescriptions || []).filter(
-    (p: any) => p.status === "pending",
+    (p: any) => p.status === "pending" || p.status === "partially_dispensed",
   );
+
+  // Auto-load prescription from URL query param (?prxId=...)
+  const prxLoadedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const prxId = params.get("prxId");
+    if (prxId && prxLoadedRef.current !== prxId && prescriptionsData?.prescriptions && meds.length > 0) {
+      const prx = prescriptionsData.prescriptions.find((p: any) => p.id === prxId);
+      if (prx) {
+        prxLoadedRef.current = prxId;
+        loadPrescription(prx);
+        if (prx.patient_id && customers.length > 0) {
+          const cust = customers.find((c: any) => c.id === prx.patient_id);
+          if (cust) setSelectedCustomer(cust);
+        }
+      }
+    }
+  }, [prescriptionsData, meds, customers]);
 
   useEffect(() => {
     if (branches.length > 0 && !selectedBranch) {
@@ -248,6 +268,23 @@ function POSContent() {
     setSelectedPrescriptionId(prx.id);
     setPrescriptionSearch(prx.id + (prx.patient ? ` - ${prx.patient}` : ""));
     setShowPrescriptionDropdown(false);
+
+    if (prx.patient_allergies) {
+      try {
+        const rawItems = typeof prx.items === "string" ? JSON.parse(prx.items || "[]") : (prx.items || []);
+        const warnings = checkDrugAllergyWarnings(prx.patient_allergies, rawItems);
+        if (warnings.length > 0) {
+          toast.error(
+            language === "en"
+              ? `⚠️ Clinical Allergy Warning: ${warnings.map((w: any) => w.messageEn).join(" | ")}`
+              : `⚠️ تنبيه سريري للحساسية: ${warnings.map((w: any) => w.messageAr).join(" | ")}`,
+            { duration: 8000 }
+          );
+        }
+      } catch (err) {
+        console.error("Failed allergy check in POS:", err);
+      }
+    }
 
     if (prx.items) {
       try {

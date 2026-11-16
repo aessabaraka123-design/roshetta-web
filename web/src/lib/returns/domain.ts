@@ -356,7 +356,7 @@ export function resolveRefundAmount(sale: any, parsedItems?: any[], parsedNotes?
     try { return JSON.parse(sale.notes || "{}"); } catch { return {}; }
   })());
 
-  const noteAmt = notes?.refundAmount ?? notes?.reflectedPaid ?? notes?.totalRefund ?? notes?.amount;
+  const noteAmt = notes?.refundAmount ?? notes?.reflectedPaid ?? notes?.totalRefund ?? notes?.amount ?? notes?.refundedAmount;
   if (noteAmt != null && Number(noteAmt) > 0) {
     return round2(Number(noteAmt));
   }
@@ -387,7 +387,23 @@ export function resolveRefundAmount(sale: any, parsedItems?: any[], parsedNotes?
   if (Array.isArray(items) && items.length > 0) {
     const itemsGross = items.reduce((sum: number, item: any) => {
       const p = Number(item.unitPrice ?? item.price ?? 0);
-      const q = Number(item.returnedQty ?? item.returnQty ?? item.qty ?? item.cartQty ?? item.deductQty ?? 1);
+      let q = 0;
+      if (Number(item.returnedQty) > 0) {
+        q = Number(item.returnedQty);
+      } else if (Number(item.returnQty) > 0) {
+        q = Number(item.returnQty);
+      } else if (Number(item.originalQty) > 0) {
+        q = Number(item.originalQty);
+      } else if (Number(item.qty) > 0) {
+        q = Number(item.qty);
+      } else if (Number(item.cartQty) > 0) {
+        q = Number(item.cartQty);
+      } else if (Number(item.deductQty) > 0) {
+        const uc = Number(item.unitCount) || 1;
+        q = Number(item.deductQty) / uc;
+      } else if (p > 0) {
+        q = 1;
+      }
       return sum + p * q;
     }, 0);
     if (itemsGross > 0) {

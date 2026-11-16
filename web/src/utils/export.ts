@@ -414,10 +414,19 @@ export const exportComprehensivePDF = async (
           table {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
+            border-collapse: separate !important;
+            border-spacing: 0 !important;
+            overflow: visible !important;
           }
           tr {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
+          th, td {
+            overflow: visible !important;
+            box-sizing: border-box !important;
           }
           thead {
             display: table-header-group;
