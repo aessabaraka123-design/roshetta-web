@@ -284,12 +284,15 @@ export default function Reports() {
               onClick={() => {
                 const now = new Date();
                 const fileName = `Financial_Ledger_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+                const branchDisplayName = activeBranchId === "all"
+                  ? (language === "en" ? "All Branches" : "جميع الفروع")
+                  : (userBranchObj?.name || branches.find((b: any) => String(b.id) === String(activeBranchId) || b.name === activeBranchId)?.name || activeBranchId || (language === "en" ? "Main Branch" : "الفرع الرئيسي"));
                 exportCorporateExcel(
                   report,
                   user?.pharmacyName || (user as any)?.pharmacy_name || (language === "en" ? "Roshetta Pharmacy" : "صيدلية روشيتة"),
                   `${from} ${language === "en" ? "to" : "إلى"} ${to}`,
                   fileName,
-                  activeBranchId === "all" ? (language === "en" ? "All Branches" : "جميع الفروع") : (activeBranchId || "الفرع الرئيسي"),
+                  branchDisplayName,
                 );
               }}
               className="bg-teal text-white px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-md"
@@ -300,12 +303,15 @@ export default function Reports() {
               onClick={() => {
                 const now = new Date();
                 const fileName = `Financial_Report_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+                const branchDisplayName = activeBranchId === "all"
+                  ? (language === "en" ? "All Branches" : "جميع الفروع")
+                  : (userBranchObj?.name || branches.find((b: any) => String(b.id) === String(activeBranchId) || b.name === activeBranchId)?.name || activeBranchId || (language === "en" ? "Main Branch" : "الفرع الرئيسي"));
                 exportComprehensiveWord(
                   report,
                   user?.pharmacyName || (user as any)?.pharmacy_name || (language === "en" ? "Roshetta Pharmacy" : "صيدلية روشيتة"),
                   `${from} ${language === "en" ? "to" : "إلى"} ${to}`,
                   fileName,
-                  activeBranchId === "all" ? (language === "en" ? "All Branches" : "جميع الفروع") : (activeBranchId || "الفرع الرئيسي"),
+                  branchDisplayName,
                 );
               }}
               className="bg-[#2563EB] text-white px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-md flex items-center gap-1.5"
@@ -316,12 +322,15 @@ export default function Reports() {
               onClick={() => {
                 const now = new Date();
                 const fileName = `Financial_Report_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+                const branchDisplayName = activeBranchId === "all"
+                  ? (language === "en" ? "All Branches" : "جميع الفروع")
+                  : (userBranchObj?.name || branches.find((b: any) => String(b.id) === String(activeBranchId) || b.name === activeBranchId)?.name || activeBranchId || (language === "en" ? "Main Branch" : "الفرع الرئيسي"));
                 exportComprehensivePDF(
                   report,
                   user?.pharmacyName || (user as any)?.pharmacy_name || (language === "en" ? "Roshetta Pharmacy" : "صيدلية روشيتة"),
                   `${from} ${language === "en" ? "to" : "إلى"} ${to}`,
                   fileName,
-                  activeBranchId === "all" ? (language === "en" ? "All Branches" : "جميع الفروع") : (activeBranchId || "الفرع الرئيسي"),
+                  branchDisplayName,
                 );
               }}
               className="bg-coral text-white px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-md"

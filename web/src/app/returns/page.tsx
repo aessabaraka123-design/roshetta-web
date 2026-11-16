@@ -1,28 +1,41 @@
 "use client";
 
-import { API_BASE_URL } from "@/lib/config";
 import { useState, useMemo, useEffect } from "react";
 import AppBar from "@/components/AppBar";
 import { useStore } from "@/store";
 import { useRouter } from "next/navigation";
 import useSWR, { mutate } from "swr";
 import toast from "react-hot-toast";
-import {
-  computeRefundSettlement,
-  isDebtPaymentRecord,
-  isRefundProxyRecord,
-  normalizeSalePaymentMethod,
-  round2,
-} from "@/lib/customers/domain";
-import { newEventId } from "@/lib/customers/api";
+import { API_BASE_URL } from "@/lib/config";
 import { getWebAuthHeaders } from "@/lib/customers/transport";
+import {
+  ReturnCondition,
+  ReturnReason,
+  RETURN_CONDITIONS,
+  RETURN_REASONS,
+  ReturnItemRequest,
+  RefundOptions,
+  computeRefundSettlement,
+  calculateReturnsKPIs,
+  buildCreditNoteHtml,
+  CreditNotePayload,
+  round2,
+  formatCurrency,
+} from "@/lib/returns/domain";
+import {
+  fetchReturnsApi,
+  refundSaleApi,
+  fetchCreditNoteApi,
+  printCreditNote,
+} from "@/lib/returns/transport";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = (url: string) => fetch(url, { headers: getWebAuthHeaders() }).then((res) => res.json());
 
-export default function Returns() {
+export default function ReturnsPage() {
   const user = useStore((state) => state.user);
   const language = useStore((state: any) => state.language);
   const router = useRouter();
+  const isEn = language === "en";
 
   useEffect(() => {
     if (!user) {
@@ -33,603 +46,760 @@ export default function Returns() {
     }
   }, [user, router]);
 
-  if (!user) {
-    return null;
-  }
-
-  const { data: salesData, isLoading } = useSWR(
-    user
-      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales`
-      : null,
-    fetcher,
-  );
-
-  const allSales = salesData?.sales || [];
-
-  const completedSales = useMemo(
-    () =>
-      allSales.filter(
-        (s: any) =>
-          s &&
-          s.id &&
-          s.status !== "refunded" &&
-          !isRefundProxyRecord(s) &&
-          !String(s.id).startsWith("REF-") &&
-          Number(s.total || 0) > 0 &&
-          !isDebtPaymentRecord(s),
-      ),
-    [allSales],
-  );
-  const refundedSales = useMemo(
-    () =>
-      allSales.filter(
-        (s: any) =>
-          s &&
-          s.id &&
-          (s.status === "refunded" || s.isRefunded || s.is_refunded) &&
-          !isRefundProxyRecord(s) &&
-          !isDebtPaymentRecord(s),
-      ),
-    [allSales],
-  );
-
   const [activeTab, setActiveTab] = useState<"search" | "history">("search");
   const [searchQuery, setSearchQuery] = useState("");
+  const [historySearch, setHistorySearch] = useState("");
+  const [branchFilter, setBranchFilter] = useState("all");
 
-  const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    return completedSales
-      .filter(
-        (s: any) =>
-          s.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (s.customer &&
-            s.customer.name &&
-            s.customer.name.toLowerCase().includes(searchQuery.toLowerCase())),
-      )
-      .slice(0, 5);
-  }, [searchQuery, completedSales]);
-
-  const { data: customersData } = useSWR(
-    user ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/customers` : null,
-    fetcher,
+  // Fetch branches
+  const { data: dashboardData } = useSWR(
+    user?.pharmacy_id ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/dashboard` : null,
+    fetcher
   );
-  const allCustomers = customersData?.customers || [];
+  const branches = dashboardData?.branches || [];
 
+  // Fetch sales for invoice search
+  const { data: salesData, isLoading: salesLoading } = useSWR(
+    user?.pharmacy_id ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales` : null,
+    fetcher
+  );
+  const allSales = salesData?.sales || [];
+
+  // Eligible sales for return
+  const eligibleSales = useMemo(() => {
+    return allSales.filter(
+      (s: any) =>
+        s &&
+        s.id &&
+        s.status !== "refunded" &&
+        s.status !== "refund_proxy" &&
+        !String(s.id).startsWith("REF-") &&
+        Number(s.total || 0) > 0 &&
+        s.status !== "debt_payment" &&
+        s.paymentMethod !== "debt_payment"
+    );
+  }, [allSales]);
+
+  // Invoice search matches
+  const invoiceSearchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return eligibleSales
+      .filter((s: any) => {
+        const idMatch = String(s.id).toLowerCase().includes(q);
+        const custObj = typeof s.customer === "string" ? JSON.parse(s.customer || "{}") : (s.customer || {});
+        const custMatch = custObj?.name && String(custObj.name).toLowerCase().includes(q);
+        const phoneMatch = custObj?.phone && String(custObj.phone).includes(q);
+        return idMatch || custMatch || phoneMatch;
+      })
+      .slice(0, 6);
+  }, [searchQuery, eligibleSales]);
+
+  // Fetch returns history
+  const { data: returnsData, isLoading: returnsLoading, mutate: mutateReturns } = useSWR(
+    user?.pharmacy_id
+      ? `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/returns?branch=${encodeURIComponent(branchFilter)}`
+      : null,
+    () => fetchReturnsApi({ pharmacyId: user!.pharmacy_id, branch: branchFilter })
+  );
+
+  const returnsList = returnsData?.returns || [];
+  const kpis = useMemo(() => {
+    if (returnsData?.kpis) return returnsData.kpis;
+    return calculateReturnsKPIs(returnsList);
+  }, [returnsData, returnsList]);
+
+  // State for active return form
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [returnItemsState, setReturnItemsState] = useState<
+    Record<string, { qty: number; condition: ReturnCondition; reason: ReturnReason }>
+  >({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Settlement & confirmation modal state
   const [showSettlementModal, setShowSettlementModal] = useState(false);
-  const [settlementData, setSettlementData] = useState<any>(null);
-  const [isRefunding, setIsRefunding] = useState(false);
-  const [refundMode, setRefundMode] = useState<"full" | "partial">("full");
+  const [settlementDraft, setSettlementDraft] = useState<any>(null);
 
-  // Track partial refund quantities: { itemId: qtyToReturn }
-  const [returnQtyMap, setReturnQtyMap] = useState<Record<string, number>>({});
+  // Credit Note Modal State
+  const [activeCreditNote, setActiveCreditNote] = useState<CreditNotePayload | null>(null);
+  const [showCreditNoteModal, setShowCreditNoteModal] = useState(false);
 
-  // Reset partial map when invoice changes
+  // Reset form when changing selected invoice
   useEffect(() => {
-    if (selectedInvoice) {
-      setReturnQtyMap({});
+    if (selectedInvoice && Array.isArray(selectedInvoice.items)) {
+      const initial: Record<string, { qty: number; condition: ReturnCondition; reason: ReturnReason }> = {};
+      selectedInvoice.items.forEach((item: any) => {
+        initial[item.id] = {
+          qty: 0,
+          condition: "restock",
+          reason: "customer_changed_mind",
+        };
+      });
+      setReturnItemsState(initial);
+    } else {
+      setReturnItemsState({});
     }
   }, [selectedInvoice]);
 
-  const handleUpdateQty = (itemId: string, maxQty: number, delta: number) => {
-    setReturnQtyMap((prev) => {
-      const current = prev[itemId] || 0;
-      const next = Math.max(0, Math.min(maxQty, current + delta));
-      if (next === 0) {
-        const newMap = { ...prev };
-        delete newMap[itemId];
-        return newMap;
-      }
-      return { ...prev, [itemId]: next };
-    });
-  };
-
-  const selectedItemsToRefund = useMemo(() => {
+  // Parse items of selected invoice
+  const parsedInvoiceItems = useMemo(() => {
     if (!selectedInvoice) return [];
-    return Object.entries(returnQtyMap).map(([id, qty]) => ({ id, qty }));
-  }, [returnQtyMap, selectedInvoice]);
+    if (Array.isArray(selectedInvoice.items)) return selectedInvoice.items;
+    try {
+      return JSON.parse(selectedInvoice.items || "[]");
+    } catch {
+      return [];
+    }
+  }, [selectedInvoice]);
 
-  const partialRefundTotal = useMemo(() => {
-    if (!selectedInvoice || !Array.isArray(selectedInvoice.items)) return 0;
-    const gross = selectedInvoice.items.reduce(
-      (sum: number, item: any) =>
-        sum + Number(item.cartQty ?? item.qty ?? 1) * Number(item.unitPrice ?? item.price ?? 0),
+  // Parse customer of selected invoice
+  const parsedCustomer = useMemo(() => {
+    if (!selectedInvoice?.customer) return null;
+    if (typeof selectedInvoice.customer === "object") return selectedInvoice.customer;
+    try {
+      return JSON.parse(selectedInvoice.customer || "{}");
+    } catch {
+      return null;
+    }
+  }, [selectedInvoice]);
+
+  // Selected return items list
+  const requestedReturnItems = useMemo<ReturnItemRequest[]>(() => {
+    return Object.entries(returnItemsState)
+      .filter(([_, state]) => state.qty > 0)
+      .map(([id, state]) => ({
+        id,
+        qty: state.qty,
+        condition: state.condition,
+        reason: state.reason,
+      }));
+  }, [returnItemsState]);
+
+  // Calculate live return value (accounting for discounts)
+  const currentRefundPreview = useMemo(() => {
+    if (!selectedInvoice) return { totalRefund: 0, isPartial: false };
+    const items = parsedInvoiceItems;
+    const gross = items.reduce(
+      (sum: number, it: any) => sum + Number(it.cartQty ?? it.qty ?? 1) * Number(it.unitPrice ?? it.price ?? 0),
       0
     );
     const ratio = gross > 0 ? Number(selectedInvoice.total || 0) / gross : 1;
-    const raw = selectedItemsToRefund.reduce((sum, req) => {
-      const item = selectedInvoice.items.find((i: any) => i.id === req.id);
-      return sum + Number(item?.unitPrice ?? item?.price ?? 0) * req.qty * ratio;
+
+    const totalRefund = requestedReturnItems.reduce((sum, req) => {
+      const it = items.find((x: any) => String(x.id) === String(req.id));
+      const price = Number(it?.unitPrice ?? it?.price ?? 0);
+      return sum + req.qty * price * ratio;
     }, 0);
-    return round2(raw);
-  }, [selectedItemsToRefund, selectedInvoice]);
 
-  const initiateRefund = (mode: "full" | "partial") => {
+    const totalSoldQty = items.reduce((sum: number, it: any) => sum + Number(it.cartQty ?? it.qty ?? 0), 0);
+    const totalReturnedQty = requestedReturnItems.reduce((sum, it) => sum + it.qty, 0);
+    const isPartial = totalReturnedQty < totalSoldQty;
+
+    return {
+      totalRefund: round2(totalRefund),
+      isPartial,
+    };
+  }, [selectedInvoice, parsedInvoiceItems, requestedReturnItems]);
+
+  // Quick action: Select ALL items for 100% full return
+  const selectAllForFullReturn = () => {
     if (!selectedInvoice) return;
-    setRefundMode(mode);
-
-    const totalRefund =
-      mode === "full"
-        ? round2(Number(selectedInvoice.total || 0))
-        : partialRefundTotal;
-
-    const customer = selectedInvoice.customer;
-    const hasCustomer = !!(customer && customer.id);
-    const origPm = normalizeSalePaymentMethod(selectedInvoice.paymentMethod);
-
-    let salePayments: any = null;
-    try {
-      salePayments =
-        typeof selectedInvoice.payments === "string"
-          ? JSON.parse(selectedInvoice.payments)
-          : selectedInvoice.payments;
-    } catch (e) {}
-
-    const storeCustomer = hasCustomer
-      ? allCustomers.find((c: any) => c.id === customer.id) || customer
-      : null;
-
-    const settlement = computeRefundSettlement({
-      mode,
-      sale: selectedInvoice,
-      itemsToRefund: mode === "partial" ? selectedItemsToRefund : [],
-      customerDebt: Number(storeCustomer?.debt || 0),
+    const updated: Record<string, { qty: number; condition: ReturnCondition; reason: ReturnReason }> = {};
+    parsedInvoiceItems.forEach((it: any) => {
+      const soldQty = Number(it.cartQty ?? it.qty ?? 0);
+      updated[it.id] = {
+        qty: soldQty,
+        condition: "restock",
+        reason: "wrong_item",
+      };
     });
+    setReturnItemsState(updated);
+  };
 
-    let paidMethodName = "نقداً (كاش)";
-    const checkPm = origPm === "split" && salePayments
-      ? Object.entries(salePayments).find(([k, v]) => normalizeSalePaymentMethod(k) !== "credit" && Number(v) > 0)?.[0] || "cash"
-      : origPm;
-    const normCheck = normalizeSalePaymentMethod(checkPm);
-    if (normCheck === "jawwal_pay") paidMethodName = "جوال باي";
-    else if (normCheck === "palpay") paidMethodName = "بال باي";
-    else if (normCheck === "card") paidMethodName = "بطاقة بنكية";
-    else if (normCheck === "bank") paidMethodName = "تحويل بنكي";
+  // Stepper handlers
+  const updateItemQty = (id: string, maxQty: number, delta: number) => {
+    setReturnItemsState((prev) => {
+      const current = prev[id] || { qty: 0, condition: "restock", reason: "customer_changed_mind" };
+      const nextQty = Math.max(0, Math.min(maxQty, current.qty + delta));
+      return {
+        ...prev,
+        [id]: { ...current, qty: nextQty },
+      };
+    });
+  };
 
-    if (hasCustomer && settlement.paidAmountToRefund > 0) {
-      const currentDebt = round2(storeCustomer?.debt || 0);
-      const previousOtherDebt = round2(Math.max(0, currentDebt - settlement.debtToCancel));
-      setSettlementData({
-        mode,
-        totalRefund,
-        debtToCancel: settlement.debtToCancel,
-        paidAmountToRefund: settlement.paidAmountToRefund,
-        paidMethodName,
-        customer: storeCustomer,
-        previousOtherDebt,
-      });
-      setShowSettlementModal(true);
+  const updateItemCondition = (id: string, condition: ReturnCondition) => {
+    setReturnItemsState((prev) => {
+      const current = prev[id] || { qty: 0, condition: "restock", reason: "customer_changed_mind" };
+      return {
+        ...prev,
+        [id]: { ...current, condition },
+      };
+    });
+  };
+
+  const updateItemReason = (id: string, reason: ReturnReason) => {
+    setReturnItemsState((prev) => {
+      const current = prev[id] || { qty: 0, condition: "restock", reason: "customer_changed_mind" };
+      return {
+        ...prev,
+        [id]: { ...current, reason },
+      };
+    });
+  };
+
+  // Open settlement modal before finalizing
+  const handleOpenSettlement = (forceFull: boolean = false) => {
+    if (!selectedInvoice) return;
+    if (forceFull) {
+      selectAllForFullReturn();
+    }
+
+    const items = forceFull
+      ? parsedInvoiceItems.map((it: any) => ({
+          id: it.id,
+          qty: Number(it.cartQty ?? it.qty ?? 0),
+          condition: (returnItemsState[it.id]?.condition || "restock") as ReturnCondition,
+          reason: (returnItemsState[it.id]?.reason || "wrong_item") as ReturnReason,
+        }))
+      : requestedReturnItems;
+
+    if (!items.length) {
+      toast.error(isEn ? "Please select at least 1 item to return" : "يرجى تحديد صنف واحد على الأقل للإرجاع");
       return;
     }
 
-    setShowConfirmModal(true);
-  };
-
-  const handleRefund = async (customOptions?: any) => {
-    if (!selectedInvoice) return;
-    setIsRefunding(true);
-
-    const totalRefund =
-      refundMode === "full"
-        ? round2(Number(selectedInvoice.total || 0))
-        : partialRefundTotal;
-
-    const hasCustomer = Boolean(selectedInvoice.customer?.id);
-    const refundOptions = customOptions || (hasCustomer
-      ? {
-          returnPaidMode: "cash_out",
-          debtToCancel: totalRefund,
-          paidAmountToRefund: 0,
-          paymentMethod: normalizeSalePaymentMethod(selectedInvoice.paymentMethod || "cash"),
-          customerId: selectedInvoice.customer?.id,
-          customerName: selectedInvoice.customer?.name,
-        }
-      : {
-          returnPaidMode: "cash_out",
-          debtToCancel: 0,
-          paidAmountToRefund: totalRefund,
-          paymentMethod: normalizeSalePaymentMethod(selectedInvoice.paymentMethod || "cash"),
-        });
-
-    const eventId = newEventId();
-    const headers = getWebAuthHeaders({
-      "Content-Type": "application/json",
-      "Idempotency-Key": eventId,
+    const settlement = computeRefundSettlement({
+      mode: forceFull ? "full" : currentRefundPreview.isPartial ? "partial" : "full",
+      sale: selectedInvoice,
+      itemsToRefund: items,
+      customerDebt: Number(parsedCustomer?.debt || 0),
     });
 
+    setSettlementDraft({
+      forceFull,
+      items,
+      settlement,
+      returnPaidMode: settlement.debtToCancel > 0 && settlement.paidAmountToRefund === 0 ? "cash_out" : "cash_out",
+    });
+    setShowSettlementModal(true);
+  };
+
+  // Execute return via API
+  const handleExecuteReturn = async () => {
+    if (!selectedInvoice || !settlementDraft || !user?.pharmacy_id) return;
+    setIsSubmitting(true);
+
+    const { items, settlement, returnPaidMode, forceFull } = settlementDraft;
+    const isPartial = !forceFull && currentRefundPreview.isPartial;
+
+    const refundOptions: RefundOptions = {
+      returnPaidMode,
+      debtToCancel: settlement.debtToCancel,
+      paidAmountToRefund: settlement.paidAmountToRefund,
+      paymentMethod: selectedInvoice.paymentMethod || "cash",
+      customerId: parsedCustomer?.id,
+      customerName: parsedCustomer?.name,
+      cashierName: user.managerName || user.name || "الكاشير",
+      branchName: user.branch || "الفرع الرئيسي",
+      branchId: user.branch_id || "",
+    };
+
     try {
-      let res;
-      if (refundMode === "full") {
-        res = await fetch(
-          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales/${selectedInvoice.id}/refund`,
-          {
-            method: "PUT",
-            headers,
-            body: JSON.stringify({ eventId, refundOptions }),
-          },
-        );
-      } else {
-        res = await fetch(
-          `${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales/${selectedInvoice.id}/refund_partial`,
-          {
-            method: "PUT",
-            headers,
-            body: JSON.stringify({
-              eventId,
-              itemsToRefund: selectedItemsToRefund,
-              totalRefund,
-              refundOptions,
-            }),
-          },
-        );
-      }
+      const result = await refundSaleApi({
+        pharmacyId: user.pharmacy_id,
+        saleId: selectedInvoice.id,
+        isPartial,
+        itemsToRefund: items,
+        refundOptions,
+      });
 
-      const result = await res.json();
+      toast.success(
+        isEn
+          ? `Return completed! Credit Note #${result.creditNoteNumber || "SAVED"}`
+          : `تم تسجيل المرتجع بنجاح! إشعار دائن رقم ${result.creditNoteNumber || "معتمد"}`
+      );
 
-      if (result.success) {
-        const successMsg =
-          refundOptions.returnPaidMode === "credit_balance" &&
-          refundOptions.paidAmountToRefund > 0
-            ? language === "en"
-              ? `Refund completed and ₪${refundOptions.paidAmountToRefund.toFixed(2)} credited to customer balance!`
-              : `تم الاسترجاع وتحويل ${refundOptions.paidAmountToRefund.toFixed(2)} ₪ لرصيد الزبون بنجاح!`
-            : refundMode === "full"
-              ? language === "en"
-                ? "Invoice refunded successfully!"
-                : "تم استرجاع الفاتورة بنجاح!"
-              : language === "en"
-                ? "Items refunded successfully!"
-                : "تم استرجاع الأصناف بنجاح!";
+      // Refresh sales and returns data
+      await mutate(`${API_BASE_URL}/api/pharmacies/${user.pharmacy_id}/sales`);
+      await mutateReturns();
 
-        toast.success(successMsg);
-        setSelectedInvoice(null);
-        setSearchQuery("");
-        mutate(
-          (key) =>
-            typeof key === "string" &&
-            (key.includes("/sales") ||
-              key.includes("/inventory") ||
-              key.includes("/batches") ||
-              key.includes("/stock-movements") ||
-              key.includes("/dashboard") ||
-              key.includes("/customers") ||
-              key.includes("/shifts")),
-          undefined,
-          { revalidate: true }
-        );
-      } else {
-        toast.error(result.error || (language === "en" ? "Failed to refund" : "فشل في الاسترجاع"));
-      }
-    } catch (e) {
-      toast.error(language === "en" ? "Error connecting to server" : "حدث خطأ أثناء الاتصال بالخادم");
-    } finally {
-      setIsRefunding(false);
-      setShowConfirmModal(false);
       setShowSettlementModal(false);
-      setSettlementData(null);
+      setSelectedInvoice(null);
+      setSearchQuery("");
+
+      // Automatically fetch and show credit note for immediate print
+      try {
+        const cn = await fetchCreditNoteApi(user.pharmacy_id, selectedInvoice.id);
+        setActiveCreditNote(cn);
+        setShowCreditNoteModal(true);
+      } catch (cnErr) {
+        console.warn("Auto credit note fetch skipped:", cnErr);
+      }
+    } catch (err: any) {
+      toast.error(err.message || (isEn ? "Failed to process return" : "تعذر إتمام عملية المرتجع"));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  return (
-    <main className="w-full pb-24 relative">
-      <AppBar title={language === "en" ? "Returns" : "المرتجعات"} backHref="/" />
+  // Open credit note modal from history
+  const handleViewCreditNote = async (returnId: string) => {
+    if (!user?.pharmacy_id) return;
+    try {
+      const cn = await fetchCreditNoteApi(user.pharmacy_id, returnId);
+      setActiveCreditNote(cn);
+      setShowCreditNoteModal(true);
+    } catch (err: any) {
+      toast.error(isEn ? "Failed to load credit note" : "تعذر جلب إشعار الدائن");
+    }
+  };
 
-      <div className="max-w-4xl mx-auto p-4 mt-4 space-y-8">
-        {/* Tabs */}
-        <div className="flex bg-white rounded-2xl shadow-sm border border-mint-line p-1">
+  // Filtered returns history
+  const filteredHistory = useMemo(() => {
+    const q = historySearch.trim().toLowerCase();
+    return returnsList.filter((r: any) => {
+      if (!q) return true;
+      const cn = String(r.creditNoteNumber || "").toLowerCase();
+      const id = String(r.id || "").toLowerCase();
+      const cust = String(r.customer?.name || r.customer || "").toLowerCase();
+      const cash = String(r.cashierName || "").toLowerCase();
+      return cn.includes(q) || id.includes(q) || cust.includes(q) || cash.includes(q);
+    });
+  }, [returnsList, historySearch]);
+
+  return (
+    <div className="min-h-screen bg-bg pb-12 font-sans" dir={isEn ? "ltr" : "rtl"}>
+      <AppBar
+        title={isEn ? "Returns & Credit Notes" : "المرتجعات وإشعارات الدائن"}
+        backHref="/pos"
+      />
+
+      <div className="max-w-6xl mx-auto p-4 mt-2 space-y-6">
+        {/* Executive KPI Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div className="bg-white rounded-2xl p-4 border border-mint-line shadow-sm">
+            <div className="text-[12px] font-bold text-ink-soft mb-1">
+              {isEn ? "Total Returns" : "إجمالي المرتجعات"}
+            </div>
+            <div className="text-[20px] font-black text-coral font-mono">
+              {formatCurrency(kpis.totalRefundAmount)}
+            </div>
+            <div className="text-[10px] text-ink-soft mt-1">
+              {kpis.totalReturnsCount} {isEn ? "returns processed" : "عملية إرجاع مسجلة"}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-4 border border-mint-line shadow-sm">
+            <div className="text-[12px] font-bold text-ink-soft mb-1">
+              {isEn ? "Restocked Items" : "أصناف أعيدت للمخزن"}
+            </div>
+            <div className="text-[20px] font-black text-primary font-mono">
+              {kpis.totalRestockedItemsCount} {isEn ? "units" : "عبوة"}
+            </div>
+            <div className="text-[10px] text-emerald-600 mt-1 font-semibold">
+              {isEn ? "Sellable condition (FEFO batch restored)" : "صالح للبيع واسترجاع التشغيلة"}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-4 border border-mint-line shadow-sm">
+            <div className="text-[12px] font-bold text-ink-soft mb-1">
+              {isEn ? "Damaged / Shrinkage" : "تالف وعجز مخزون"}
+            </div>
+            <div className="text-[20px] font-black text-amber font-mono">
+              {kpis.totalDamagedItemsCount} {isEn ? "units" : "عبوة"}
+            </div>
+            <div className="text-[10px] text-amber-700 mt-1 font-semibold">
+              {isEn ? "Written off (Not added to shelf)" : "شطب كخسارة عجز (لا يعود للمخزن)"}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-4 border border-mint-line shadow-sm">
+            <div className="text-[12px] font-bold text-ink-soft mb-1">
+              {isEn ? "Cash Outflow vs Credit" : "تسوية نقدية vs رصيد دائن"}
+            </div>
+            <div className="text-[15px] font-bold text-slate-800 font-mono">
+              كاش: {formatCurrency(kpis.cashRefundsAmount)}
+            </div>
+            <div className="text-[11px] text-primary font-bold font-mono mt-0.5">
+              رصيد/شطب: {formatCurrency(kpis.creditBalanceRefundsAmount + kpis.debtCancelledAmount)}
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Toggle Navigation */}
+        <div className="flex bg-white rounded-2xl p-1.5 border border-mint-line shadow-sm w-fit">
           <button
             onClick={() => setActiveTab("search")}
-            className={`flex-1 py-3 text-[15px] font-bold rounded-xl transition-all ${activeTab === "search" ? "bg-primary text-white shadow-md" : "text-ink-soft hover:bg-mint-bg"}`}
+            className={`px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all ${
+              activeTab === "search"
+                ? "bg-primary text-white shadow-sm"
+                : "text-ink-soft hover:text-ink"
+            }`}
           >
-            {language === "en" ? "Refund Invoice/Items" : "استرجاع فاتورة / أصناف"}
+            🔍 {isEn ? "New Return / Search Invoice" : "إرجاع جديد / بحث عن فاتورة"}
           </button>
           <button
             onClick={() => setActiveTab("history")}
-            className={`flex-1 py-3 text-[15px] font-bold rounded-xl transition-all ${activeTab === "history" ? "bg-primary text-white shadow-md" : "text-ink-soft hover:bg-mint-bg"}`}
+            className={`px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all ${
+              activeTab === "history"
+                ? "bg-primary text-white shadow-sm"
+                : "text-ink-soft hover:text-ink"
+            }`}
           >
-            {language === "en" ? "Returns History" : "سجل المرتجعات"}
+            📋 {isEn ? "Returns History & Credit Notes" : "سجل المرتجعات وإشعارات الدائن"}
           </button>
         </div>
 
+        {/* TAB 1: Search & New Return */}
         {activeTab === "search" && (
-          <div className="bg-white rounded-[32px] p-6 md:p-8 shadow-sm border border-mint-line space-y-6">
-            <h2 className="text-[20px] font-black text-primary">
-              {language === "en" ? "Search for invoice to refund" : "البحث عن فاتورة لاسترجاعها"}
-            </h2>
-
-            <div className="relative">
-              <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-ink-soft"
-                >
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
+          <div className="space-y-6">
+            {/* Search Box */}
+            <div className="bg-white rounded-2xl p-5 border border-mint-line shadow-sm space-y-3">
+              <label className="block text-[13px] font-bold text-ink">
+                {isEn ? "Search Invoice by # or Customer Name / Phone:" : "ابحث عن الفاتورة برقمها أو اسم العميل أو الهاتف:"}
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={isEn ? "e.g. INV-1002, 0599..., John Doe" : "مثال: INV-1002، 0599...، أحمد خالد"}
+                  className="w-full bg-bg border border-mint-line rounded-xl px-4 py-3 text-[14px] font-bold text-ink focus:outline-none focus:border-primary transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute left-3 top-3 text-ink-soft hover:text-ink text-[14px]"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={language === "en" ? "Search by invoice number (e.g. INV...) or customer name..." : "ابحث برقم الفاتورة (مثال: INV...) أو اسم العميل..."}
-                className="w-full bg-bg border-2 border-mint-line rounded-2xl pr-12 pl-4 py-4 text-[16px] font-bold text-ink focus:border-primary focus:outline-none transition-colors"
-              />
+
+              {/* Autocomplete Dropdown */}
+              {invoiceSearchResults.length > 0 && (
+                <div className="border border-mint-line rounded-xl overflow-hidden divide-y divide-mint-line bg-white shadow-lg mt-2">
+                  {invoiceSearchResults.map((sale: any) => {
+                    const cust = typeof sale.customer === "string" ? JSON.parse(sale.customer || "{}") : (sale.customer || {});
+                    return (
+                      <div
+                        key={sale.id}
+                        onClick={() => {
+                          setSelectedInvoice(sale);
+                          setSearchQuery("");
+                        }}
+                        className="p-3.5 hover:bg-bg cursor-pointer transition-all flex items-center justify-between"
+                      >
+                        <div>
+                          <div className="text-[13px] font-black text-primary font-mono">
+                            #{sale.id}
+                          </div>
+                          <div className="text-[12px] text-ink-soft font-semibold">
+                            {cust?.name || (isEn ? "Walk-in Customer" : "عميل نقدي")} • {sale.branchName || "الفرع الرئيسي"} • {new Date(sale.date || sale.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[14px] font-black text-ink font-mono">
+                            {formatCurrency(Number(sale.total || 0))}
+                          </div>
+                          <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
+                            {sale.paymentMethod || "نقدي"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {searchQuery && searchResults.length > 0 && !selectedInvoice && (
-              <div className="bg-bg border border-mint-line rounded-2xl overflow-hidden shadow-inner">
-                {searchResults.map((sale: any) => (
-                  <div
-                    key={sale.id}
-                    onClick={() => setSelectedInvoice(sale)}
-                    className="p-4 border-b border-mint-line last:border-0 hover:bg-mint-bg cursor-pointer transition-colors flex justify-between items-center"
-                  >
-                    <div>
-                      <div
-                        className="font-bold text-primary text-[15px]"
-                        dir="ltr"
-                      >
-                        {sale.id}
-                      </div>
-                      <div className="text-[13px] text-ink-soft mt-1 flex items-center gap-2">
-                        <span>{new Date(sale.date).toLocaleString(language === "en" ? "en-US" : language === "en" ? "en-US" : "ar-EG")}</span>
-                        <span className="w-1 h-1 rounded-full bg-mint-line"></span>
-                        <span className="font-bold text-teal">{sale.branchName || (language === "en" ? "Main" : "الرئيسي")}</span>
-                      </div>
-                    </div>
-                    <div className="text-start">
-                      <div className="font-mono font-bold text-ink text-[16px]">
-                        {sale.total.toLocaleString()} ₪
-                      </div>
-                      <div className="text-[12px] bg-teal-pale text-teal px-2 py-0.5 rounded-md mt-1 inline-block">
-                        {sale.items.length} {language === "en" ? "Items" : "أصناف"}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {searchQuery && searchResults.length === 0 && !selectedInvoice && (
-              <div className="text-center p-8 text-ink-soft font-bold bg-bg rounded-2xl border border-mint-line">
-                {language === "en" ? "No matching invoice found." : "لم يتم العثور على أي فاتورة متطابقة."}
-              </div>
-            )}
-
-            {/* Selected Invoice Details */}
-            {selectedInvoice && (
-              <div className="mt-8 bg-white border-2 border-primary/20 rounded-2xl overflow-hidden shadow-lg animate-in fade-in slide-in-from-bottom-4">
-                <div className="bg-primary/5 p-4 border-b border-primary/10 flex justify-between items-start">
+            {/* Selected Invoice Details & Items Stepper */}
+            {selectedInvoice ? (
+              <div className="bg-white rounded-2xl p-6 border border-mint-line shadow-sm space-y-6">
+                {/* Invoice Header Banner */}
+                <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-bg rounded-xl border border-mint-line">
                   <div>
-                    <h3 className="text-[18px] font-black text-primary mb-1 flex items-center gap-2">
-                      {language === "en" ? "Invoice Details:" : "تفاصيل الفاتورة:"}{" "}
-                      <span
-                        className="font-mono text-ink bg-white px-2 py-0.5 rounded-md border border-mint-line"
-                        dir="ltr"
-                      >
-                        {selectedInvoice.id}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[16px] font-black text-primary font-mono">
+                        #{selectedInvoice.id}
                       </span>
-                    </h3>
-                    <p className="text-[14px] text-ink-soft">
-                      {new Date(selectedInvoice.date).toLocaleString(language === "en" ? "en-US" : language === "en" ? "en-US" : "ar-EG")}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setSelectedInvoice(null)}
-                    className="text-ink-soft hover:text-red-500 font-bold text-[13px] bg-white px-3 py-1.5 rounded-lg border border-mint-line"
-                  >
-                    {language === "en" ? "Deselect" : "إلغاء التحديد"}
-                  </button>
-                </div>
-
-                <div className="p-4">
-                  <div className="bg-orange-50 text-orange-800 p-3 rounded-xl mb-4 text-[13px] font-bold flex gap-2 items-center">
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M12 8v4" />
-                      <path d="M12 16h.01" />
-                    </svg>
-                    {language === "en" ? "You can refund the entire invoice, or specify quantities for each item to refund partially." : "يمكنك استرجاع الفاتورة بالكامل، أو تحديد كميات معينة لكل صنف لاسترجاعها جزئياً."}
+                      <span className="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold">
+                        {selectedInvoice.status || "مكتملة"}
+                      </span>
+                    </div>
+                    <div className="text-[12px] text-ink-soft font-semibold mt-1">
+                      {isEn ? "Customer:" : "العميل:"} <strong>{parsedCustomer?.name || (isEn ? "Walk-in" : "نقدي")}</strong> • {isEn ? "Cashier:" : "الكاشير:"} {selectedInvoice.cashierName || "الصيدلي"} • {new Date(selectedInvoice.date || selectedInvoice.created_at).toLocaleString()}
+                    </div>
                   </div>
 
-                  <table className="w-full text-start mb-4 border-collapse">
-                    <thead>
-                      <tr className="text-[12px] text-ink-soft border-b border-mint-line">
-                        <th className="pb-2 font-bold w-1/3 text-start">{language === "en" ? "Item" : "الصنف"}</th>
-                        <th className="pb-2 font-bold text-start">{language === "en" ? "Sold" : "المباع"}</th>
-                        <th className="pb-2 font-bold text-center">
-                          {language === "en" ? "Returned Qty" : "الكمية المسترجعة"}
-                        </th>
-                        <th className="pb-2 font-bold text-start">
-                          {language === "en" ? "Refund Value" : "قيمة الاسترجاع"}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedInvoice.items.map((item: any, idx: number) => {
-                        const maxQty = item.cartQty || item.qty;
-                        const returned = returnQtyMap[item.id] || 0;
-                        return (
-                          <tr
-                            key={idx}
-                            className="border-b border-mint-line/30 last:border-0 hover:bg-mint-bg/30"
-                          >
-                            <td className="py-4 text-[14px] font-bold text-ink">
-                              {item.name}
-                            </td>
-                            <td className="py-4 text-[14px] font-mono text-ink-soft">
-                              {maxQty}
-                            </td>
-                            <td className="py-4 text-center">
-                              <div className="inline-flex items-center gap-3 bg-bg border border-mint-line p-1 rounded-lg">
-                                <button
-                                  onClick={() =>
-                                    handleUpdateQty(item.id, maxQty, 1)
-                                  }
-                                  disabled={returned >= maxQty}
-                                  className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm text-primary hover:bg-mint-bg disabled:opacity-30"
-                                >
-                                  +
-                                </button>
-                                <span className="font-mono font-bold text-[15px] w-4 text-center">
-                                  {returned}
-                                </span>
-                                <button
-                                  onClick={() =>
-                                    handleUpdateQty(item.id, maxQty, -1)
-                                  }
-                                  disabled={returned <= 0}
-                                  className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm text-red-500 hover:bg-red-50 disabled:opacity-30"
-                                >
-                                  -
-                                </button>
-                              </div>
-                            </td>
-                            <td className="py-4 text-[14px] font-mono font-bold text-red-500 text-start">
-                              {returned > 0
-                                ? `-${(item.price * returned).toLocaleString()} ₪`
-                                : "-"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-
-                  <div className="flex flex-col md:flex-row justify-between items-center bg-bg p-4 rounded-xl border border-mint-line gap-4">
-                    <div className="text-center md:text-start">
-                      <div className="font-bold text-ink-soft text-[13px] mb-1">
-                        {language === "en" ? "Previously Paid Total:" : "الإجمالي المدفوع سابقاً:"}
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-[11px] text-ink-soft font-bold">
+                        {isEn ? "Original Total:" : "إجمالي الفاتورة:"}
                       </div>
-                      <div className="font-mono font-bold text-[18px] text-ink">
-                        {selectedInvoice.total.toLocaleString()} ₪
+                      <div className="text-[18px] font-black text-ink font-mono">
+                        {formatCurrency(Number(selectedInvoice.total || 0))}
                       </div>
                     </div>
-                    {partialRefundTotal > 0 && (
-                      <div className="text-center md:text-end bg-red-50 px-4 py-2 rounded-lg border border-red-100">
-                        <div className="font-bold text-red-600 text-[13px] mb-1">
-                          {language === "en" ? "Current Refund Total:" : "إجمالي المرتجع الآن:"}
-                        </div>
-                        <div className="font-mono font-black text-[20px] text-red-600">
-                          -{partialRefundTotal.toLocaleString()} ₪
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-6 flex flex-col sm:flex-row justify-end gap-3">
-                    {selectedItemsToRefund.length > 0 && (
-                      <button
-                        onClick={() => initiateRefund("partial")}
-                        className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-3.5 rounded-xl shadow-lg shadow-orange-500/30 transition-colors flex items-center justify-center gap-2"
-                      >
-                        {language === "en" ? "Refund Selected Items" : "استرجاع الأصناف المحددة"}
-                      </button>
-                    )}
                     <button
-                      onClick={() => initiateRefund("full")}
-                      className="bg-red-500 hover:bg-red-600 text-white font-bold px-6 py-3.5 rounded-xl shadow-lg shadow-red-500/30 transition-colors flex items-center justify-center gap-2"
+                      onClick={() => setSelectedInvoice(null)}
+                      className="text-coral hover:bg-coral/10 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
                     >
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                        <path d="M3 3v5h5" />
-                      </svg>
-                      {language === "en" ? "Refund Entire Invoice" : "استرجاع الفاتورة بالكامل"}
+                      {isEn ? "Close" : "إغلاق"}
                     </button>
                   </div>
+                </div>
+
+                {/* Items Return Table */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[14px] font-black text-ink">
+                      {isEn ? "Invoice Items & Return Conditions:" : "أصناف الفاتورة وتحديد حالة المرتجع:"}
+                    </h3>
+                    <button
+                      onClick={selectAllForFullReturn}
+                      className="text-[12px] text-primary hover:underline font-bold"
+                    >
+                      ⚡ {isEn ? "Select all items for full return" : "تحديد جميع الأصناف لإرجاع كامل"}
+                    </button>
+                  </div>
+
+                  <div className="border border-mint-line rounded-xl overflow-hidden divide-y divide-mint-line">
+                    {parsedInvoiceItems.map((item: any) => {
+                      const maxQty = Number(item.cartQty ?? item.qty ?? 0);
+                      const state = returnItemsState[item.id] || { qty: 0, condition: "restock", reason: "customer_changed_mind" };
+                      const isSelected = state.qty > 0;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`p-4 transition-all flex flex-wrap items-center justify-between gap-4 ${
+                            isSelected ? "bg-emerald-50/40" : "bg-white"
+                          }`}
+                        >
+                          <div className="min-w-[200px] flex-1">
+                            <div className="text-[13px] font-black text-ink">
+                              {item.name}
+                            </div>
+                            <div className="text-[11px] text-ink-soft font-semibold mt-0.5">
+                              {formatCurrency(Number(item.unitPrice ?? item.price ?? 0))} / {item.unit || (isEn ? "unit" : "عبوة")} • {isEn ? "Sold Qty:" : "الكمية المباعة:"} {maxQty}
+                            </div>
+                            {(item.batch_number || item.expiry) && (
+                              <div className="text-[10px] text-ink-soft font-mono mt-0.5">
+                                تشغيلة: {item.batch_number || "—"} | انتهاء: {item.expiry || "—"}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Stepper */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => updateItemQty(item.id, maxQty, -1)}
+                              disabled={state.qty <= 0}
+                              className="w-8 h-8 rounded-lg bg-bg border border-mint-line text-ink font-black hover:bg-mint-line/50 disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              -
+                            </button>
+                            <span className="w-10 text-center font-mono font-black text-[14px]">
+                              {state.qty}
+                            </span>
+                            <button
+                              onClick={() => updateItemQty(item.id, maxQty, 1)}
+                              disabled={state.qty >= maxQty}
+                              className="w-8 h-8 rounded-lg bg-bg border border-mint-line text-ink font-black hover:bg-mint-line/50 disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              +
+                            </button>
+                          </div>
+
+                          {/* Condition & Reason Selector */}
+                          {isSelected && (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <select
+                                value={state.condition}
+                                onChange={(e) => updateItemCondition(item.id, e.target.value as ReturnCondition)}
+                                className={`text-[12px] font-bold px-3 py-1.5 rounded-lg border focus:outline-none ${
+                                  state.condition === "restock"
+                                    ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                                    : "bg-red-50 text-red-800 border-red-300"
+                                }`}
+                              >
+                                {RETURN_CONDITIONS.map((c) => (
+                                  <option key={c.key} value={c.key}>
+                                    {isEn ? c.nameEn : c.nameAr}
+                                  </option>
+                                ))}
+                              </select>
+
+                              <select
+                                value={state.reason}
+                                onChange={(e) => updateItemReason(item.id, e.target.value as ReturnReason)}
+                                className="text-[12px] font-bold bg-bg border border-mint-line rounded-lg px-2.5 py-1.5 text-ink focus:outline-none"
+                              >
+                                {RETURN_REASONS.map((r) => (
+                                  <option key={r.key} value={r.key}>
+                                    {isEn ? r.nameEn : r.nameAr}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Footer Action Bar */}
+                <div className="p-4 bg-bg rounded-xl border border-mint-line flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <div className="text-[12px] text-ink-soft font-bold">
+                      {isEn ? "Selected Return Items:" : "الأصناف المحددة للإرجاع:"}{" "}
+                      <strong className="text-ink">{requestedReturnItems.length}</strong>
+                    </div>
+                    <div className="text-[18px] font-black text-coral font-mono">
+                      {isEn ? "Total Refund:" : "قيمة المرتجع:"} {formatCurrency(currentRefundPreview.totalRefund)}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleOpenSettlement(true)}
+                      className="bg-slate-700 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-[13px] transition-all shadow-sm"
+                    >
+                      🔄 {isEn ? "Full Invoice Refund" : "إرجاع الفاتورة كاملة"}
+                    </button>
+                    <button
+                      onClick={() => handleOpenSettlement(false)}
+                      disabled={requestedReturnItems.length === 0}
+                      className="bg-coral hover:bg-coral/90 text-white px-6 py-2.5 rounded-xl font-bold text-[13px] transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      ✓ {isEn ? "Refund Selected Items" : "إرجاع الأصناف المحددة"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-12 text-center bg-white rounded-2xl border border-dashed border-mint-line text-ink-soft">
+                <div className="text-[32px] mb-2">🧾</div>
+                <div className="text-[14px] font-bold">
+                  {isEn ? "No invoice selected. Search above to begin." : "لم يتم تحديد فاتورة. ابحث أعلاه للبدء بعملية الإرجاع."}
                 </div>
               </div>
             )}
           </div>
         )}
 
+        {/* TAB 2: Returns History */}
         {activeTab === "history" && (
-          <div className="bg-white rounded-[32px] p-6 md:p-8 shadow-sm border border-mint-line">
-            <h2 className="text-[20px] font-black text-primary mb-6">
-              {language === "en" ? "Fully Refunded Invoices History" : "سجل الفواتير المسترجعة (كلياً)"}
-            </h2>
+          <div className="bg-white rounded-2xl p-6 border border-mint-line shadow-sm space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-[16px] font-black text-primary">
+                {isEn ? "Official Returns & Credit Notes Ledger" : "سجل المرتجعات وإشعارات الدائن المعتمدة"}
+              </h2>
 
-            {refundedSales.length === 0 ? (
-              <div className="text-center p-12 text-ink-soft font-bold bg-bg rounded-2xl border border-mint-line">
-                {language === "en" ? "No fully refunded invoices. (Partial refunds remain visible in sales with updated totals)." : "لا توجد فواتير مسترجعة كلياً. (المرتجعات الجزئية تظل ظاهرة في المبيعات مع تحديث إجمالي الفاتورة)."}
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="text"
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  placeholder={isEn ? "Filter by Credit Note #, Customer..." : "تصفية برقم الإشعار، العميل..."}
+                  className="bg-bg border border-mint-line rounded-lg px-3 py-1.5 text-[12px] font-bold text-ink focus:outline-none"
+                />
+
+                {branches.length > 0 && (
+                  <select
+                    value={branchFilter}
+                    onChange={(e) => setBranchFilter(e.target.value)}
+                    className="bg-bg border border-mint-line rounded-lg px-3 py-1.5 text-[12px] font-bold text-primary focus:outline-none"
+                  >
+                    <option value="all">{isEn ? "All Branches" : "جميع الفروع"}</option>
+                    {branches.map((b: any) => (
+                      <option key={b.id} value={b.name}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            {returnsLoading ? (
+              <div className="p-12 text-center text-ink-soft font-bold">
+                {isEn ? "Loading returns ledger..." : "جاري تحميل سجل المرتجعات..."}
+              </div>
+            ) : filteredHistory.length === 0 ? (
+              <div className="p-12 text-center text-ink-soft font-bold">
+                {isEn ? "No return records found." : "لا توجد عمليات إرجاع مسجلة."}
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-start">
+                <table className="w-full text-right text-[12px]">
                   <thead>
-                    <tr className="bg-bg text-ink-soft text-[14px]">
-                      <th className="p-4 font-bold rounded-tr-xl rounded-br-xl text-start">
-                        {language === "en" ? "Invoice No" : "رقم الفاتورة"}
-                      </th>
-                      <th className="p-4 font-bold text-start">{language === "en" ? "Date" : "التاريخ"}</th>
-                      <th className="p-4 font-bold text-start">
-                        {language === "en" ? "Invoice Value (Pre-refund)" : "قيمة الفاتورة (قبل الاسترجاع)"}
-                      </th>
-                      <th className="p-4 font-bold text-start">
-                        {language === "en" ? "Branch" : "الفرع"}
-                      </th>
-                      <th className="p-4 font-bold rounded-tl-xl rounded-bl-xl text-start">
-                        {language === "en" ? "Cashier" : "الكاشير"}
-                      </th>
+                    <tr className="bg-bg border-b border-mint-line text-ink-soft font-bold">
+                      <th className="p-3"># إشعار دائن</th>
+                      <th className="p-3">رقم الفاتورة</th>
+                      <th className="p-3">التاريخ والوقت</th>
+                      <th className="p-3">العميل</th>
+                      <th className="p-3">الفرع</th>
+                      <th className="p-3">الكاشير</th>
+                      <th className="p-3 text-center">المبلغ المسترد</th>
+                      <th className="p-3 text-center">نوع الإرجاع</th>
+                      <th className="p-3 text-center">إجراءات</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {refundedSales.map((sale: any) => (
-                      <tr
-                        key={sale.id}
-                        className="border-b border-mint-line last:border-0 hover:bg-mint-bg/50 transition-colors"
-                      >
-                        <td className="p-4">
-                          <div
-                            className="text-[15px] font-mono font-bold text-ink"
-                            dir="ltr"
-                          >
-                            {sale.id}
-                          </div>
-                          <div className="text-[12px] bg-red-100 text-red-600 px-2 py-0.5 rounded mt-1 inline-block font-bold">
-                            {language === "en" ? "Fully Refunded" : "مسترجعة كلياً"}
-                          </div>
-                        </td>
-                        <td className="p-4 text-[14px] text-ink-soft">
-                          {new Date(sale.date).toLocaleString(language === "en" ? "en-US" : language === "en" ? "en-US" : "ar-EG")}
-                        </td>
-                        <td className="p-4 text-[15px] font-mono font-bold text-red-500">
-                          {sale.total.toLocaleString()} ₪
-                        </td>
-                        <td className="p-4 text-[14px] font-bold text-ink-soft">
-                          {sale.branchName || (language === "en" ? "Main" : "الرئيسي")}
-                        </td>
-                        <td className="p-4 text-[14px] font-bold text-primary">
-                          {sale.cashierName || (language === "en" ? "Unknown" : "غير معروف")}
-                        </td>
-                      </tr>
-                    ))}
+                  <tbody className="divide-y divide-mint-line">
+                    {filteredHistory.map((ret: any) => {
+                      const custName = ret.customer?.name || (typeof ret.customer === "string" ? ret.customer : "عميل نقدي");
+                      const isFull = ret.status === "refunded";
+                      const amt = Math.abs(Number(ret.total || ret.refundedAmount || 0));
+
+                      return (
+                        <tr key={ret.id} className="hover:bg-bg/50 transition-all">
+                          <td className="p-3 font-mono font-black text-primary">
+                            {ret.creditNoteNumber || `CN-${ret.id.replace(/^(REF-|INV-)/, "").slice(0, 8)}`}
+                          </td>
+                          <td className="p-3 font-mono text-ink-soft">
+                            #{ret.notes?.originalSaleId || ret.id}
+                          </td>
+                          <td className="p-3 text-ink-soft font-mono">
+                            {new Date(ret.date || ret.created_at).toLocaleString()}
+                          </td>
+                          <td className="p-3 font-bold text-ink">
+                            {custName}
+                          </td>
+                          <td className="p-3 text-ink-soft">
+                            {ret.branchName || "الفرع الرئيسي"}
+                          </td>
+                          <td className="p-3 text-ink-soft">
+                            {ret.cashierName || "الكاشير"}
+                          </td>
+                          <td className="p-3 text-center font-mono font-black text-coral">
+                            {formatCurrency(amt)}
+                          </td>
+                          <td className="p-3 text-center">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                isFull
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-amber-100 text-amber-800"
+                              }`}
+                            >
+                              {isFull ? (isEn ? "Full" : "إرجاع كامل") : (isEn ? "Partial" : "إرجاع جزئي")}
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <button
+                              onClick={() => handleViewCreditNote(ret.id)}
+                              className="bg-primary/10 hover:bg-primary text-primary hover:text-white px-3 py-1 rounded-lg font-bold text-[11px] transition-all"
+                            >
+                              🖨️ {isEn ? "Credit Note" : "إشعار الدائن"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -638,268 +808,153 @@ export default function Returns() {
         )}
       </div>
 
-      {/* Confirmation Modal */}
-      {showConfirmModal && selectedInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl p-8 relative overflow-hidden">
-            <div className="absolute -top-10 -right-10 text-red-500/10">
-              <svg
-                width="150"
-                height="150"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-            </div>
-
-            <div className="relative z-10">
-              <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-6 shadow-sm">
-                <svg
-                  width="32"
-                  height="32"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                </svg>
-              </div>
-
-              <h2 className="text-[22px] font-black text-ink mb-2">
-                {refundMode === "full"
-                  ? language === "en" ? "Refund Entire Invoice?" : "استرجاع الفاتورة بالكامل؟"
-                  : language === "en" ? "Refund Selected Items?" : "استرجاع الأصناف المحددة؟"}
-              </h2>
-
-              <p className="text-[15px] font-medium text-ink-soft mb-6 leading-relaxed">
-                {refundMode === "full" ? (
-                  <>
-                    {language === "en" ? "All items for invoice " : "سيتم إرجاع جميع الأصناف للفاتورة "}
-                    <span
-                      className="font-mono font-bold text-primary"
-                      dir="ltr"
-                    >
-                      {selectedInvoice.id}
-                    </span>{" "}
-                    {language === "en" ? " will be returned to stock." : "إلى المخزون."}
-                  </>
-                ) : (
-                  <>
-                    {language === "en" ? "Will return " : "سيتم إرجاع "}
-                    <span className="font-bold text-red-500">
-                      {selectedItemsToRefund.length}
-                    </span>{" "}
-                    {language === "en" ? " selected items valued at " : "أصناف محددة بقيمة "}
-                    <span className="font-mono font-bold text-red-500">
-                      {partialRefundTotal} ₪
-                    </span>{" "}
-                    {language === "en" ? " to stock." : "إلى المخزون."}
-                  </>
-                )}
-                <br />
-                <br />
-                <span className="text-red-500 font-bold">{language === "en" ? "Note:" : "ملاحظة:"}</span> {language === "en" ? " This action cannot be undone after confirmation." : "لا يمكنك التراجع عن هذه العملية بعد التأكيد."}
-              </p>
-
-              <div className="flex gap-3 mt-4">
-                <button
-                  onClick={() => handleRefund()}
-                  disabled={isRefunding}
-                  className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-red-500/30 transition-all flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isRefunding ? (language === "en" ? "Refunding..." : "جارٍ الاسترجاع...") : (language === "en" ? "Confirm Refund" : "تأكيد الاسترجاع")}
-                </button>
-                <button
-                  onClick={() => setShowConfirmModal(false)}
-                  disabled={isRefunding}
-                  className="px-6 py-3.5 font-bold text-ink-soft bg-bg border border-mint-line hover:bg-mint-bg rounded-xl transition-colors disabled:opacity-50"
-                >
-                  {language === "en" ? "Cancel" : "إلغاء"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Smart Debt & Credit Settlement Modal */}
-      {showSettlementModal && settlementData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-lg rounded-[32px] shadow-2xl p-7 relative overflow-hidden border border-mint-line">
-            {/* Header */}
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-mint-line">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <polyline points="16 11 18 13 22 9" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-[18px] font-black text-ink">
-                    {language === "en" ? "Refund Settlement Choice" : "تسوية مستحقات المرتجع للزبون"}
-                  </h3>
-                  <p className="text-[13px] font-bold text-ink-soft">
-                    {settlementData.customer?.name} ({settlementData.customer?.phone || settlementData.customer?.id})
-                  </p>
-                </div>
-              </div>
+      {/* Settlement Modal */}
+      {showSettlementModal && settlementDraft && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-5 border border-mint-line shadow-2xl">
+            <div className="flex items-center justify-between border-b border-mint-line pb-3">
+              <h3 className="text-[16px] font-black text-primary">
+                {isEn ? "Confirm Return Settlement" : "تأكيد تسوية مبلغ المرتجع"}
+              </h3>
               <button
                 onClick={() => setShowSettlementModal(false)}
-                className="w-8 h-8 rounded-full bg-bg hover:bg-mint-bg flex items-center justify-center text-ink-soft transition-colors"
+                className="text-ink-soft hover:text-ink font-bold"
               >
                 ✕
               </button>
             </div>
 
-            {/* Breakdown Card */}
-            <div className="bg-[#F8FAFC] border border-mint-line rounded-2xl p-4 space-y-2.5 mb-5 text-[14px]">
-              <div className="flex justify-between items-center text-ink-soft">
-                <span>{language === "en" ? "Total Refund Amount:" : "إجمالي المبلغ المسترجع:"}</span>
-                <span className="font-mono font-black text-[16px] text-ink">
-                  {settlementData.totalRefund?.toFixed(2)} ₪
-                </span>
+            <div className="space-y-3 bg-bg p-4 rounded-2xl border border-mint-line">
+              <div className="flex justify-between text-[13px]">
+                <span className="text-ink-soft font-bold">{isEn ? "Total Refund Amount:" : "إجمالي قيمة المرتجع:"}</span>
+                <span className="font-mono font-black text-coral">{formatCurrency(settlementDraft.settlement.refundAmount)}</span>
               </div>
 
-              {settlementData.debtToCancel > 0 && (
-                <div className="flex justify-between items-center text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
-                  <span className="font-bold">{language === "en" ? "Drop remaining invoice debt:" : "إسقاط الذمم المتبقية من الفاتورة:"}</span>
-                  <span className="font-mono font-black text-[15px]">
-                    -{settlementData.debtToCancel?.toFixed(2)} ₪
-                  </span>
+              {settlementDraft.settlement.debtToCancel > 0 && (
+                <div className="flex justify-between text-[13px] text-amber-800 font-bold bg-amber-50 p-2 rounded-lg">
+                  <span>{isEn ? "Cancel Customer Debt:" : "شطب من ذمم العميل:"}</span>
+                  <span className="font-mono">{formatCurrency(settlementDraft.settlement.debtToCancel)}</span>
                 </div>
               )}
 
-              <div className="flex justify-between items-center text-blue-700 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200">
-                <span className="font-bold">
-                  {language === "en" ? `Paid portion to settle (${settlementData.paidMethodName}):` : `المبلغ المدفوع مسبقاً (${settlementData.paidMethodName}):`}
-                </span>
-                <span className="font-mono font-black text-[16px]">
-                  {settlementData.paidAmountToRefund?.toFixed(2)} ₪
-                </span>
+              <div className="flex justify-between text-[13px] text-primary font-bold">
+                <span>{isEn ? "Net Paid Refund:" : "المبلغ المتبقي للصرف:"}</span>
+                <span className="font-mono">{formatCurrency(settlementDraft.settlement.paidAmountToRefund)}</span>
               </div>
-
-              {settlementData.previousOtherDebt > 0 ? (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[12px] flex items-center gap-2">
-                  <span className="text-[16px]">⚠️</span>
-                  <span>
-                    {language === "en"
-                      ? `Customer has other previous debt of ₪${settlementData.previousOtherDebt.toFixed(2)} unrelated to this returned invoice.`
-                      : `ملاحظة: على الزبون ديون سابقة أخرى بقيمة (${settlementData.previousOtherDebt.toFixed(2)} ₪) غير مرتبطة بهذه الفاتورة.`}
-                  </span>
-                </div>
-              ) : (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-[12px] flex items-center gap-2">
-                  <span className="text-[16px]">✅</span>
-                  <span>
-                    {language === "en"
-                      ? "Customer account is clean with no previous debt."
-                      : "حساب الزبون صافٍ ولا توجد عليه أي ديون سابقة."}
-                  </span>
-                </div>
-              )}
             </div>
 
-            {/* Prompt */}
-            <p className="text-[14px] font-bold text-ink mb-3 text-start">
-              {language === "en"
-                ? `Choose how to handle the paid amount (₪${settlementData.paidAmountToRefund?.toFixed(2)}):`
-                : `حدد رغبة الزبون في استرجاع المبلغ المدفوع (${settlementData.paidAmountToRefund?.toFixed(2)} ₪):`}
-            </p>
+            {/* Payout Channel Selector (if paid refund > 0) */}
+            {settlementDraft.settlement.paidAmountToRefund > 0 && (
+              <div className="space-y-2">
+                <label className="text-[12px] font-bold text-ink block">
+                  {isEn ? "How would you like to refund the net amount?" : "كيف ترغب في تسوية المبلغ المتبقي؟"}
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSettlementDraft((prev: any) => ({ ...prev, returnPaidMode: "cash_out" }))}
+                    className={`p-3 rounded-xl border text-[12px] font-bold text-center transition-all ${
+                      settlementDraft.returnPaidMode === "cash_out"
+                        ? "bg-primary text-white border-primary shadow-sm"
+                        : "bg-white text-ink border-mint-line hover:bg-bg"
+                    }`}
+                  >
+                    💵 {isEn ? "Cash Drawer Payout" : "صرف نقدي من الدرج"}
+                  </button>
 
-            {/* 2 Main Action Buttons */}
-            <div className="space-y-3">
-              {/* Button 1: Credit Balance */}
-              <button
-                onClick={() => {
-                  handleRefund({
-                    returnPaidMode: "credit_balance",
-                    debtToCancel: settlementData.debtToCancel,
-                    paidAmountToRefund: settlementData.paidAmountToRefund,
-                    paymentMethod: selectedInvoice.paymentMethod || "cash",
-                    customerId: settlementData.customer?.id,
-                    customerName: settlementData.customer?.name,
-                  });
-                }}
-                disabled={isRefunding}
-                className="w-full p-4 rounded-2xl bg-[#1E3A8A] hover:bg-[#1E40AF] text-white text-start transition-all shadow-md shadow-blue-900/20 flex items-center gap-4 group disabled:opacity-50"
-              >
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 text-white">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <polyline points="16 11 18 13 22 9" />
-                  </svg>
+                  <button
+                    type="button"
+                    onClick={() => setSettlementDraft((prev: any) => ({ ...prev, returnPaidMode: "credit_balance" }))}
+                    className={`p-3 rounded-xl border text-[12px] font-bold text-center transition-all ${
+                      settlementDraft.returnPaidMode === "credit_balance"
+                        ? "bg-primary text-white border-primary shadow-sm"
+                        : "bg-white text-ink border-mint-line hover:bg-bg"
+                    }`}
+                  >
+                    💳 {isEn ? "Customer Store Credit" : "إيداع كرصيد دائن للعميل"}
+                  </button>
                 </div>
-                <div className="flex-1">
-                  <div className="font-black text-[15px] text-white">
-                    {language === "en" ? "Transfer to Customer Credit Balance" : "تحويل إلى رصيد الزبون (مستحق له)"}
-                  </div>
-                  <div className="text-[12px] text-blue-200 mt-0.5">
-                    {settlementData.previousOtherDebt > 0
-                      ? (language === "en" ? `Deduct from previous debt (₪${settlementData.previousOtherDebt.toFixed(2)})` : `سداد وخصم من ديونه السابقة المتبقية (${settlementData.previousOtherDebt.toFixed(2)} ₪)`)
-                      : (language === "en" ? "Add as store credit for future purchases (shows in green)" : "قيد المبلغ كرصيد دائن مستحق له للشراء به لاحقاً (يظهر بالأخضر)")}
-                  </div>
-                </div>
-              </button>
+              </div>
+            )}
 
-              {/* Button 2: Cash Out */}
-              <button
-                onClick={() => {
-                  handleRefund({
-                    returnPaidMode: "cash_out",
-                    debtToCancel: settlementData.debtToCancel,
-                    paidAmountToRefund: settlementData.paidAmountToRefund,
-                    paymentMethod: selectedInvoice.paymentMethod || "cash",
-                    customerId: settlementData.customer?.id,
-                    customerName: settlementData.customer?.name,
-                  });
-                }}
-                disabled={isRefunding}
-                className="w-full p-4 rounded-2xl bg-[#059669] hover:bg-[#047857] text-white text-start transition-all shadow-md shadow-emerald-900/20 flex items-center gap-4 group disabled:opacity-50"
-              >
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 text-white">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="1" x2="12" y2="23" />
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <div className="font-black text-[15px] text-white">
-                    {language === "en" ? `Receive Remaining Amount (${settlementData.paidMethodName})` : `استلام باقي المبلغ (${settlementData.paidMethodName})`}
-                  </div>
-                  <div className="text-[12px] text-emerald-200 mt-0.5">
-                    {language === "en"
-                      ? "Pay out to customer now without touching previous debts"
-                      : "إرجاع المبلغ للزبون بيده فوراً دون المساس بأي ديون سابقة"}
-                  </div>
-                </div>
-              </button>
-
-              {/* Cancel Button */}
+            <div className="flex items-center gap-2 pt-2">
               <button
                 onClick={() => setShowSettlementModal(false)}
-                disabled={isRefunding}
-                className="w-full py-3 rounded-xl border border-mint-line text-ink-soft hover:bg-bg font-bold text-[14px] transition-colors"
+                className="flex-1 bg-bg hover:bg-mint-line/30 text-ink-soft py-3 rounded-xl font-bold text-[13px] transition-all"
               >
-                {language === "en" ? "Cancel" : "إلغاء التراجع"}
+                {isEn ? "Cancel" : "إلغاء"}
+              </button>
+              <button
+                onClick={handleExecuteReturn}
+                disabled={isSubmitting}
+                className="flex-1 bg-coral hover:bg-coral/90 text-white py-3 rounded-xl font-bold text-[13px] transition-all shadow-md disabled:opacity-50"
+              >
+                {isSubmitting ? (isEn ? "Processing..." : "جاري التنفيذ...") : (isEn ? "Confirm Return" : "تأكيد واعتماد الإرجاع")}
               </button>
             </div>
           </div>
         </div>
       )}
-    </main>
+
+      {/* Credit Note Viewer & Print Modal */}
+      {showCreditNoteModal && activeCreditNote && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-4 border border-mint-line shadow-2xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-mint-line pb-3">
+              <div>
+                <h3 className="text-[16px] font-black text-primary">
+                  {isEn ? "Official Credit Note" : "إشعار دائن وسند إرجاع رسمي معتمد"}
+                </h3>
+                <div className="text-[12px] font-mono text-ink-soft">
+                  {activeCreditNote.creditNoteNumber}
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCreditNoteModal(false)}
+                className="text-ink-soft hover:text-ink font-bold text-[16px]"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Document Preview Frame */}
+            <div
+              className="flex-1 overflow-y-auto border border-mint-line rounded-2xl p-4 bg-white shadow-inner"
+              dangerouslySetInnerHTML={{
+                __html: buildCreditNoteHtml({
+                  creditNote: activeCreditNote,
+                  pharmacyName: user?.pharmacyName || "صيدلية روشتة",
+                  branchName: user?.branch || "الفرع الرئيسي",
+                  language,
+                }),
+              }}
+            />
+
+            <div className="flex items-center justify-between gap-3 pt-2 border-t border-mint-line">
+              <button
+                onClick={() => setShowCreditNoteModal(false)}
+                className="bg-bg hover:bg-mint-line/30 text-ink-soft px-5 py-2.5 rounded-xl font-bold text-[13px] transition-all"
+              >
+                {isEn ? "Close" : "إغلاق"}
+              </button>
+              <button
+                onClick={() =>
+                  printCreditNote({
+                    creditNote: activeCreditNote,
+                    pharmacyName: user?.pharmacyName || "صيدلية روشتة",
+                    branchName: user?.branch || "الفرع الرئيسي",
+                    language,
+                  })
+                }
+                className="bg-primary hover:opacity-95 text-white px-6 py-2.5 rounded-xl font-bold text-[13px] transition-all shadow-md flex items-center gap-2"
+              >
+                <span>🖨️</span>
+                <span>{isEn ? "Print Vector Credit Note" : "طباعة إشعار الدائن"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

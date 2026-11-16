@@ -388,10 +388,13 @@ export const exportComprehensivePDF = async (
       <head>
         <meta charset="utf-8" />
         <title>${filename}</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
         <style>
           @page {
             size: A4 portrait;
-            margin: 12mm 14mm 15mm 14mm;
+            margin: 8mm 10mm 8mm 10mm;
           }
           * {
             box-sizing: border-box;
@@ -401,17 +404,20 @@ export const exportComprehensivePDF = async (
           body {
             margin: 0;
             padding: 0;
-            font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-family: 'Cairo', 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
             background: #ffffff;
             color: #1e293b;
             direction: ${isEn ? "ltr" : "rtl"};
+            text-rendering: geometricPrecision;
+            -webkit-font-smoothing: antialiased;
           }
           table {
-            page-break-inside: auto;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
           tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
           thead {
             display: table-header-group;
@@ -428,12 +434,26 @@ export const exportComprehensivePDF = async (
       <body>
         ${htmlContent}
         <script>
-          window.onload = function() {
-            setTimeout(function() {
-              window.focus();
-              window.print();
-            }, 350);
-          };
+          function triggerPrint() {
+            if (document.fonts && document.fonts.ready) {
+              document.fonts.ready.then(function() {
+                setTimeout(function() {
+                  window.focus();
+                  window.print();
+                }, 150);
+              });
+            } else {
+              setTimeout(function() {
+                window.focus();
+                window.print();
+              }, 300);
+            }
+          }
+          if (document.readyState === 'complete') {
+            triggerPrint();
+          } else {
+            window.onload = triggerPrint;
+          }
         </script>
       </body>
     </html>
