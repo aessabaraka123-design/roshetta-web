@@ -215,8 +215,10 @@ export function SessionSetupModal({
                   notes: notes.trim(),
                   items: scopedItems,
                 });
-                onClose();
               } catch (_) {}
+              finally {
+                onClose();
+              }
             }}
             className="px-5 py-2 rounded-[12px] bg-primary text-white text-[13px] font-black hover:bg-primary/90 disabled:opacity-50"
           >

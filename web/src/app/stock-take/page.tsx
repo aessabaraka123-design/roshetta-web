@@ -264,11 +264,12 @@ export default function StockTakePage() {
     const id = String(item.id);
     const cur = drafts[id] || getDraftForItem(item);
     const curMap = new Map<string, BatchCountEntry>();
+    const isBlind = Boolean(activeSession ? activeSession.blind_mode : blindModeLocal);
     for (const b of existingBatches) {
       curMap.set(`${b.batch_number}__${b.expiry}`, {
         batch_number: b.batch_number,
         expiry: b.expiry,
-        qty: Number(b.qty || 0),
+        qty: isBlind ? 0 : Number(b.qty || 0),
         cost: Number(b.cost ?? item.cost ?? item.purchase_price ?? 0),
       });
     }
@@ -1435,7 +1436,7 @@ export default function StockTakePage() {
                                         const matchEntry = (draft.batchCounts || []).find(
                                           (bc) => bc.batch_number === b.batch_number && bc.expiry === b.expiry
                                         );
-                                        const val = matchEntry ? matchEntry.qty : Number(b.qty || 0);
+                                        const val = matchEntry ? matchEntry.qty : (maskNumbersNow ? "" : Number(b.qty || 0));
                                         return (
                                           <div
                                             key={`${b.batch_number}_${b.expiry}`}

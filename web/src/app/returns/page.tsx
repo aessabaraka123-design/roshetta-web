@@ -758,7 +758,7 @@ export default function ReturnsPage() {
                       try { items = typeof ret.items === "string" ? JSON.parse(ret.items) : (ret.items || []); } catch {}
                       let notes: any = null;
                       try { notes = typeof ret.notes === "string" ? JSON.parse(ret.notes) : (ret.notes || {}); } catch {}
-                      const amt = resolveRefundAmount(ret, items, notes);
+                      const amt = Number(ret.refundedAmount) > 0 ? Number(ret.refundedAmount) : resolveRefundAmount(ret, items, notes);
 
                       return (
                         <tr key={ret.id} className="hover:bg-bg/50 transition-all">

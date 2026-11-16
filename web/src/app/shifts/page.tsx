@@ -141,19 +141,31 @@ export default function ShiftsPage() {
 
   const isMyShift = useCallback((s: any) => {
     if (!s || !user) return false;
-    const uEmail = (user.email || "").toLowerCase();
-    const uName = (user.managerName || user.name || user.username || "").trim().toLowerCase();
-    const sEmail = (s.cashier_email || "").toLowerCase();
-    const sName = (s.cashier_name || "").trim().toLowerCase();
+    const uEmail = String(user.email || "").toLowerCase();
+    const uName = String(user.managerName || user.name || user.username || "").trim().toLowerCase();
+    const sEmail = String(s.cashier_email || "").toLowerCase();
+    const sName = String(s.cashier_name || "").trim().toLowerCase();
     return Boolean((uEmail && sEmail && uEmail === sEmail) || (uName && sName && uName === sName));
   }, [user]);
+
+  // Safe Time Formatter
+  const formatShiftTime = (timeStr: any) => {
+    if (!timeStr) return "";
+    try {
+      const d = new Date(timeStr);
+      if (isNaN(d.getTime())) return "";
+      return d.toLocaleTimeString(isEn ? "en-US" : "ar-EG", { hour: "2-digit", minute: "2-digit" });
+    } catch {
+      return "";
+    }
+  };
 
   // Active shifts list
   const activeShifts: any[] = useMemo(() => {
     if (currentData?.active_shifts && Array.isArray(currentData.active_shifts)) {
-      return currentData.active_shifts;
+      return currentData.active_shifts.filter(Boolean);
     }
-    return shifts.filter((s: any) => s.status === "open");
+    return shifts.filter((s: any) => s && s.status === "open");
   }, [currentData, shifts]);
 
   // For cashiers: only view own active shift. For manager: view all.
@@ -164,7 +176,7 @@ export default function ShiftsPage() {
 
   // Closed shifts
   const closedShifts: any[] = useMemo(() => {
-    return shifts.filter((s: any) => s.status === "closed");
+    return shifts.filter((s: any) => s && s.status === "closed");
   }, [shifts]);
 
   const visibleClosedShifts = useMemo(() => {
@@ -177,9 +189,9 @@ export default function ShiftsPage() {
     return visibleClosedShifts.filter((s: any) => {
       const matchSearch =
         !historySearch ||
-        (s.cashier_name || "").toLowerCase().includes(historySearch.toLowerCase()) ||
-        (s.cashier_email || "").toLowerCase().includes(historySearch.toLowerCase()) ||
-        (s.notes || "").toLowerCase().includes(historySearch.toLowerCase());
+        String(s.cashier_name || "").toLowerCase().includes(historySearch.toLowerCase()) ||
+        String(s.cashier_email || "").toLowerCase().includes(historySearch.toLowerCase()) ||
+        String(s.notes || "").toLowerCase().includes(historySearch.toLowerCase());
       const matchBranch =
         !isManager ||
         historyBranchFilter === "all" ||
@@ -201,11 +213,17 @@ export default function ShiftsPage() {
   // Helper for Duration
   const getDuration = (openTime: string, closeTime?: string) => {
     if (!openTime) return "--";
-    const endTime = closeTime ? new Date(closeTime).getTime() : Date.now();
-    const diff = Math.max(0, endTime - new Date(openTime).getTime());
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    return isEn ? `${h}h ${m}m` : `${h}س ${m}د`;
+    try {
+      const startTime = new Date(openTime).getTime();
+      if (isNaN(startTime)) return "--";
+      const endTime = closeTime ? new Date(closeTime).getTime() : Date.now();
+      const diff = Math.max(0, endTime - startTime);
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      return isEn ? `${h}h ${m}m` : `${h}س ${m}د`;
+    } catch {
+      return "--";
+    }
   };
 
   // Denomination counter updater
@@ -430,8 +448,12 @@ export default function ShiftsPage() {
   const totalCashInActiveDrawers = useMemo(() => {
     return round2(
       activeShifts.reduce((sum, s) => {
-        const exp = Number(s.live_expected_amount ?? (Number(s.opening_amount || 0) + Number(s.live_cash_sales || 0) - Number(s.live_cash_expenses || 0)));
-        return sum + exp;
+        if (!s) return sum;
+        const opening = Number(s.opening_amount || 0);
+        const cashSales = Number(s.live_cash_sales || s.cash_sales || 0);
+        const cashExp = Number(s.live_cash_expenses ?? s.live_expenses ?? 0);
+        const exp = Number(s.live_expected_amount ?? (opening + cashSales - cashExp));
+        return sum + (Number.isFinite(exp) ? exp : 0);
       }, 0)
     );
   }, [activeShifts]);
@@ -603,13 +625,17 @@ export default function ShiftsPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {visibleActiveShifts.map((shift: any) => {
+                  if (!shift) return null;
                   const opening = Number(shift.opening_amount || 0);
                   const cashSales = Number(shift.live_cash_sales || shift.cash_sales || 0);
                   const cashExp = Number(shift.live_cash_expenses ?? shift.live_expenses ?? 0);
-                  const expected = Number(shift.live_expected_amount ?? (opening + cashSales - cashExp));
+                  const expectedVal = Number(shift.live_expected_amount ?? (opening + cashSales - cashExp));
+                  const expected = Number.isFinite(expectedVal) ? expectedVal : 0;
                   const digital = Number(shift.live_digital_sales || shift.digital_sales || 0);
                   const credit = Number(shift.live_credit_sales || shift.credit_sales || 0);
-                  const totalShiftSales = round2(cashSales + digital + credit);
+                  const totalShiftSales = round2((Number.isFinite(cashSales) ? cashSales : 0) + (Number.isFinite(digital) ? digital : 0) + (Number.isFinite(credit) ? credit : 0));
+                  const cashierDisplay = String(shift.cashier_name || "كاشير");
+                  const initialLetter = cashierDisplay.trim().charAt(0) || "ك";
 
                   const isMine = isMyShift(shift);
 
@@ -622,11 +648,11 @@ export default function ShiftsPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-11 h-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black text-base">
-                            {(shift.cashier_name || "ك").charAt(0)}
+                            {initialLetter}
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <h3 className="font-black text-ink text-base">{shift.cashier_name || "كاشير"}</h3>
+                              <h3 className="font-black text-ink text-base">{cashierDisplay}</h3>
                               {isMine && (
                                 <span className="bg-teal/15 text-teal text-[11px] font-black px-2 py-0.5 rounded-full">
                                   {isEn ? "You" : "وردتك أنت"}
@@ -655,7 +681,7 @@ export default function ShiftsPage() {
                         <div className="text-xs font-black text-primary flex items-center justify-between">
                           <span>💵 {isEn ? "Cash Drawer Live Balance" : "نقدية الصندوق (الدرج الفعلي)"}</span>
                           <span className="text-ink-soft font-mono text-[11px]">
-                            {shift.open_time ? new Date(shift.open_time).toLocaleTimeString(isEn ? "en-US" : "ar-EG", { hour: "2-digit", minute: "2-digit" }) : ""}
+                            {formatShiftTime(shift.open_time)}
                           </span>
                         </div>
 
