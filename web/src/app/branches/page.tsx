@@ -8,7 +8,6 @@ import useSWR from "swr";
 import AppBar from "@/components/AppBar";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import SearchBar from "@/components/SearchBar";
-import { API_BASE_URL } from "@/lib/config";
 import { useStore } from "@/store";
 import {
   isBranchActive,

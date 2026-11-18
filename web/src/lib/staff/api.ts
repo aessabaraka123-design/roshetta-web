@@ -1,7 +1,7 @@
 import useSWR, { mutate } from "swr";
 import { API_BASE_URL } from "@/lib/config";
 import { getWebAuthHeaders } from "@/lib/customers/transport";
-import { StaffRecord, StaffQuotaResult, validateStaffInput, StaffValidationResult } from "./domain";
+import { StaffRecord, StaffQuotaResult } from "./domain";
 
 export const API_BASE = API_BASE_URL;
 

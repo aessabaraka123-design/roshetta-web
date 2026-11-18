@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import masterDrugsData from "@/data/masterDrugs.json";
-import { API_BASE_URL } from "@/lib/config";
 import toast from "react-hot-toast";
 import { useStore } from "@/store";
 import { normalizeExpiryIso, normalizeSearchText } from "@/lib/inventory/domain";
@@ -24,6 +23,7 @@ export interface MasterDrug {
   sub2Count?: number;
   isControlled?: number;
   description?: string;
+  isGaza?: boolean;
 }
 
 interface Props {
@@ -65,7 +65,7 @@ export default function MasterCatalogModal({
 
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("الكل");
-  const [statusFilter, setStatusFilter] = useState<"all" | "in_stock" | "not_in_stock" | "controlled">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "gaza" | "in_stock" | "not_in_stock" | "controlled">("all");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 30;
   const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -165,6 +165,7 @@ export default function MasterCatalogModal({
       }
 
       // Status filter
+      if (statusFilter === "gaza" && !drug.isGaza) return false;
       const inStock = Boolean(getInStockItem(drug));
       if (statusFilter === "in_stock" && !inStock) return false;
       if (statusFilter === "not_in_stock" && inStock) return false;
@@ -387,6 +388,17 @@ export default function MasterCatalogModal({
               الكل ({filteredDrugs.length.toLocaleString()})
             </button>
             <button
+              onClick={() => setStatusFilter(statusFilter === "gaza" ? "all" : "gaza")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                statusFilter === "gaza"
+                  ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400"
+                  : "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200"
+              }`}
+            >
+              <span>🇵🇸</span>
+              <span>أدوية غزة</span>
+            </button>
+            <button
               onClick={() => setStatusFilter("in_stock")}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 statusFilter === "in_stock" ? "bg-teal text-white shadow-sm" : "text-ink-soft hover:text-ink"
@@ -463,6 +475,11 @@ export default function MasterCatalogModal({
                             غير مضاف
                           </span>
                         )}
+                        {drug.isGaza ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            🇵🇸 غزة
+                          </span>
+                        ) : null}
                         {drug.isControlled ? (
                           <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-coral-pale text-coral border border-coral/30 animate-pulse">
                             🚨 مراقب قانونياً
